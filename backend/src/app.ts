@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import authRoutes from './routes/auth.routes';
 
 dotenv.config();
 
@@ -15,7 +16,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check — sirve para verificar que el servidor está vivo
+// Health check
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
@@ -24,8 +25,8 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-// Rutas (se agregan en fases siguientes)
-// app.use('/api/auth', authRoutes);
+// Rutas
+app.use('/api/auth', authRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 TalentBridge API corriendo en http://localhost:${PORT}`);
