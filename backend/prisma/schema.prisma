@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  GRADUATE
+  COMPANY
+  INSTITUTION
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         Role
+  isVerified   Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  otpCodes         OtpCode[]
+  resetTokens      ResetToken[]
+  candidateProfile CandidateProfile?
+  companyProfile   CompanyProfile?
+
+  @@map("users")
+}
+
+model OtpCode {
+  id        String   @id @default(uuid())
+  code      String
+  userId    String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("otp_codes")
+}
+
+model ResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("reset_tokens")
+}
+
+model CandidateProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  fullName       String?
+  phone          String?
+  photoUrl       String?
+  summary        String?
+  career         String?
+  semester       Int?
+  graduationYear Int?
+  institution    String?
+  skills         String[]
+  softSkills     String[]
+  languages      Json?
+  projects       Json?
+  certifications Json?
+  cvUrl          String?
+  salaryExpected Int?
+  workMode       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("candidate_profiles")
+}
+
+model CompanyProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  companyName   String?
+  nit           String?
+  sector        String?
+  employeeCount String?
+  description   String?
+  logoUrl       String?
+  website       String?
+  contactEmail  String?
+  contactPhone  String?
+  city          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("company_profiles")
+}
