@@ -1,0 +1,76 @@
+import { Response } from 'express';
+import { AuthRequest } from '../middlewares/auth.middleware';
+import * as profileService from '../services/profile.service';
+
+// ─── PERFIL CANDIDATO ─────────────────────────────────────────────────────────
+
+export async function getCandidateProfile(req: AuthRequest, res: Response) {
+  try {
+    const userId = req.user!.userId;
+    const profile = await profileService.getCandidateProfile(userId);
+    res.json(profile ?? {});
+  } catch (err) {
+    console.error('getCandidateProfile error:', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+}
+
+export async function updateCandidateProfile(req: AuthRequest, res: Response) {
+  try {
+    const userId = req.user!.userId;
+    const profile = await profileService.upsertCandidateProfile(userId, req.body);
+    res.json(profile);
+  } catch (err) {
+    console.error('updateCandidateProfile error:', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+}
+
+// ─── PERFIL EMPRESA ───────────────────────────────────────────────────────────
+
+export async function getCompanyProfile(req: AuthRequest, res: Response) {
+  try {
+    const userId = req.user!.userId;
+    const profile = await profileService.getCompanyProfile(userId);
+    res.json(profile ?? {});
+  } catch (err) {
+    console.error('getCompanyProfile error:', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+}
+
+export async function updateCompanyProfile(req: AuthRequest, res: Response) {
+  try {
+    const userId = req.user!.userId;
+    const profile = await profileService.upsertCompanyProfile(userId, req.body);
+    res.json(profile);
+  } catch (err) {
+    console.error('updateCompanyProfile error:', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+}
+
+// ─── CARGA DE CV ──────────────────────────────────────────────────────────────
+
+export async function uploadCv(req: AuthRequest, res: Response) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No se recibió ningún archivo.' });
+    }
+
+    const userId = req.user!.userId;
+    const cvUrl = await profileService.saveCvLocally(
+      userId,
+      req.file.buffer,
+      req.file.originalname
+    );
+
+    res.json({ message: 'CV cargado exitosamente.', cvUrl });
+  } catch (err: any) {
+    if (err.message === 'INVALID_FILE_TYPE') {
+      return res.status(400).json({ error: 'Solo se permiten archivos PDF.' });
+    }
+    console.error('uploadCv error:', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+}
