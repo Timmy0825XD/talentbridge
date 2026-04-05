@@ -38,7 +38,6 @@ export async function registerUser(
 
   // Enviar el correo con el OTP
   await sendOtpEmail(email, code);
-
   return { userId: user.id };
 }
 
