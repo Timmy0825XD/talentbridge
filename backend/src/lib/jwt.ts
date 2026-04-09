@@ -1,7 +1,5 @@
 import jwt from 'jsonwebtoken';
 
-const SECRET = process.env.JWT_SECRET as string;
-
 export interface JwtPayload {
   userId: string;
   role: string;
@@ -9,10 +7,14 @@ export interface JwtPayload {
 
 // Genera un token JWT firmado con el userId y role
 export function signToken(payload: JwtPayload): string {
-  return jwt.sign(payload, SECRET, { expiresIn: '7d' });
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET no está definido en las variables de entorno');
+  return jwt.sign(payload, secret, { expiresIn: '7d' });
 }
 
 // Verifica y decodifica un token JWT
 export function verifyToken(token: string): JwtPayload {
-  return jwt.verify(token, SECRET) as JwtPayload;
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET no está definido en las variables de entorno');
+  return jwt.verify(token, secret) as JwtPayload;
 }
