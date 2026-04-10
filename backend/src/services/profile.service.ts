@@ -1,6 +1,5 @@
 import { prisma } from '../lib/prisma';
-import path from 'path';
-import fs from 'fs';
+import { supabase } from '../lib/supabase';
 
 // ─── PERFIL CANDIDATO ─────────────────────────────────────────────────────────
 
@@ -27,7 +26,6 @@ export async function upsertCandidateProfile(userId: string, data: {
   salaryExpected?: number;
   workMode?: string;
 }) {
-  // upsert = actualiza si existe, crea si no existe
   const profile = await prisma.candidateProfile.upsert({
     where: { userId },
     update: data,
@@ -64,31 +62,37 @@ export async function upsertCompanyProfile(userId: string, data: {
   return profile;
 }
 
-// ─── CARGA DE CV ──────────────────────────────────────────────────────────────
+// ─── CARGA DE CV EN SUPABASE STORAGE ─────────────────────────────────────────
 
-export async function saveCvLocally(
+export async function uploadCvToStorage(
   userId: string,
   fileBuffer: Buffer,
   originalName: string
 ): Promise<string> {
-  // En desarrollo guardamos el CV en una carpeta local uploads/
-  // En producción esto se reemplaza por un storage en la nube (Supabase Storage)
-  const uploadsDir = path.join(__dirname, '../../uploads');
+  // Nombre único para evitar colisiones
+  const fileName = `${userId}_${Date.now()}.pdf`;
+  const filePath = fileName;
 
-  // Crear la carpeta uploads si no existe
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
+  // Subir el archivo al bucket 'cvs' de Supabase Storage
+  const { error } = await supabase.storage
+    .from('cvs')
+    .upload(filePath, fileBuffer, {
+      contentType: 'application/pdf',
+      upsert: true, // Si ya existe un CV anterior lo reemplaza
+    });
+
+  if (error) {
+    throw new Error('STORAGE_UPLOAD_FAILED');
   }
 
-  // Nombre único para evitar colisiones: userId_timestamp.pdf
-  const fileName = `${userId}_${Date.now()}.pdf`;
-  const filePath = path.join(uploadsDir, fileName);
+  // Obtener la URL pública del archivo
+  const { data } = supabase.storage
+    .from('cvs')
+    .getPublicUrl(filePath);
 
-  fs.writeFileSync(filePath, fileBuffer);
+  const cvUrl = data.publicUrl;
 
-  // Guardamos la ruta relativa en la BD
-  const cvUrl = `/uploads/${fileName}`;
-
+  // Guardar la URL pública en la BD
   await prisma.candidateProfile.upsert({
     where: { userId },
     update: { cvUrl },

@@ -1,3 +1,6 @@
+
+
+
 # AGENTS.md — TalentBridge Backend
 
 Este archivo define las convenciones, arquitectura, stack y estado actual
@@ -28,11 +31,12 @@ flujos de automatización de n8n.
 | Express | 5.x | |
 | Prisma ORM | 6.5.0 | **NUNCA actualizar a Prisma 7** |
 | @prisma/client | 6.5.0 | Debe coincidir exactamente con prisma |
-| PostgreSQL | 16.x | Alojado en Neon |
+| PostgreSQL | 16.x | Alojado en Supabase |
+| @supabase/supabase-js | Latest | Para Supabase Storage |
 | bcryptjs | 2.x | Para hashing de contraseñas |
 | jsonwebtoken | 9.x | Para JWT |
 | nodemailer | Latest | Para envío de correos |
-| multer | 2.x | Para carga de archivos |
+| multer | 2.x | Para recibir archivos en el servidor |
 | zod | 3.x | Para validación de esquemas |
 | uuid | 9.x | Para generación de IDs |
 
@@ -59,35 +63,61 @@ Todos los comandos y rutas deben ser compatibles con Windows.
 
 ---
 
+## Servicios externos
+
+| Servicio | Uso | Plan |
+|---|---|---|
+| Supabase | Base de datos PostgreSQL + Storage de CVs | Gratuito |
+| Mailtrap | Envío de correos en desarrollo | Gratuito |
+
+### Supabase
+
+- Base de datos: PostgreSQL alojado en Supabase (región São Paulo)
+- Storage: bucket `cvs` para almacenar las hojas de vida en PDF
+- El bucket `cvs` tiene políticas RLS configuradas para permitir INSERT y SELECT a `anon`
+- La conexión a la BD se hace via `DATABASE_URL` con la connection string de Supabase
+- El cliente de Supabase Storage se inicializa en `src/lib/supabase.ts` con `SUPABASE_URL` y `SUPABASE_ANON_KEY`
+- Los archivos se suben directamente al bucket sin subcarpetas — el path es solo el nombre del archivo
+
+### Mailtrap
+
+- Solo se usa en desarrollo para capturar correos sin enviarlos a destinatarios reales
+- Configurado via SMTP en `src/lib/mailer.ts` usando Nodemailer
+- En producción se reemplazará por Resend con dominio verificado
+
+---
+
 ## Arquitectura del backend
 
 El backend sigue una arquitectura en capas estricta. Cada capa tiene una
 responsabilidad única y no debe mezclar responsabilidades con otras capas.
+
+```
 backend/
 ├── src/
 │   ├── routes/          # Solo define URLs y conecta con controllers
 │   ├── controllers/     # Recibe req, extrae datos, llama service, devuelve res
 │   ├── services/        # Lógica de negocio pura — no importa nada de Express
 │   ├── middlewares/     # Funciones intermedias (autenticación, uploads)
-│   └── lib/             # Utilidades singleton (Prisma, JWT, Mailer)
+│   └── lib/             # Utilidades singleton (Prisma, JWT, Mailer, Supabase)
 ├── prisma/
 │   ├── schema.prisma    # Definición del modelo de datos
 │   └── migrations/      # Historial de migraciones — nunca editar manualmente
-├── uploads/             # CVs en PDF — solo en desarrollo, no en producción
 ├── .env                 # Variables de entorno — NUNCA subir al repo
 ├── .env.example         # Plantilla de variables — SÍ subir al repo
 ├── nodemon.json         # Configuración de nodemon para desarrollo
 ├── tsconfig.json        # Configuración de TypeScript
 └── package.json         # Dependencias y scripts
+```
 
 ### Reglas de la arquitectura en capas
 
 - **routes** importa solo controllers y middlewares
 - **controllers** importan solo services y tipos de middlewares
-- **services** importan solo lib/prisma y lib/mailer y lib/jwt
+- **services** importan solo lib/prisma, lib/mailer, lib/jwt y lib/supabase
 - **lib** no importa nada del proyecto — solo librerías externas
 - **middlewares** importan solo lib/jwt
-- Ninguna capa salta otra — un controller nunca usa prisma directamente
+- Ninguna capa salta otra — un controller nunca usa prisma o supabase directamente
 
 ---
 
@@ -113,11 +143,12 @@ backend/
 
 Los services lanzan errores con códigos string en mayúsculas. Los controllers
 los capturan y los convierten en respuestas HTTP apropiadas:
+
 ```typescript
 // En el service — lanzar error con código
 throw new Error('EMAIL_TAKEN');
 throw new Error('OTP_INVALID');
-throw new Error('INVALID_CREDENTIALS');
+throw new Error('STORAGE_UPLOAD_FAILED');
 
 // En el controller — capturar y responder
 if (err.message === 'EMAIL_TAKEN')
@@ -140,6 +171,7 @@ Códigos de error HTTP usados:
 ### Respuestas HTTP
 
 Siempre responder con JSON. Estructura estándar:
+
 ```typescript
 // Éxito
 res.status(200).json({ message: 'Descripción clara de lo que ocurrió.' });
@@ -150,33 +182,31 @@ res.status(4xx).json({ error: 'Mensaje claro para el usuario.' });
 ```
 
 Los mensajes de error deben estar en **español** — son los que ve el usuario final.
-Los códigos de error internos (los que lanza el service) van en **inglés** en mayúsculas.
+Los códigos de error internos van en **inglés** en UPPER_SNAKE_CASE.
 
 ### Commits
 
 Seguir la convención Conventional Commits:
-tipo(scope): descripción en imperativo en español o inglés
-Tipos válidos:
-feat      → nueva funcionalidad
-fix       → corrección de bug
-chore     → configuración, dependencias, tareas de mantenimiento
-refactor  → refactorización sin cambio de comportamiento
-docs      → documentación
-style     → formato, espaciado (no afecta lógica)
-test      → pruebas
 
-Ejemplos reales del proyecto:
-feat(auth): agregar endpoint POST /auth/register con validación OTP
-fix(auth): corregir expiración incorrecta del token de reset
-chore(deps): fijar Prisma a versión 6.5.0
-docs: actualizar README con endpoints de perfiles
+```
+tipo(scope): descripción en imperativo
+
+Tipos válidos:
+  feat      → nueva funcionalidad
+  fix       → corrección de bug
+  chore     → configuración, dependencias, tareas de mantenimiento
+  refactor  → refactorización sin cambio de comportamiento
+  docs      → documentación
+  style     → formato, espaciado (no afecta lógica)
+  test      → pruebas
+```
 
 ---
 
 ## Control de versiones — Git Flow
 
 Ramas permanentes:
-- `main` — producción estable, protegida, solo recibe merges desde develop
+- `main` — producción estable, protegida
 - `develop` — rama de integración, protegida
 
 Ramas temporales:
@@ -184,16 +214,16 @@ Ramas temporales:
 - `hotfix/nombre` — correcciones urgentes en producción
 
 Flujo obligatorio:
-
-git checkout develop && git pull origin develop
-git checkout -b feature/nombre
-[desarrollo + commits pequeños y descriptivos]
-git push -u origin feature/nombre
-Pull Request en GitHub: feature/nombre → develop
-Revisión de al menos un integrante
-Merge a develop
-Eliminar rama feature local y remota
-
+```
+1. git checkout develop && git pull origin develop
+2. git checkout -b feature/nombre
+3. [desarrollo + commits pequeños y descriptivos]
+4. git push -u origin feature/nombre
+5. Pull Request en GitHub: feature/nombre → develop
+6. Revisión de al menos un integrante
+7. Merge a develop
+8. Eliminar rama feature local y remota
+```
 
 **Nunca hacer push directo a develop o main.**
 
@@ -201,30 +231,30 @@ Eliminar rama feature local y remota
 
 ## Variables de entorno
 
-Todas las variables sensibles van en `.env` (no se sube al repo).
-El archivo `.env.example` (sí se sube) documenta las claves requeridas.
-
 | Variable | Descripción |
 |---|---|
 | `PORT` | Puerto del servidor (default: 3001) |
 | `NODE_ENV` | `development` o `production` |
-| `DATABASE_URL` | Connection string de PostgreSQL en Neon |
+| `DATABASE_URL` | Connection string de PostgreSQL en Supabase |
 | `JWT_SECRET` | Secreto para firmar tokens JWT |
 | `JWT_EXPIRES_IN` | Duración del JWT (ej: `7d`) |
 | `OTP_EXPIRES_MINUTES` | Minutos de validez del OTP (default: 10) |
 | `RESET_TOKEN_EXPIRES_MINUTES` | Minutos de validez del token de reset (default: 15) |
 | `FRONTEND_URL` | URL del frontend para configurar CORS |
+| `SUPABASE_URL` | URL del proyecto de Supabase |
+| `SUPABASE_ANON_KEY` | Clave anon pública del proyecto de Supabase |
 | `SMTP_HOST` | Host SMTP de Mailtrap |
 | `SMTP_PORT` | Puerto SMTP de Mailtrap (2525 en dev) |
 | `SMTP_USER` | Usuario SMTP de Mailtrap |
 | `SMTP_PASS` | Contraseña SMTP de Mailtrap |
-| `SMTP_FROM` | Correo remitente (ej: noreply@talentbridge.co) |
+| `SMTP_FROM` | Correo remitente |
 
 ---
 
 ## Modelo de datos — Prisma
 
 ### Enums
+
 ```prisma
 enum Role {
   STUDENT      // Estudiante activo universitario
@@ -238,69 +268,90 @@ enum Role {
 ### Modelos implementados
 
 #### User
-Tabla central del sistema. Todo usuario tiene un rol y un estado de verificación.
-- `isVerified: false` hasta que complete la verificación OTP
+Tabla central del sistema. Todo usuario tiene un rol y estado de verificación.
+- `isVerified: false` hasta completar verificación OTP
 - `isActive: false` si fue suspendido por un administrador
-- Relaciones: tiene un OtpCode, un ResetToken, y opcionalmente un CandidateProfile o CompanyProfile
+- Relaciones: OtpCode[], ResetToken[], CandidateProfile?, CompanyProfile?
 
 #### OtpCode
 Código de 6 dígitos enviado al correo al registrarse.
-- Expira en 10 minutos (`OTP_EXPIRES_MINUTES`)
-- Se marca como `used: true` al verificarse — no se elimina para mantener auditoría
-- Un usuario puede tener múltiples OTPs (al reenviar se crea uno nuevo)
+- Expira en 10 minutos
+- Se marca `used: true` al verificarse — no se elimina para mantener auditoría
+- Un usuario puede tener múltiples OTPs
 
 #### ResetToken
-Token UUID enviado al correo para recuperar contraseña.
-- Expira en 15 minutos (`RESET_TOKEN_EXPIRES_MINUTES`)
-- Se marca como `used: true` al usarse
+Token UUID para recuperar contraseña.
+- Expira en 15 minutos
+- Se marca `used: true` al usarse
 
 #### CandidateProfile
 Perfil profesional de estudiantes y egresados.
 - Relación 1:1 con User
 - `skills` y `softSkills` son arrays de strings en PostgreSQL
 - `languages`, `projects` y `certifications` son JSON con estructura flexible
-- `cvUrl` almacena la ruta al CV en PDF
-- Se crea/actualiza con `upsert` — nunca con `create` + `update` separados
+- `cvUrl` almacena la URL pública del archivo en Supabase Storage
+- Siempre se crea/actualiza con `upsert`
 
 #### CompanyProfile
 Perfil corporativo de empresas.
 - Relación 1:1 con User
-- Se crea/actualiza con `upsert`
+- Siempre se crea/actualiza con `upsert`
 
 ---
 
 ## Endpoints implementados
 
 ### Base URL en desarrollo
+```
 http://localhost:3001/api
+```
+
+### Health check
+```
+GET /api/health
+```
 
 ### Autenticación — `/api/auth`
 
-| Método | Ruta | Descripción | Body requerido |
-|---|---|---|---|
-| POST | `/auth/register` | Registra usuario y envía OTP | `email, password, role` |
-| POST | `/auth/verify-otp` | Verifica OTP y activa cuenta | `userId, code` |
-| POST | `/auth/resend-otp` | Reenvía OTP al correo | `userId` |
-| POST | `/auth/login` | Autentica y devuelve JWT | `email, password` |
-| POST | `/auth/logout` | Cierra sesión (stateless) | ninguno |
-| POST | `/auth/forgot-password` | Envía enlace de recuperación | `email` |
-| POST | `/auth/reset-password` | Cambia la contraseña | `token, newPassword` |
+| Método | Ruta | Descripción | Body requerido | Auth |
+|---|---|---|---|---|
+| POST | `/auth/register` | Registra usuario y envía OTP | `email, password, role` | No |
+| POST | `/auth/verify-otp` | Verifica OTP y activa cuenta | `userId, code` | No |
+| POST | `/auth/resend-otp` | Reenvía OTP al correo | `userId` | No |
+| POST | `/auth/login` | Autentica y devuelve JWT | `email, password` | No |
+| POST | `/auth/logout` | Cierra sesión stateless | ninguno | No |
+| POST | `/auth/forgot-password` | Envía enlace de recuperación | `email` | No |
+| POST | `/auth/reset-password` | Cambia la contraseña | `token, newPassword` | No |
 
 ### Perfiles — `/api/profile`
 
 Todas requieren `Authorization: Bearer TOKEN` en el header.
 
-| Método | Ruta | Descripción | Roles |
-|---|---|---|---|
-| GET | `/profile/candidate` | Consultar perfil candidato | STUDENT, GRADUATE |
-| PUT | `/profile/candidate` | Crear o actualizar perfil candidato | STUDENT, GRADUATE |
-| POST | `/profile/candidate/cv` | Subir CV en PDF (máx 5MB) | STUDENT, GRADUATE |
-| GET | `/profile/company` | Consultar perfil empresa | COMPANY |
-| PUT | `/profile/company` | Crear o actualizar perfil empresa | COMPANY |
+| Método | Ruta | Descripción | Roles | Auth |
+|---|---|---|---|---|
+| GET | `/profile/candidate` | Consultar perfil candidato | STUDENT, GRADUATE | Sí |
+| PUT | `/profile/candidate` | Crear o actualizar perfil candidato | STUDENT, GRADUATE | Sí |
+| POST | `/profile/candidate/cv` | Subir CV en PDF a Supabase Storage (máx 5MB) | STUDENT, GRADUATE | Sí |
+| GET | `/profile/company` | Consultar perfil empresa | COMPANY | Sí |
+| PUT | `/profile/company` | Crear o actualizar perfil empresa | COMPANY | Sí |
+
+---
+
+## Supabase Storage — CVs
+
+- Bucket: `cvs` (público)
+- Políticas RLS: INSERT y SELECT permitidos para `anon`
+- Path del archivo: `{userId}_{timestamp}.pdf` — sin subcarpetas
+- URL pública formato: `https://{project}.supabase.co/storage/v1/object/public/cvs/{fileName}`
+- La URL pública se guarda en `candidateProfile.cvUrl`
+- Al subir un CV nuevo se reemplaza el anterior (`upsert: true`)
+- El archivo se recibe en memoria con Multer (`memoryStorage`) y se envía directamente a Supabase
 
 ---
 
 ## Archivos por módulo — mapa completo
+
+```
 src/
 ├── app.ts
 │   └── Entrada de la aplicación. Registra middlewares globales y rutas.
@@ -308,21 +359,23 @@ src/
 │
 ├── lib/
 │   ├── prisma.ts
-│   │   └── Singleton del cliente de Prisma. Evita múltiples conexiones en dev.
+│   │   └── Singleton del cliente de Prisma.
 │   ├── jwt.ts
-│   │   └── signToken(payload) y verifyToken(token). Usa JWT_SECRET del .env.
-│   └── mailer.ts
-│       └── Transporter de Nodemailer con Mailtrap SMTP.
-│           Exporta: sendOtpEmail(to, code), sendResetEmail(to, token)
+│   │   └── signToken(payload) y verifyToken(token).
+│   ├── mailer.ts
+│   │   └── Transporter Nodemailer con Mailtrap SMTP.
+│   │       Exporta: sendOtpEmail(to, code), sendResetEmail(to, token)
+│   └── supabase.ts
+│       └── Cliente singleton de Supabase.
+│           Exporta: supabase (instancia de createClient)
 │
 ├── middlewares/
 │   ├── auth.middleware.ts
 │   │   └── authenticate — verifica JWT en header Authorization
-│   │       authorize(...roles) — verifica que el rol del usuario esté permitido
+│   │       authorize(...roles) — verifica rol del usuario
 │   │       Extiende Request con AuthRequest que incluye req.user
 │   └── upload.middleware.ts
-│       └── Configuración de Multer con memoryStorage.
-│           uploadCv — acepta solo PDF, máximo 5MB
+│       └── uploadCv — Multer con memoryStorage, solo PDF, máx 5MB
 │
 ├── services/
 │   ├── auth.service.ts
@@ -330,7 +383,8 @@ src/
 │   │       forgotPassword, resetPassword
 │   └── profile.service.ts
 │       └── getCandidateProfile, upsertCandidateProfile,
-│           getCompanyProfile, upsertCompanyProfile, saveCvLocally
+│           getCompanyProfile, upsertCompanyProfile,
+│           uploadCvToStorage
 │
 ├── controllers/
 │   ├── auth.controller.ts
@@ -341,56 +395,34 @@ src/
 │           getCompanyProfile, updateCompanyProfile
 │
 └── routes/
-├── auth.routes.ts
-│   └── POST /register, /verify-otp, /resend-otp, /login,
-│       /logout, /forgot-password, /reset-password
-└── profile.routes.ts
-└── GET|PUT /candidate, POST /candidate/cv,
-GET|PUT /company
-
----
-
-## Servicio de correo
-
-### Desarrollo — Mailtrap
-En desarrollo todos los correos son capturados por Mailtrap sin llegar
-a destinatarios reales. Todos los correos enviados a cualquier dirección
-aparecen en el dashboard de Mailtrap → My First Inbox.
-
-Configuración SMTP:
-- Host: `sandbox.smtp.mailtrap.io`
-- Port: `2525`
-- Credenciales: desde mailtrap.io → My First Inbox → SMTP Settings → Nodemailer
-
-### Producción — Resend (pendiente)
-En producción se usará Resend con dominio verificado. Requiere cambiar
-las variables `SMTP_*` del `.env` de producción.
+    ├── auth.routes.ts
+    │   └── POST /register, /verify-otp, /resend-otp, /login,
+    │       /logout, /forgot-password, /reset-password
+    └── profile.routes.ts
+        └── GET|PUT /candidate, POST /candidate/cv,
+            GET|PUT /company
+```
 
 ---
 
 ## Patrones a seguir al agregar nuevos módulos
 
-Cuando se agregue un nuevo módulo (ej: vacantes, contratos, postulaciones),
-seguir exactamente este orden:
-
-Agregar modelos al schema.prisma
-Ejecutar: npx prisma migrate dev --name nombre_descriptivo
-Ejecutar: npx prisma generate
-Crear src/services/nombre.service.ts
-Crear src/controllers/nombre.controller.ts
-Crear src/routes/nombre.routes.ts
-Registrar las rutas en src/app.ts
-Probar con Thunder Client o Postman
-Commit + PR → develop
-Actualizar este AGENTS.md
-
+```
+1. Agregar modelos al schema.prisma
+2. Ejecutar: npx prisma migrate dev --name nombre_descriptivo
+3. Ejecutar: npx prisma generate
+4. Crear src/services/nombre.service.ts
+5. Crear src/controllers/nombre.controller.ts
+6. Crear src/routes/nombre.routes.ts
+7. Registrar las rutas en src/app.ts
+8. Probar con Postman
+9. Commit + PR → develop
+10. Actualizar este AGENTS.md
+```
 
 ---
 
 ## Lo que NO está implementado aún
-
-Los siguientes módulos están planificados en sprints futuros y no deben
-asumirse como existentes:
 
 - Motor de ranking de perfiles (Sprint 2)
 - Publicación y gestión de vacantes (Sprint 2)
@@ -416,4 +448,7 @@ asumirse como existentes:
 - **Siempre usar `upsert`** para perfiles — nunca `create` + `update` separados
 - **Los mensajes de error al usuario van en español**
 - **Los códigos de error internos van en inglés en UPPER_SNAKE_CASE**
-- Al agregar un endpoint nuevo, agregarlo también a la tabla de endpoints de este archivo en la sección correspondiente
+- **El path de archivos en Supabase Storage no lleva subcarpetas** — solo el nombre del archivo
+- Al agregar un endpoint nuevo, agregarlo también a la tabla de endpoints de este archivo
+
+
