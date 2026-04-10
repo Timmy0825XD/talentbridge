@@ -59,7 +59,7 @@ export async function uploadCv(req: AuthRequest, res: Response) {
     }
 
     const userId = req.user!.userId;
-    const cvUrl = await profileService.saveCvLocally(
+    const cvUrl = await profileService.uploadCvToStorage(
       userId,
       req.file.buffer,
       req.file.originalname
@@ -67,9 +67,10 @@ export async function uploadCv(req: AuthRequest, res: Response) {
 
     res.json({ message: 'CV cargado exitosamente.', cvUrl });
   } catch (err: any) {
-    if (err.message === 'INVALID_FILE_TYPE') {
+    if (err.message === 'INVALID_FILE_TYPE')
       return res.status(400).json({ error: 'Solo se permiten archivos PDF.' });
-    }
+    if (err.message === 'STORAGE_UPLOAD_FAILED')
+      return res.status(500).json({ error: 'Error al subir el archivo. Intenta de nuevo.' });
     console.error('uploadCv error:', err);
     res.status(500).json({ error: 'Error interno del servidor.' });
   }
