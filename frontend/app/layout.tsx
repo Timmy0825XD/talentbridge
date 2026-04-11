@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope, DM_Sans } from "next/font/google";
+import { AuthProvider } from "@/src/context/auth-context";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -22,7 +23,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{children: React.ReactNode }>) {
   return (
     <html lang="es" className={`${manrope.variable} ${dmSans.variable}`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

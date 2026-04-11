@@ -2,7 +2,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff, ArrowRight, TrendingUp } from "lucide-react";
+import api from "@/src/lib/api";
 
 type Role = "STUDENT" | "GRADUATE" | "COMPANY";
 
@@ -13,9 +15,46 @@ const roles: { value: Role; label: string }[] = [
 ];
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [selectedRole, setSelectedRole] = useState<Role>("STUDENT");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState({email: "", password: "", confirm: "", terms: false});
+
+  async function handleRegister() {
+    setError(null);
+ 
+    if (!form.email || !form.password || !form.confirm) {
+      setError("Por favor completa todos los campos.");
+      return;
+    }
+    if (form.password !== form.confirm) {
+      setError("Las contraseñas no coinciden.");
+      return;
+    }
+    if (form.password.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+    if (!form.terms) {
+      setError("Debes aceptar los términos y condiciones.");
+      return;
+    }
+ 
+    setIsLoading(true);
+    try {
+      const res = await api.post("/auth/register", { email: form.email, password: form.password, role: selectedRole });
+ 
+      router.push(`/auth/verify-otp?userId=${res.data.userId}`);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: string } } };
+      setError(axiosErr.response?.data?.error ?? "Error al registrarse.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-0 md:p-6 lg:p-12 bg-[#f7f9fb] flex-col gap-5">
@@ -97,40 +136,6 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-5">
-
-              {(selectedRole === "STUDENT" || selectedRole === "GRADUATE") && (
-                <div className="space-y-1">
-                  <label
-                    htmlFor="fullName"
-                    className="text-xs font-semibold uppercase tracking-wider text-[#424750] ml-1"
-                  >
-                    Nombre completo
-                  </label>
-                  <input
-                    id="fullName"
-                    name="fullName"
-                    type="text"
-                    placeholder="Juan Pérez"
-                    className="w-full bg-[#f2f4f6] border-0 border-b-2 border-transparent focus:border-[#006d37] focus:ring-0 rounded-lg p-4 transition-all text-[#191c1e] placeholder:text-[#737781] outline-none"
-                  />
-                </div>
-              )}
-
-              {selectedRole === "COMPANY" && (
-                <div className="space-y-1">
-                  <label htmlFor="companyName" className="text-xs font-semibold uppercase tracking-wider text-[#424750] ml-1">
-                    Nombre de la empresa
-                  </label>
-                  <input
-                    id="companyName"
-                    name="companyName"
-                    type="text"
-                    placeholder="Empresa S.A.S."
-                    className="w-full bg-[#f2f4f6] border-0 border-b-2 border-transparent focus:border-[#006d37] focus:ring-0 rounded-lg p-4 transition-all text-[#191c1e] placeholder:text-[#737781] outline-none"
-                  />
-                </div>
-              )}
-
               <div className="space-y-1">
                 <label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-[#424750] ml-1">
                   {selectedRole === "STUDENT" || selectedRole === "GRADUATE" ? "Correo institucional" : "Correo corporativo"}
@@ -140,6 +145,8 @@ export default function RegisterPage() {
                   name="email"
                   type="email"
                   placeholder={ selectedRole === "COMPANY" ? "contacto@empresa.com" : "nombre@universidad.edu" }
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
                   className="w-full bg-[#f2f4f6] border-0 border-b-2 border-transparent focus:border-[#006d37] focus:ring-0 rounded-lg p-4 transition-all text-[#191c1e] placeholder:text-[#737781] outline-none"
                 />
               </div>
@@ -154,6 +161,8 @@ export default function RegisterPage() {
                     name="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Mínimo 8 caracteres"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
                     className="w-full bg-[#f2f4f6] border-0 border-b-2 border-transparent focus:border-[#006d37] focus:ring-0 rounded-lg p-4 pr-12 transition-all text-[#191c1e] placeholder:text-[#737781] outline-none"
                   />
                   <button
@@ -176,6 +185,8 @@ export default function RegisterPage() {
                     name="confirm"
                     type={showConfirm ? "text" : "password"}
                     placeholder="Repite tu contraseña"
+                    value={form.confirm}
+                    onChange={(e) => setForm({ ...form, confirm: e.target.value })}
                     className="w-full bg-[#f2f4f6] border-0 border-b-2 border-transparent focus:border-[#006d37] focus:ring-0 rounded-lg p-4 pr-12 transition-all text-[#191c1e] placeholder:text-[#737781] outline-none"
                   />
                   <button
@@ -192,14 +203,16 @@ export default function RegisterPage() {
                 <input
                   id="terms"
                   type="checkbox"
+                  checked={form.terms}
+                  onChange={(e) => setForm({ ...form, terms: e.target.checked })}
                   className="w-5 h-5 mt-0.5 rounded border-[#c2c6d1] text-[#006d37] focus:ring-[#006d37]/20 transition-all flex-shrink-0"
                 />
                 <label htmlFor="terms" className="text-sm text-[#424750] leading-relaxed">
-                  Acepto los{" "}
+                  Acepto los
                   <Link href="#" className="text-[#00386c] font-semibold hover:underline underline-offset-4">
                     Términos de Servicio
-                  </Link>{" "}
-                  y la{" "}
+                  </Link>
+                  y la
                   <Link href="#" className="text-[#00386c] font-semibold hover:underline underline-offset-4">
                     Política de Privacidad
                   </Link>
@@ -208,20 +221,27 @@ export default function RegisterPage() {
 
               <button
                 type="button"
-                className="w-full py-4 bg-[#00386c] hover:bg-[#1a4f8b] text-white font-bold rounded-full transition-all shadow-lg shadow-[#00386c]/10 flex items-center justify-center gap-2 group mt-2"
+                onClick={handleRegister}
+                disabled={isLoading}
+                className="w-full py-4 bg-[#00386c] hover:bg-[#1a4f8b] text-white font-bold rounded-full transition-all shadow-lg shadow-[#00386c]/10 flex items-center justify-center gap-2 group mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <span>CREAR CUENTA</span>
-                <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                {isLoading ? (
+                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    CREAR CUENTA
+                    <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                  </>
+                )}
               </button>
             </div>
 
+            {error && ( <div className="bg-[#ffdad6] text-[#93000a] text-sm font-medium px-4 py-3 rounded-xl"> {error} </div> )}
+
             <div className="mt-10 text-center">
               <p className="text-[#424750] text-sm">
-                ¿Ya tienes una cuenta?{" "}
-                <Link
-                  href="/auth/login"
-                  className="text-[#006d37] font-bold hover:underline underline-offset-4 ml-1"
-                >
+                ¿Ya tienes una cuenta?
+                <Link href="/auth/login" className="text-[#006d37] font-bold hover:underline underline-offset-4 ml-1">
                   Inicia sesión
                 </Link>
               </p>
