@@ -3,11 +3,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { Eye, EyeOff, ArrowRight, GraduationCap } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/src/context/auth-context";
 import api from "@/src/lib/api";
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,8 +28,24 @@ export default function LoginPage() {
       const res = await api.post("/auth/login", form);
       login({ token: res.data.token, role: res.data.role, userId: res.data.userId });
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error?: string } } };
-      setError(axiosErr.response?.data?.error ?? "Error al iniciar sesión.");
+      const axiosErr = err as {
+        response?: {
+          data?: {
+            error?: string;
+            code?: string;
+            userId?: string;
+          }
+        }
+      };
+
+      const data = axiosErr.response?.data;
+
+      if (data?.code === 'NOT_VERIFIED' && data?.userId) {
+        router.push(`/auth/verify-otp?userId=${data.userId}`);
+        return;
+      }
+
+      setError(data?.error ?? "Error al iniciar sesión.");
     } finally {
       setIsLoading(false);
     }
