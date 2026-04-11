@@ -1,12 +1,37 @@
 "use client";
-
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { Eye, EyeOff, ArrowRight, GraduationCap } from "lucide-react";
+import { useAuth } from "@/src/context/auth-context";
+import api from "@/src/lib/api";
 
 export default function LoginPage() {
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState({ email: "", password: "" });
+
+  async function handleLogin() {
+    setError(null);
+ 
+    if (!form.email || !form.password) {
+      setError("Por favor completa todos los campos.");
+      return;
+    }
+ 
+    setIsLoading(true);
+    try {
+      const res = await api.post("/auth/login", form);
+      login({ token: res.data.token, role: res.data.role, userId: res.data.userId });
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: string } } };
+      setError(axiosErr.response?.data?.error ?? "Error al iniciar sesión.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen flex items-stretch bg-[#f7f9fb]">
@@ -80,6 +105,8 @@ export default function LoginPage() {
                 id="email"
                 name="email"
                 type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
                 placeholder="nombre@universidad.edu"
                 className="w-full bg-[#f2f4f6] border-none rounded-xl py-4 px-4 focus:ring-2 focus:ring-[#00386c]/20 focus:bg-white transition-all duration-300 text-[#191c1e] placeholder:text-[#737781] outline-none"
               />
@@ -99,6 +126,9 @@ export default function LoginPage() {
                 <input
                   id="password"
                   name="password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••••••"
                   className="w-full bg-[#f2f4f6] border-none rounded-xl py-4 pl-4 pr-12 focus:ring-2 focus:ring-[#00386c]/20 focus:bg-white transition-all duration-300 text-[#191c1e] placeholder:text-[#737781] outline-none"
@@ -127,12 +157,26 @@ export default function LoginPage() {
 
             <button
               type="button"
-              className="w-full bg-gradient-to-br from-[#00386c] to-[#1a4f8b] text-white font-headline font-bold py-4 rounded-full shadow-lg shadow-[#00386c]/10 hover:shadow-[#00386c]/20 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 group"
+              onClick={handleLogin}
+              disabled={isLoading}
+              className="w-full bg-gradient-to-br from-[#00386c] to-[#1a4f8b] text-white font-headline font-bold py-4 rounded-full shadow-lg shadow-[#00386c]/10 hover:shadow-[#00386c]/20 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 group disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              INICIAR SESIÓN
-              <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+              {isLoading ? (
+                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  INICIAR SESIÓN
+                  <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                </>
+              )}
             </button>
           </div>
+
+          {error && (
+            <div className="bg-[#ffdad6] text-[#93000a] text-sm font-medium px-4 py-3 rounded-xl">
+              {error}
+            </div>
+          )}
 
           <p className="mt-12 text-center text-[#424750] text-sm">
             ¿Nuevo en TalentBridge?
