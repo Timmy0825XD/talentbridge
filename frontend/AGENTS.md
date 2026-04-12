@@ -339,3 +339,7 @@ Base URL: `http://localhost:3001/api` (desarrollo)
 - **Validar siempre en el frontend** antes de llamar a la API
 - Al agregar una página nueva, agregarla también a la tabla de páginas de este archivo
 - Al consumir un endpoint nuevo, agregarlo también a la tabla de endpoints de este archivo
+- Los imports de Axios y contexto** siempre deben ser `@/lib/api` y `@/context/auth-context` — nunca `@/src/lib/api`
+- El tipo de error de Axios** siempre debe incluir `status?: number` en el response
+- Login y register tienen link de regreso al landing** — solo visible en desktop (panel izquierdo)
+- El flujo NOT_VERIFIED** está manejado en el login — redirige automáticamente a verify-otp
