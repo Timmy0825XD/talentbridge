@@ -2,7 +2,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { Eye, EyeOff, ArrowRight, GraduationCap } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, GraduationCap, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/src/context/auth-context";
 import api from "@/src/lib/api";
@@ -30,21 +30,16 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const axiosErr = err as {
         response?: {
-          data?: {
-            error?: string;
-            code?: string;
-            userId?: string;
-          }
+          data?: { error?: string; code?: string; userId?: string }
         }
       };
 
       const data = axiosErr.response?.data;
-
       if (data?.code === 'NOT_VERIFIED' && data?.userId) {
         router.push(`/auth/verify-otp?userId=${data.userId}`);
         return;
       }
-
+      
       setError(data?.error ?? "Error al iniciar sesión.");
     } finally {
       setIsLoading(false);
@@ -103,6 +98,9 @@ export default function LoginPage() {
 
       <section className="w-full lg:w-1/2 flex items-center justify-center bg-[#f7f9fb] p-8 md:p-16 lg:p-24">
         <div className="w-full max-w-md">
+          <Link href="/" className="flex items-center gap-2 text-[#4ae183] mb-12">
+            <ArrowLeft className="w-4 h-4" /> <span className="text-sm font-semibold">Volver al inicio</span>
+          </Link>
 
           <div className="lg:hidden mb-12">
             <span className="text-2xl font-black text-[#00386c] font-headline">

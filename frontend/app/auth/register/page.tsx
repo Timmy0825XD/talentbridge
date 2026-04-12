@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, ArrowRight, TrendingUp } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, TrendingUp, ArrowLeft } from "lucide-react";
 import api from "@/src/lib/api";
 
 type Role = "STUDENT" | "GRADUATE" | "COMPANY";
@@ -46,11 +46,18 @@ export default function RegisterPage() {
     setIsLoading(true);
     try {
       const res = await api.post("/auth/register", { email: form.email, password: form.password, role: selectedRole });
- 
       router.push(`/auth/verify-otp?userId=${res.data.userId}`);
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error?: string } } };
-      setError(axiosErr.response?.data?.error ?? "Error al registrarse.");
+      const axiosErr = err as { response?: { status?: number; data?: { error?: string } } };
+      const serverError = axiosErr.response?.data?.error ?? "Error al registrarse.";
+
+    if (serverError.toLowerCase().includes("correo") || 
+        serverError.toLowerCase().includes("registrado") ||
+        axiosErr.response?.status === 409) {
+      setError("Este correo ya tiene una cuenta registrada. Por favor inicia sesión para acceder.");
+    } else {
+      setError(serverError);
+    }
     } finally {
       setIsLoading(false);
     }
@@ -108,6 +115,11 @@ export default function RegisterPage() {
               <span className="text-[#00386c] text-2xl font-black tracking-tighter">TB</span>
               <span className="text-[#00386c] text-lg font-bold tracking-tight">TalentBridge</span>
             </div>
+
+            <Link href="/" className="flex items-center gap-2 text-[#4ae183] mb-12">
+              <ArrowLeft className="w-4 h-4" />
+              <span className="text-sm font-semibold">Volver al inicio</span>
+            </Link>
 
             <div className="mb-8">
               <h2 className="text-3xl font-bold text-[#191c1e] mb-2 font-headline">
