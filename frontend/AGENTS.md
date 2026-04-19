@@ -50,32 +50,45 @@ Todos los comandos y rutas deben ser compatibles con Windows.
 ```
 frontend/
 ├── src/
-│   ├── app/                  # Páginas y layouts (App Router de Next.js)
-│   │   ├── layout.tsx        # Layout raíz — fuentes, metadata, AuthProvider
-│   │   ├── page.tsx          # Landing page público
+│   ├── app/
+│   │   ├── layout.tsx                        # Layout raíz — fuentes, metadata, AuthProvider
+│   │   ├── page.tsx                          # Landing page público
 │   │   ├── auth/
 │   │   │   ├── login/page.tsx
 │   │   │   ├── register/page.tsx
 │   │   │   ├── verify-otp/page.tsx
 │   │   │   ├── forgot-password/page.tsx
 │   │   │   └── reset-password/page.tsx
-│   │   └── dashboard/
-│   │       ├── candidate/page.tsx   # Dashboard para STUDENT y GRADUATE
-│   │       └── company/page.tsx     # Dashboard para COMPANY
+│   │   ├── dashboard/
+│   │   │   ├── layout.tsx                    # Header compartido con nav dinámico por rol
+│   │   │   ├── candidate/
+│   │   │   │   ├── page.tsx                  # Dashboard candidato (STUDENT, GRADUATE)
+│   │   │   │   ├── explorar/page.tsx         # Explorar empleos — master/detail
+│   │   │   │   └── postulaciones/page.tsx    # (Sprint 2)
+│   │   │   └── company/
+│   │   │       ├── page.tsx                  # Dashboard empresa (COMPANY)
+│   │   │       ├── vacantes/page.tsx         # (Sprint 2)
+│   │   │       └── talento/page.tsx          # (Sprint 2)
+│   │   └── profile/
+│   │       ├── candidate/page.tsx            # Formulario perfil candidato
+│   │       └── company/page.tsx              # Formulario perfil empresa
 │   ├── context/
-│   │   └── auth-context.tsx  # Contexto global de autenticación
+│   │   └── auth-context.tsx                  # Contexto global de autenticación
 │   └── lib/
-│       └── api.ts            # Cliente Axios centralizado con interceptores
-├── .env.local                # Variables de entorno locales — NUNCA subir al repo
-├── .env.example              # Plantilla de variables — SÍ subir al repo
-├── next.config.ts            # Configuración de Next.js
-├── postcss.config.mjs        # Configuración de PostCSS para Tailwind v4
+│       └── api.ts                            # Cliente Axios centralizado con interceptores
+├── .env.local                                # Variables de entorno — NUNCA subir al repo
+├── .env.example                              # Plantilla de variables — SÍ subir al repo
+├── next.config.ts
+├── postcss.config.mjs
 └── package.json
 ```
 
 ### Reglas de arquitectura
 
 - **Todas las páginas** van dentro de `src/app/` siguiendo el App Router de Next.js
+- **Rutas de candidato** van dentro de `dashboard/candidate/` — nunca en `dashboard/` directamente
+- **Rutas de empresa** van dentro de `dashboard/company/` — nunca en `dashboard/` directamente
+- **El layout del dashboard** (`dashboard/layout.tsx`) maneja el header y la protección de ruta para todas las páginas del dashboard — no repetir esta lógica en las páginas hijas
 - **Componentes de cliente** (`useState`, `useEffect`, hooks) deben tener `"use client"` al inicio
 - **Componentes de servidor** no llevan `"use client"` — son el default en App Router
 - **El cliente Axios** (`src/lib/api.ts`) es el único punto de comunicación con el backend — nunca usar `fetch` directamente
@@ -141,7 +154,7 @@ const { user, login, logout, isLoading } = useAuth();
 | `user.role` | `UserRole` | Rol: STUDENT, GRADUATE, COMPANY, INSTITUTION, ADMIN |
 | `user.token` | `string` | JWT actual |
 | `login(data)` | `function` | Guarda sesión y redirige según rol |
-| `logout()` | `function` | Limpia sesión y redirige al landing |
+| `logout()` | `function` | Limpia sesión y redirige al landing `/` |
 | `isLoading` | `boolean` | True mientras recupera sesión del localStorage |
 
 **Redirección automática según rol en `login()`:**
@@ -160,29 +173,61 @@ tb_userId  → UUID del usuario
 
 ---
 
+## Layout del dashboard — src/app/dashboard/layout.tsx
+
+Componente que envuelve todas las páginas dentro de `dashboard/`. Maneja:
+
+- **Header fijo** con logo, navegación dinámica por rol y botón de logout
+- **Protección de ruta centralizada** — si no hay sesión redirige a `/`
+- **Nav dinámico por rol:**
+
+```typescript
+STUDENT / GRADUATE:
+  Dashboard     → /dashboard/candidate
+  Postulaciones → /dashboard/candidate/postulaciones
+  Explorar      → /dashboard/candidate/explorar
+  Mi Perfil     → /profile/candidate
+
+COMPANY:
+  Dashboard     → /dashboard/company
+  Mis Vacantes  → /dashboard/company/vacantes
+  Buscar Talento→ /dashboard/company/talento
+  Mi Perfil     → /profile/company
+```
+
+- El link activo se detecta con `usePathname()` y se resalta con el color del rol
+- Avatar azul para candidatos, verde para empresas
+
+---
+
 ## Sistema de diseño — Colores
 
 Los colores están definidos en `src/app/globals.css` con `@theme` de Tailwind v4.
 
-| Token | Valor | Uso |
+| Token | Valor hex | Uso principal |
 |---|---|---|
-| `primary` | `#00386c` | Azul principal — títulos, botones primarios |
-| `primary-container` | `#1a4f8b` | Azul secundario — hover de botones |
-| `secondary` | `#006d37` | Verde — acentos, éxito, links |
-| `secondary-container` | `#6bfe9c` | Verde claro — badges, fondos de éxito |
-| `background` | `#f7f9fb` | Fondo general de la app |
-| `surface` | `#f7f9fb` | Fondo de cards |
-| `on-surface` | `#191c1e` | Texto principal |
-| `on-surface-variant` | `#424750` | Texto secundario |
-| `error` | `#ba1a1a` | Rojo — errores |
-| `error-container` | `#ffdad6` | Fondo de mensajes de error |
+| primary | `#00386c` | Azul — títulos, botones candidato, nav |
+| primary-container | `#1a4f8b` | Azul medio — hover botones |
+| secondary | `#006d37` | Verde — acentos empresa, éxito |
+| secondary-container | `#6bfe9c` | Verde claro — badges, fondos éxito |
+| secondary-fixed-dim | `#4ae183` | Verde medio — elementos decorativos |
+| background | `#f7f9fb` | Fondo general |
+| surface-container-low | `#f2f4f6` | Fondo de inputs y cards secundarias |
+| surface-container-high | `#e6e8ea` | Bordes, separadores |
+| on-surface | `#191c1e` | Texto principal |
+| on-surface-variant | `#424750` | Texto secundario |
+| outline | `#737781` | Placeholders, iconos secundarios |
+| outline-variant | `#c2c6d1` | Bordes sutiles |
+| error | `#ba1a1a` | Rojo — errores |
+| error-container | `#ffdad6` | Fondo mensajes de error |
+| on-error-container | `#93000a` | Texto mensajes de error |
 
-**En el código se usan como colores inline** porque Tailwind v4 aún no expone los tokens `@theme` como clases estándar:
+**En el código se usan siempre como colores inline** porque Tailwind v4 aún no expone los tokens `@theme` como clases estándar:
 ```tsx
-// Correcto ✅
+// ✅ Correcto
 className="bg-[#00386c] text-white"
 
-// Incorrecto ❌ (no funciona en v4 sin configuración extra)
+// ❌ Incorrecto — no funciona en v4
 className="bg-primary text-on-primary"
 ```
 
@@ -190,10 +235,10 @@ className="bg-primary text-on-primary"
 
 ## Tipografía
 
-| Fuente | Variable CSS | Uso |
+| Fuente | Uso | Clase |
 |---|---|---|
-| Manrope | `--font-manrope` | Títulos y headlines — clase `font-headline` |
-| DM Sans | `--font-dm-sans` | Cuerpo de texto — fuente por defecto |
+| Manrope | Títulos y headlines | `font-headline` |
+| DM Sans | Cuerpo de texto | fuente por defecto del body |
 
 Configuradas en `layout.tsx` con `next/font/google`.
 
@@ -214,6 +259,11 @@ AuthContext.login() → guarda en localStorage → redirige según rol
 /dashboard/company    (COMPANY)
 ```
 
+**Caso NOT_VERIFIED en login:**
+- Si el backend responde con `code: "NOT_VERIFIED"` y `userId`
+- El frontend redirige automáticamente a `/auth/verify-otp?userId=xxx`
+- El backend reenvía el OTP al correo automáticamente en este caso
+
 **Recuperación de contraseña:**
 ```
 /auth/forgot-password → POST /auth/forgot-password → envía email
@@ -232,69 +282,90 @@ POST /auth/reset-password → { token, newPassword }
 ### Nomenclatura
 
 - Archivos de página: siempre `page.tsx` dentro de su carpeta de ruta
-- Componentes reutilizables: `PascalCase` → `AuthCard.tsx`, `RoleSelector.tsx`
-- Hooks personalizados: `camelCase` con prefijo `use` → `useAuth`, `useProfile`
+- Layouts: siempre `layout.tsx` dentro de su carpeta
+- Componentes reutilizables: `PascalCase` → `AuthCard.tsx`
+- Hooks personalizados: prefijo `use` → `useAuth`
 - Archivos de utilidad: `kebab-case` → `api.ts`, `auth-context.tsx`
 
-### TypeScript
+### TypeScript en formularios
 
-- **Strict mode** activado — no usar `any`
-- Para errores de Axios usar el patrón:
+- Los formularios de perfil **no usan interfaces** por ahora — TypeScript infiere el tipo desde `EMPTY_FORM`
+- Se agregarán interfaces en Sprint 2 cuando los datos vengan del backend
+- Para errores de Axios usar siempre este patrón:
+
 ```typescript
 } catch (err: unknown) {
-  const axiosErr = err as { response?: { data?: { error?: string } } };
-  setError(axiosErr.response?.data?.error ?? "Error inesperado.");
+  const e = err as { response?: { data?: { error?: string } } };
+  setError(e.response?.data?.error ?? "Error inesperado.");
 }
 ```
 
-### Componentes de cliente
-
-- Siempre agregar `"use client"` al inicio si usa hooks o eventos
-- Usar `useState` para estado local del formulario — nunca `useRef` para leer inputs
-- Validar en el frontend antes de llamar a la API
-
-### Manejo de errores en formularios
+### Inputs — estilo estándar del proyecto
 
 ```typescript
-// Estructura estándar de estado en formularios
-const [isLoading, setIsLoading] = useState(false);
-const [error, setError] = useState<string | null>(null);
+// Clase base reutilizable para todos los inputs
+const input = "w-full bg-[#f2f4f6] border-0 border-b-2 border-transparent focus:border-[#006d37] focus:ring-0 rounded-lg px-4 py-3 text-sm text-[#191c1e] placeholder:text-[#737781] outline-none transition-all";
 
-// Mostrar error
+const label = "block text-xs font-semibold uppercase tracking-wider text-[#424750] mb-2";
+```
+
+### Mensajes de feedback
+
+```tsx
+// Error
 {error && (
   <div className="bg-[#ffdad6] text-[#93000a] text-sm font-medium px-4 py-3 rounded-xl">
     {error}
   </div>
 )}
+
+// Éxito
+{success && (
+  <div className="bg-[#6bfe9c]/20 text-[#005228] text-sm font-medium px-4 py-3 rounded-xl">
+    {success}
+  </div>
+)}
 ```
 
-### Protección de rutas en dashboards
+### Spinner de carga estándar
 
-```typescript
-useEffect(() => {
-  if (!isLoading && !user) router.replace("/auth/login");
-}, [user, isLoading, router]);
+```tsx
+// Candidato (azul)
+<span className="w-8 h-8 border-2 border-[#00386c]/20 border-t-[#00386c] rounded-full animate-spin" />
+
+// Empresa (verde)
+<span className="w-8 h-8 border-2 border-[#006d37]/20 border-t-[#006d37] rounded-full animate-spin" />
+```
+
+### Botón submit estándar
+
+```tsx
+// Candidato
+<button className="bg-gradient-to-br from-[#00386c] to-[#1a4f8b] text-white px-10 py-3.5 rounded-full font-bold text-sm uppercase tracking-widest ...">
+
+// Empresa
+<button className="bg-gradient-to-br from-[#006d37] to-[#00743a] text-white px-10 py-3.5 rounded-full font-bold text-sm uppercase tracking-widest ...">
 ```
 
 ---
 
 ## Endpoints del backend consumidos
 
-Base URL: `http://localhost:3001/api` (desarrollo)
+Base URL: `http://localhost:3001/api` (desarrollo) — definido en `NEXT_PUBLIC_API_URL`
 
-| Método | Ruta | Usado en |
-|---|---|---|
-| POST | `/auth/register` | `/auth/register` |
-| POST | `/auth/verify-otp` | `/auth/verify-otp` |
-| POST | `/auth/resend-otp` | `/auth/verify-otp` |
-| POST | `/auth/login` | `/auth/login` |
-| POST | `/auth/forgot-password` | `/auth/forgot-password` |
-| POST | `/auth/reset-password` | `/auth/reset-password` |
-| GET | `/profile/candidate` | `/dashboard/candidate` (pendiente) |
-| PUT | `/profile/candidate` | `/dashboard/candidate` (pendiente) |
-| POST | `/profile/candidate/cv` | `/dashboard/candidate` (pendiente) |
-| GET | `/profile/company` | `/dashboard/company` (pendiente) |
-| PUT | `/profile/company` | `/dashboard/company` (pendiente) |
+| Método | Ruta | Usado en | Estado |
+|---|---|---|---|
+| POST | `/auth/register` | `/auth/register` | ✅ |
+| POST | `/auth/verify-otp` | `/auth/verify-otp` | ✅ |
+| POST | `/auth/resend-otp` | `/auth/verify-otp` | ✅ |
+| POST | `/auth/login` | `/auth/login` | ✅ |
+| POST | `/auth/forgot-password` | `/auth/forgot-password` | ✅ |
+| POST | `/auth/reset-password` | `/auth/reset-password` | ✅ |
+| GET | `/profile/candidate` | `/profile/candidate`, `/dashboard/candidate` | ✅ |
+| PUT | `/profile/candidate` | `/profile/candidate` | ✅ |
+| POST | `/profile/candidate/cv` | `/profile/candidate` | ✅ |
+| GET | `/profile/company` | `/profile/company` | ✅ |
+| PUT | `/profile/company` | `/profile/company` | ✅ |
 
 ---
 
@@ -308,38 +379,42 @@ Base URL: `http://localhost:3001/api` (desarrollo)
 | `/auth/verify-otp` | `app/auth/verify-otp/page.tsx` | ✅ Completo |
 | `/auth/forgot-password` | `app/auth/forgot-password/page.tsx` | ✅ Completo |
 | `/auth/reset-password` | `app/auth/reset-password/page.tsx` | ✅ Completo |
-| `/dashboard/candidate` | `app/dashboard/candidate/page.tsx` | ⚠️ Bienvenida básica — Sprint 2 |
-| `/dashboard/company` | `app/dashboard/company/page.tsx` | ⚠️ Bienvenida básica — Sprint 2 |
+| `/dashboard/candidate` | `app/dashboard/candidate/page.tsx` | ✅ Completo — datos estáticos |
+| `/dashboard/candidate/explorar` | `app/dashboard/candidate/explorar/page.tsx` | ✅ Completo — datos estáticos |
+| `/dashboard/company` | `app/dashboard/company/page.tsx` | ✅ Completo — datos estáticos |
+| `/profile/candidate` | `app/profile/candidate/page.tsx` | ✅ Completo — conectado a API |
+| `/profile/company` | `app/profile/company/page.tsx` | ✅ Completo — conectado a API |
 
 ---
 
 ## Lo que NO está implementado aún
 
-- Perfil completo de candidato (Sprint 2)
-- Subida de CV a Supabase Storage (Sprint 2)
-- Perfil completo de empresa (Sprint 2)
-- Publicación y gestión de vacantes (Sprint 2)
-- Postulaciones (Sprint 2)
-- Mantener sesión iniciada / sessionStorage (Sprint 2)
-- Reenvío de OTP por correo sin userId (pendiente backend)
+- Postulaciones de candidato — `/dashboard/candidate/postulaciones` (Sprint 2)
+- Vacantes de empresa — `/dashboard/company/vacantes` (Sprint 2)
+- Buscar talento empresa — `/dashboard/company/talento` (Sprint 2)
+- Dashboards con datos reales del backend (Sprint 2)
+- Página de explorar con datos reales (Sprint 2)
+- Mantener sesión iniciada con sessionStorage (Sprint 2)
+- Reenvío de OTP desde login con solo email — pendiente backend (Sprint 2)
 - Notificaciones (Sprint 3)
-- Dashboards completos con datos reales (Sprint 3)
 - Panel de administración (Sprint 4)
 
 ---
 
 ## Notas para agentes de IA
 
-- **No usar `fetch` directamente** — siempre usar el cliente `api` de `src/lib/api.ts`
-- **No usar `localStorage` directamente** en componentes — usar `useAuth()`
+- **No usar `fetch`** — siempre el cliente `api` de `@/lib/api`
+- **No usar `localStorage` directamente** — usar `useAuth()`
 - **No crear `tailwind.config.ts`** — los tokens van en `globals.css` con `@theme`
 - **No usar Pages Router** — este proyecto usa exclusivamente App Router
-- **Siempre agregar `"use client"`** a componentes que usen hooks o eventos del browser
-- **Los mensajes de error al usuario van en español**
-- **Validar siempre en el frontend** antes de llamar a la API
-- Al agregar una página nueva, agregarla también a la tabla de páginas de este archivo
-- Al consumir un endpoint nuevo, agregarlo también a la tabla de endpoints de este archivo
-- Los imports de Axios y contexto** siempre deben ser `@/lib/api` y `@/context/auth-context` — nunca `@/src/lib/api`
-- El tipo de error de Axios** siempre debe incluir `status?: number` en el response
-- Login y register tienen link de regreso al landing** — solo visible en desktop (panel izquierdo)
-- El flujo NOT_VERIFIED** está manejado en el login — redirige automáticamente a verify-otp
+- **Siempre `"use client"`** en componentes con hooks o eventos del browser
+- **Los mensajes de error van en español**
+- **Los imports siempre son** `@/lib/api` y `@/context/auth-context` — nunca `@/src/...`
+- **El dashboard tiene un layout compartido** en `app/dashboard/layout.tsx` — no repetir el header en las páginas hijas
+- **Rutas de candidato** dentro de `dashboard/candidate/`, rutas de empresa dentro de `dashboard/company/`
+- **Los formularios de perfil no tienen interfaces TypeScript** — TypeScript infiere el tipo desde `EMPTY_FORM`. Se agregarán en Sprint 2
+- **El botón "Ver CV"** en el dashboard candidato requiere hacer `GET /profile/candidate` para obtener el `cvUrl`
+- **El acento de color del rol empresa es verde** (`#006d37`), el de candidato es azul (`#00386c`)
+- **El flujo NOT_VERIFIED** está manejado en el login — redirige automáticamente a verify-otp
+- Al agregar una página nueva, agregarla a la tabla de páginas implementadas de este archivo
+- Al consumir un endpoint nuevo, agregarlo a la tabla de endpoints de este archivo
