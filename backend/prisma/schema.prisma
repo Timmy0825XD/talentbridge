@@ -80,6 +80,8 @@ model CandidateProfile {
   workMode       String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  applications   Application[]
+  score          ProfileScore?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -101,8 +103,110 @@ model CompanyProfile {
   city          String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  jobs          Job[]
+  
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("company_profiles")
+}
+
+enum JobType {
+  FORMAL      // Contrato formal
+  FREELANCE   // Proyecto puntual / microwork
+}
+
+enum JobStatus {
+  ACTIVE      // Visible para candidatos
+  SELECTING   // En proceso de selección
+  CLOSED      // Cerrada — ya se seleccionó
+  CANCELLED   // Cancelada por la empresa
+}
+
+enum ApplicationStatus {
+  RECEIVED    // Postulación recibida
+  REVIEWING   // En revisión por la empresa
+  SELECTED    // Candidato seleccionado
+  REJECTED    // Candidato descartado
+}
+
+enum WorkMode {
+  REMOTE
+  ONSITE
+  HYBRID
+}
+
+model Job {
+  id           String    @id @default(uuid())
+  companyId    String
+  title        String
+  description  String
+  type         JobType
+  status       JobStatus @default(ACTIVE)
+  workMode     WorkMode
+  area         String?
+  skills       String[]
+  budgetMin    Int?
+  budgetMax    Int?
+  duration     String?
+  deadline     DateTime?
+  deliverables String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  company      CompanyProfile @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  applications Application[]
+  rankConfig   JobRankConfig?
+
+  @@map("jobs")
+}
+
+model Application {
+  id          String            @id @default(uuid())
+  jobId       String
+  candidateId String
+  status      ApplicationStatus @default(RECEIVED)
+  scoreAtApply Float?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  job       Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidate CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, candidateId])
+  @@map("applications")
+}
+
+model JobRankConfig {
+  id               String  @id @default(uuid())
+  jobId            String  @unique
+  skillsWeight     Float   @default(0.30)
+  experienceWeight Float   @default(0.25)
+  educationWeight  Float   @default(0.15)
+  certsWeight      Float   @default(0.10)
+  reputationWeight Float   @default(0.10)
+  languagesWeight  Float   @default(0.05)
+  completionWeight Float   @default(0.05)
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@map("job_rank_configs")
+}
+
+model ProfileScore {
+  id               String   @id @default(uuid())
+  candidateId      String   @unique
+  totalScore       Float    @default(0)
+  skillsScore      Float    @default(0)
+  experienceScore  Float    @default(0)
+  educationScore   Float    @default(0)
+  certsScore       Float    @default(0)
+  reputationScore  Float    @default(0)
+  languagesScore   Float    @default(0)
+  completionScore  Float    @default(0)
+  calculatedAt     DateTime @default(now())
+
+  candidate CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@map("profile_scores")
 }

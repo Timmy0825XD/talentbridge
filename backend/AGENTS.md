@@ -297,6 +297,40 @@ Perfil corporativo de empresas.
 - Relación 1:1 con User
 - Siempre se crea/actualiza con `upsert`
 
+#### Job
+Vacante publicada por una empresa.
+- Estado inicial: `ACTIVE` — visible para candidatos
+- Estados: `ACTIVE`, `SELECTING`, `CLOSED`, `CANCELLED`
+- Tipos: `FORMAL` (contrato) o `FREELANCE` (proyecto puntual)
+- `skills` es array de strings con las habilidades requeridas
+- Relaciones: pertenece a `CompanyProfile`, tiene muchas `Application`, tiene un `JobRankConfig` opcional
+
+#### Application
+Postulación de un candidato a una vacante.
+- Restricción única: un candidato solo puede postularse una vez por vacante (`@@unique([jobId, candidateId])`)
+- `scoreAtApply` guarda el puntaje del candidato en el momento de postularse — no cambia aunque el perfil cambie después
+- Estados: `RECEIVED`, `REVIEWING`, `SELECTED`, `REJECTED`
+
+#### JobRankConfig
+Pesos personalizados del motor de ranking para una vacante específica.
+- Relación 1:1 con `Job`
+- Si no existe config para una vacante, el motor usa los pesos globales por defecto
+- La suma de todos los pesos debe ser siempre 1.0
+- Pesos por defecto: skills(0.30), experience(0.25), education(0.15), certs(0.10), reputation(0.10), languages(0.05), completion(0.05)
+
+#### ProfileScore
+Puntaje calculado de un candidato.
+- Relación 1:1 con `CandidateProfile`
+- Se recalcula cada vez que el candidato actualiza su perfil o sube un CV
+- `totalScore` es 0-100
+- Guarda el desglose por cada criterio del ranking
+
+#### Nuevos enums Sprint 2
+- `JobType`: FORMAL, FREELANCE
+- `JobStatus`: ACTIVE, SELECTING, CLOSED, CANCELLED  
+- `ApplicationStatus`: RECEIVED, REVIEWING, SELECTED, REJECTED
+- `WorkMode`: REMOTE, ONSITE, HYBRID
+
 ---
 
 ## Endpoints implementados
