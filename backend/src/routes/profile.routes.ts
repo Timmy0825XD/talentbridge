@@ -41,4 +41,10 @@ router.put(
   profileController.updateCompanyProfile
 );
 
+router.post(
+  '/candidate/extract-cv',
+  authorize('STUDENT', 'GRADUATE'),
+  profileController.extractCv
+);
+
 export default router;

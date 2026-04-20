@@ -210,3 +210,20 @@ model ProfileScore {
 
   @@map("profile_scores")
 }
+
+enum KeywordType {
+  TECHNICAL   // Habilidades técnicas → va a skills[]
+  SOFT        // Habilidades blandas → va a softSkills[]
+  LANGUAGE    // Idiomas → va a languages JSON
+}
+
+model Keyword {
+  id        String      @id @default(uuid())
+  name      String      @unique
+  type      KeywordType
+  category  String      // ej: "Desarrollo Web", "Diseño", "Administración"
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+
+  @@map("keywords")
+}

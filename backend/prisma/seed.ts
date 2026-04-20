@@ -1,0 +1,170 @@
+import { PrismaClient, KeywordType } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+const keywords = [
+  // ── DESARROLLO WEB / SISTEMAS ─────────────────────────────────────────
+  { name: 'javascript',     type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'typescript',     type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'python',         type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'java',           type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'kotlin',         type: KeywordType.TECHNICAL, category: 'Desarrollo Móvil' },
+  { name: 'swift',          type: KeywordType.TECHNICAL, category: 'Desarrollo Móvil' },
+  { name: 'c++',            type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'c#',             type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'php',            type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'go',             type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'rust',           type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'react',          type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'next.js',        type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'vue',            type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'angular',        type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'svelte',         type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'html',           type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'css',            type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'tailwind',       type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'node.js',        type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'express',        type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'fastapi',        type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'django',         type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'nestjs',         type: KeywordType.TECHNICAL, category: 'Desarrollo Web' },
+  { name: 'postgresql',     type: KeywordType.TECHNICAL, category: 'Bases de Datos' },
+  { name: 'mysql',          type: KeywordType.TECHNICAL, category: 'Bases de Datos' },
+  { name: 'mongodb',        type: KeywordType.TECHNICAL, category: 'Bases de Datos' },
+  { name: 'redis',          type: KeywordType.TECHNICAL, category: 'Bases de Datos' },
+  { name: 'prisma',         type: KeywordType.TECHNICAL, category: 'Bases de Datos' },
+  { name: 'sql',            type: KeywordType.TECHNICAL, category: 'Bases de Datos' },
+  { name: 'aws',            type: KeywordType.TECHNICAL, category: 'Cloud y DevOps' },
+  { name: 'gcp',            type: KeywordType.TECHNICAL, category: 'Cloud y DevOps' },
+  { name: 'azure',          type: KeywordType.TECHNICAL, category: 'Cloud y DevOps' },
+  { name: 'docker',         type: KeywordType.TECHNICAL, category: 'Cloud y DevOps' },
+  { name: 'kubernetes',     type: KeywordType.TECHNICAL, category: 'Cloud y DevOps' },
+  { name: 'linux',          type: KeywordType.TECHNICAL, category: 'Cloud y DevOps' },
+  { name: 'git',            type: KeywordType.TECHNICAL, category: 'Herramientas' },
+  { name: 'github',         type: KeywordType.TECHNICAL, category: 'Herramientas' },
+  { name: 'jira',           type: KeywordType.TECHNICAL, category: 'Herramientas' },
+  { name: 'figma',          type: KeywordType.TECHNICAL, category: 'Herramientas' },
+  { name: 'postman',        type: KeywordType.TECHNICAL, category: 'Herramientas' },
+  { name: 'rest api',       type: KeywordType.TECHNICAL, category: 'Herramientas' },
+  { name: 'graphql',        type: KeywordType.TECHNICAL, category: 'Herramientas' },
+  { name: 'react native',   type: KeywordType.TECHNICAL, category: 'Desarrollo Móvil' },
+  { name: 'flutter',        type: KeywordType.TECHNICAL, category: 'Desarrollo Móvil' },
+  { name: 'android',        type: KeywordType.TECHNICAL, category: 'Desarrollo Móvil' },
+  { name: 'ios',            type: KeywordType.TECHNICAL, category: 'Desarrollo Móvil' },
+  { name: 'machine learning', type: KeywordType.TECHNICAL, category: 'Data Science' },
+  { name: 'deep learning',  type: KeywordType.TECHNICAL, category: 'Data Science' },
+  { name: 'tensorflow',     type: KeywordType.TECHNICAL, category: 'Data Science' },
+  { name: 'pytorch',        type: KeywordType.TECHNICAL, category: 'Data Science' },
+  { name: 'pandas',         type: KeywordType.TECHNICAL, category: 'Data Science' },
+  { name: 'numpy',          type: KeywordType.TECHNICAL, category: 'Data Science' },
+  { name: 'power bi',       type: KeywordType.TECHNICAL, category: 'Data Science' },
+  { name: 'tableau',        type: KeywordType.TECHNICAL, category: 'Data Science' },
+
+  // ── DISEÑO ────────────────────────────────────────────────────────────
+  { name: 'diseño gráfico', type: KeywordType.TECHNICAL, category: 'Diseño' },
+  { name: 'illustrator',    type: KeywordType.TECHNICAL, category: 'Diseño' },
+  { name: 'photoshop',      type: KeywordType.TECHNICAL, category: 'Diseño' },
+  { name: 'indesign',       type: KeywordType.TECHNICAL, category: 'Diseño' },
+  { name: 'ui/ux',          type: KeywordType.TECHNICAL, category: 'Diseño' },
+  { name: 'after effects',  type: KeywordType.TECHNICAL, category: 'Diseño' },
+  { name: 'premiere',       type: KeywordType.TECHNICAL, category: 'Diseño' },
+  { name: 'branding',       type: KeywordType.TECHNICAL, category: 'Diseño' },
+  { name: 'canva',          type: KeywordType.TECHNICAL, category: 'Diseño' },
+
+  // ── ADMINISTRACIÓN Y NEGOCIOS ─────────────────────────────────────────
+  { name: 'gestión de proyectos', type: KeywordType.TECHNICAL, category: 'Administración' },
+  { name: 'scrum',          type: KeywordType.TECHNICAL, category: 'Administración' },
+  { name: 'kanban',         type: KeywordType.TECHNICAL, category: 'Administración' },
+  { name: 'excel avanzado', type: KeywordType.TECHNICAL, category: 'Administración' },
+  { name: 'sap',            type: KeywordType.TECHNICAL, category: 'Administración' },
+  { name: 'marketing digital', type: KeywordType.TECHNICAL, category: 'Administración' },
+  { name: 'seo',            type: KeywordType.TECHNICAL, category: 'Administración' },
+  { name: 'crm',            type: KeywordType.TECHNICAL, category: 'Administración' },
+  { name: 'salesforce',     type: KeywordType.TECHNICAL, category: 'Administración' },
+  { name: 'gestión financiera', type: KeywordType.TECHNICAL, category: 'Administración' },
+
+  // ── CONTADURÍA ────────────────────────────────────────────────────────
+  { name: 'contabilidad',   type: KeywordType.TECHNICAL, category: 'Contaduría' },
+  { name: 'niif',           type: KeywordType.TECHNICAL, category: 'Contaduría' },
+  { name: 'auditoría',      type: KeywordType.TECHNICAL, category: 'Contaduría' },
+  { name: 'siigo',          type: KeywordType.TECHNICAL, category: 'Contaduría' },
+  { name: 'tributaria',     type: KeywordType.TECHNICAL, category: 'Contaduría' },
+  { name: 'dian',           type: KeywordType.TECHNICAL, category: 'Contaduría' },
+
+  // ── DERECHO ───────────────────────────────────────────────────────────
+  { name: 'derecho laboral', type: KeywordType.TECHNICAL, category: 'Derecho' },
+  { name: 'derecho comercial', type: KeywordType.TECHNICAL, category: 'Derecho' },
+  { name: 'contratos',      type: KeywordType.TECHNICAL, category: 'Derecho' },
+  { name: 'litigios',       type: KeywordType.TECHNICAL, category: 'Derecho' },
+
+  // ── INGENIERÍA CIVIL / INDUSTRIAL ─────────────────────────────────────
+  { name: 'autocad',        type: KeywordType.TECHNICAL, category: 'Ingeniería Civil' },
+  { name: 'revit',          type: KeywordType.TECHNICAL, category: 'Ingeniería Civil' },
+  { name: 'lean manufacturing', type: KeywordType.TECHNICAL, category: 'Ingeniería Industrial' },
+  { name: 'six sigma',      type: KeywordType.TECHNICAL, category: 'Ingeniería Industrial' },
+  { name: 'logística',      type: KeywordType.TECHNICAL, category: 'Ingeniería Industrial' },
+
+  // ── SALUD ─────────────────────────────────────────────────────────────
+  { name: 'salud ocupacional', type: KeywordType.TECHNICAL, category: 'Salud' },
+  { name: 'sgsst',          type: KeywordType.TECHNICAL, category: 'Salud' },
+  { name: 'primeros auxilios', type: KeywordType.TECHNICAL, category: 'Salud' },
+
+  // ── COMUNICACIÓN ──────────────────────────────────────────────────────
+  { name: 'redacción',      type: KeywordType.TECHNICAL, category: 'Comunicación' },
+  { name: 'community manager', type: KeywordType.TECHNICAL, category: 'Comunicación' },
+  { name: 'copywriting',    type: KeywordType.TECHNICAL, category: 'Comunicación' },
+  { name: 'relaciones públicas', type: KeywordType.TECHNICAL, category: 'Comunicación' },
+
+  // ── EDUCACIÓN ─────────────────────────────────────────────────────────
+  { name: 'pedagogía',      type: KeywordType.TECHNICAL, category: 'Educación' },
+  { name: 'didáctica',      type: KeywordType.TECHNICAL, category: 'Educación' },
+  { name: 'e-learning',     type: KeywordType.TECHNICAL, category: 'Educación' },
+  { name: 'moodle',         type: KeywordType.TECHNICAL, category: 'Educación' },
+
+  // ── HABILIDADES BLANDAS ───────────────────────────────────────────────
+  { name: 'liderazgo',           type: KeywordType.SOFT, category: 'Habilidades Blandas' },
+  { name: 'trabajo en equipo',   type: KeywordType.SOFT, category: 'Habilidades Blandas' },
+  { name: 'comunicación',        type: KeywordType.SOFT, category: 'Habilidades Blandas' },
+  { name: 'resolución de problemas', type: KeywordType.SOFT, category: 'Habilidades Blandas' },
+  { name: 'pensamiento crítico', type: KeywordType.SOFT, category: 'Habilidades Blandas' },
+  { name: 'creatividad',         type: KeywordType.SOFT, category: 'Habilidades Blandas' },
+  { name: 'adaptabilidad',       type: KeywordType.SOFT, category: 'Habilidades Blandas' },
+  { name: 'gestión del tiempo',  type: KeywordType.SOFT, category: 'Habilidades Blandas' },
+  { name: 'proactividad',        type: KeywordType.SOFT, category: 'Habilidades Blandas' },
+  { name: 'empatía',             type: KeywordType.SOFT, category: 'Habilidades Blandas' },
+  { name: 'negociación',         type: KeywordType.SOFT, category: 'Habilidades Blandas' },
+  { name: 'toma de decisiones',  type: KeywordType.SOFT, category: 'Habilidades Blandas' },
+  { name: 'orientación al logro', type: KeywordType.SOFT, category: 'Habilidades Blandas' },
+  { name: 'inteligencia emocional', type: KeywordType.SOFT, category: 'Habilidades Blandas' },
+
+  // ── IDIOMAS ───────────────────────────────────────────────────────────
+  { name: 'inglés',    type: KeywordType.LANGUAGE, category: 'Idiomas' },
+  { name: 'english',   type: KeywordType.LANGUAGE, category: 'Idiomas' },
+  { name: 'francés',   type: KeywordType.LANGUAGE, category: 'Idiomas' },
+  { name: 'portugués', type: KeywordType.LANGUAGE, category: 'Idiomas' },
+  { name: 'alemán',    type: KeywordType.LANGUAGE, category: 'Idiomas' },
+  { name: 'mandarín',  type: KeywordType.LANGUAGE, category: 'Idiomas' },
+  { name: 'b1',        type: KeywordType.LANGUAGE, category: 'Idiomas' },
+  { name: 'b2',        type: KeywordType.LANGUAGE, category: 'Idiomas' },
+  { name: 'c1',        type: KeywordType.LANGUAGE, category: 'Idiomas' },
+  { name: 'toefl',     type: KeywordType.LANGUAGE, category: 'Idiomas' },
+  { name: 'ielts',     type: KeywordType.LANGUAGE, category: 'Idiomas' },
+];
+
+async function main() {
+  console.log('Seeding keywords...');
+
+  for (const keyword of keywords) {
+    await prisma.keyword.upsert({
+      where: { name: keyword.name },
+      update: {},
+      create: keyword,
+    });
+  }
+
+  console.log(`✅ ${keywords.length} keywords insertadas correctamente.`);
+}
+
+main()
+  .catch(console.error)
+  .finally(() => prisma.$disconnect());

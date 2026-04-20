@@ -39,6 +39,7 @@ flujos de automatización de n8n.
 | multer | 2.x | Para recibir archivos en el servidor |
 | zod | 3.x | Para validación de esquemas |
 | uuid | 9.x | Para generación de IDs |
+| pdf-parse | 1.1.1 | Extracción de texto de PDFs — usar `require('pdf-parse/lib/pdf-parse.js')` directamente |
 
 ### Advertencia crítica sobre Prisma
 
@@ -263,7 +264,40 @@ enum Role {
   INSTITUTION  // Institución educativa
   ADMIN        // Administrador de la plataforma
 }
+
+enum KeywordType {
+  TECHNICAL   // Habilidades técnicas → va a skills[]
+  SOFT        // Habilidades blandas → va a softSkills[]
+  LANGUAGE    // Idiomas → va a languages JSON
+}
+
+enum JobType {
+  FORMAL      // Contrato formal
+  FREELANCE   // Proyecto puntual / microwork
+}
+
+enum JobStatus {
+  ACTIVE      // Visible para candidatos
+  SELECTING   // En proceso de selección
+  CLOSED      // Cerrada — ya se seleccionó
+  CANCELLED   // Cancelada por la empresa
+}
+
+enum ApplicationStatus {
+  RECEIVED    // Postulación recibida
+  REVIEWING   // En revisión por la empresa
+  SELECTED    // Candidato seleccionado
+  REJECTED    // Candidato descartado
+}
+
+enum WorkMode {
+  REMOTE
+  ONSITE
+  HYBRID
+}
 ```
+
+
 
 ### Modelos implementados
 
@@ -331,6 +365,17 @@ Puntaje calculado de un candidato.
 - `ApplicationStatus`: RECEIVED, REVIEWING, SELECTED, REJECTED
 - `WorkMode`: REMOTE, ONSITE, HYBRID
 
+#### Keyword
+Keywords gestionadas en BD para el extractor de CV y el motor de ranking.
+- `type`: TECHNICAL → va a `skills[]`, SOFT → va a `softSkills[]`, LANGUAGE → va a `languages JSON`
+- `category`: agrupa keywords por área (ej: "Desarrollo Web", "Diseño", "Administración")
+- `isActive`: permite desactivar keywords sin eliminarlas — el extractor solo usa las activas
+- Poblada inicialmente con `npx prisma db seed`
+- Gestionable desde el panel de administrador en Sprint 4
+
+
+
+
 ---
 
 ## Endpoints implementados
@@ -369,6 +414,13 @@ Todas requieren `Authorization: Bearer TOKEN` en el header.
 | GET | `/profile/company` | Consultar perfil empresa | COMPANY | Sí |
 | PUT | `/profile/company` | Crear o actualizar perfil empresa | COMPANY | Sí |
 
+
+### Extracción de CV — `/api/profile`
+
+| Método | Ruta | Descripción | Roles | Auth |
+|---|---|---|---|---|
+| POST | `/profile/candidate/extract-cv` | Extrae keywords del CV manualmente y actualiza el perfil | STUDENT, GRADUATE | Sí |
+
 ---
 
 ## Supabase Storage — CVs
@@ -399,9 +451,15 @@ src/
 │   ├── mailer.ts
 │   │   └── Transporter Nodemailer con Mailtrap SMTP.
 │   │       Exporta: sendOtpEmail(to, code), sendResetEmail(to, token)
-│   └── supabase.ts
-│       └── Cliente singleton de Supabase.
-│           Exporta: supabase (instancia de createClient)
+│   ├── supabase.ts
+│   │  └── Cliente singleton de Supabase.
+│   │       Exporta: supabase (instancia de createClient)
+│   └── cv-extractor.ts
+│       └── Descarga PDF desde Supabase Storage, extrae texto con pdf-parse,
+│           consulta keywords activas de la BD y las clasifica por tipo.
+│           IMPORTANTE: usar require('pdf-parse/lib/pdf-parse.js') — NO import default
+│           Exporta: extractCvKeywords(cvUrl) → ExtractedKeywords
+│           Exporta: interface ExtractedKeywords { technical, soft, languages }
 │
 ├── middlewares/
 │   ├── auth.middleware.ts
@@ -436,6 +494,23 @@ src/
         └── GET|PUT /candidate, POST /candidate/cv,
             GET|PUT /company
 ```
+
+---
+
+## Seed de datos
+
+El proyecto tiene un seed inicial de keywords en `prisma/seed.ts`.
+
+Para ejecutarlo:
+```bash
+npx prisma db seed
+```
+
+Esto inserta ~120 keywords clasificadas por tipo y categoría en la tabla `keywords`.
+El seed usa `upsert` — es seguro ejecutarlo múltiples veces sin duplicar datos.
+
+Requiere `tsconfig.seed.json` en la raíz de `backend/` para que `ts-node` compile
+el seed correctamente con `rootDir: "."`.
 
 ---
 
