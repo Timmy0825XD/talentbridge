@@ -75,3 +75,22 @@ export async function uploadCv(req: AuthRequest, res: Response) {
     res.status(500).json({ error: 'Error interno del servidor.' });
   }
 }
+
+export async function extractCv(req: AuthRequest, res: Response) {
+  try {
+    const userId = req.user!.userId;
+    const extracted = await profileService.extractCvManually(userId);
+    res.json({
+      message: 'Extracción completada.',
+      technical: extracted.technical,
+      soft: extracted.soft,
+      languages: extracted.languages,
+      total: extracted.technical.length + extracted.soft.length + extracted.languages.length,
+    });
+  } catch (err: any) {
+    if (err.message === 'CV_NOT_FOUND')
+      return res.status(404).json({ error: 'No tienes un CV cargado.' });
+    console.error('extractCv error:', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+}
