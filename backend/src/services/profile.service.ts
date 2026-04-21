@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { supabase } from '../lib/supabase';
 import { extractCvKeywords, ExtractedKeywords } from '../lib/cv-extractor';
+import { computeAndSaveScore } from './ranking.service';
 
 
 // ─── PERFIL CANDIDATO ─────────────────────────────────────────────────────────
@@ -33,6 +34,9 @@ export async function upsertCandidateProfile(userId: string, data: {
     update: data,
     create: { userId, ...data },
   });
+  computeAndSaveScore(userId).catch(err =>
+    console.error('Error recalculando score:', err)
+  );
   return profile;
 }
 
@@ -120,6 +124,7 @@ export async function uploadCvToStorage(
         data: updateData,
       });
     }
+    await computeAndSaveScore(userId);
   }).catch(err => {
     console.error('Error extrayendo keywords del CV:', err);
   });

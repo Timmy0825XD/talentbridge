@@ -421,6 +421,14 @@ Todas requieren `Authorization: Bearer TOKEN` en el header.
 |---|---|---|---|---|
 | POST | `/profile/candidate/extract-cv` | Extrae keywords del CV manualmente y actualiza el perfil | STUDENT, GRADUATE | Sí |
 
+### Ranking — `/api/ranking`
+
+| Método | Ruta | Descripción | Roles | Auth |
+|---|---|---|---|---|
+| GET | `/ranking/me` | Consultar mi puntaje con desglose y sugerencias | STUDENT, GRADUATE | Sí |
+| POST | `/ranking/recalculate` | Forzar recálculo de mi puntaje | STUDENT, GRADUATE | Sí |
+| GET | `/ranking/:userId` | Consultar puntaje de un candidato específico | COMPANY, ADMIN | Sí |
+
 ---
 
 ## Supabase Storage — CVs
@@ -441,7 +449,7 @@ Todas requieren `Authorization: Bearer TOKEN` en el header.
 src/
 ├── app.ts
 │   └── Entrada de la aplicación. Registra middlewares globales y rutas.
-│       Importa: express, cors, dotenv, authRoutes, profileRoutes
+│       Importa: express, cors, dotenv, authRoutes, profileRoutes, rankingRoutes
 │
 ├── lib/
 │   ├── prisma.ts
@@ -452,14 +460,19 @@ src/
 │   │   └── Transporter Nodemailer con Mailtrap SMTP.
 │   │       Exporta: sendOtpEmail(to, code), sendResetEmail(to, token)
 │   ├── supabase.ts
-│   │  └── Cliente singleton de Supabase.
+│   │   └── Cliente singleton de Supabase.
 │   │       Exporta: supabase (instancia de createClient)
-│   └── cv-extractor.ts
-│       └── Descarga PDF desde Supabase Storage, extrae texto con pdf-parse,
-│           consulta keywords activas de la BD y las clasifica por tipo.
-│           IMPORTANTE: usar require('pdf-parse/lib/pdf-parse.js') — NO import default
-│           Exporta: extractCvKeywords(cvUrl) → ExtractedKeywords
-│           Exporta: interface ExtractedKeywords { technical, soft, languages }
+│   ├── cv-extractor.ts
+│   │   └── Descarga PDF desde Supabase Storage, extrae texto con pdf-parse,
+│   │       consulta keywords activas de la BD y las clasifica por tipo.
+│   │       IMPORTANTE: usar require('pdf-parse/lib/pdf-parse.js') — NO import default
+│   │       Exporta: extractCvKeywords(cvUrl) → ExtractedKeywords
+│   │       Exporta: interface ExtractedKeywords { technical, soft, languages }
+│   └── ranking.ts
+│       └── Lógica pura del cálculo del puntaje — no toca la BD
+│           Exporta: calculateScore(data, weights) → ScoreBreakdown
+│           Exporta: DEFAULT_WEIGHTS
+│           Exporta: interfaces RankingWeights, CandidateData, ScoreBreakdown
 │
 ├── middlewares/
 │   ├── auth.middleware.ts
@@ -473,26 +486,36 @@ src/
 │   ├── auth.service.ts
 │   │   └── registerUser, verifyOtp, resendOtp, loginUser,
 │   │       forgotPassword, resetPassword
-│   └── profile.service.ts
-│       └── getCandidateProfile, upsertCandidateProfile,
-│           getCompanyProfile, upsertCompanyProfile,
-│           uploadCvToStorage
+│   ├── profile.service.ts
+│   │   └── getCandidateProfile, upsertCandidateProfile,
+│   │       getCompanyProfile, upsertCompanyProfile,
+│   │       uploadCvToStorage
+│   └── ranking.service.ts
+│       └── Orquesta el cálculo y persiste en ProfileScore
+│           Exporta: computeAndSaveScore(userId)
+│           Exporta: getScoreByUserId(userId)
+│           Exporta: getScoreByCandidateId(candidateId)
 │
 ├── controllers/
 │   ├── auth.controller.ts
 │   │   └── register, verifyOtp, resendOtp, login, logout,
 │   │       forgotPassword, resetPassword
-│   └── profile.controller.ts
-│       └── getCandidateProfile, updateCandidateProfile, uploadCv,
-│           getCompanyProfile, updateCompanyProfile
+│   ├── profile.controller.ts
+│   │   └── getCandidateProfile, updateCandidateProfile, uploadCv,
+│   │       getCompanyProfile, updateCompanyProfile
+│   └── ranking.controller.ts
+│       └── getMyScore, getCandidateScore, recalculateMyScore
 │
 └── routes/
     ├── auth.routes.ts
     │   └── POST /register, /verify-otp, /resend-otp, /login,
     │       /logout, /forgot-password, /reset-password
-    └── profile.routes.ts
-        └── GET|PUT /candidate, POST /candidate/cv,
-            GET|PUT /company
+    ├── profile.routes.ts
+    │   └── GET|PUT /candidate, POST /candidate/cv,
+    │       GET|PUT /company
+    └── ranking.routes.ts
+        └── GET /me, POST /recalculate, GET /:userId
+
 ```
 
 ---
