@@ -429,6 +429,26 @@ Todas requieren `Authorization: Bearer TOKEN` en el header.
 | POST | `/ranking/recalculate` | Forzar recálculo de mi puntaje | STUDENT, GRADUATE | Sí |
 | GET | `/ranking/:userId` | Consultar puntaje de un candidato específico | COMPANY, ADMIN | Sí |
 
+### Vacantes — `/api/jobs`
+
+| Método | Ruta | Descripción | Roles | Auth |
+|---|---|---|---|---|
+| GET | `/jobs` | Listar vacantes activas con filtros | Todos | Sí |
+| GET | `/jobs/company/mine` | Mis vacantes publicadas | COMPANY | Sí |
+| GET | `/jobs/:id` | Detalle de una vacante | Todos | Sí |
+| POST | `/jobs` | Publicar nueva vacante | COMPANY | Sí |
+| PUT | `/jobs/:id` | Editar vacante | COMPANY | Sí |
+| PATCH | `/jobs/:id/status` | Cambiar estado de vacante | COMPANY | Sí |
+
+**Filtros disponibles en GET /jobs:**
+- `search` — búsqueda en título y descripción
+- `area` — área de la vacante
+- `workMode` — REMOTE, ONSITE, HYBRID
+- `type` — FORMAL, FREELANCE
+- `budgetMin` / `budgetMax` — rango de presupuesto
+- `skills` — skills separadas por coma
+- `page` / `limit` — paginación
+
 ---
 
 ## Supabase Storage — CVs
@@ -449,7 +469,7 @@ Todas requieren `Authorization: Bearer TOKEN` en el header.
 src/
 ├── app.ts
 │   └── Entrada de la aplicación. Registra middlewares globales y rutas.
-│       Importa: express, cors, dotenv, authRoutes, profileRoutes, rankingRoutes
+│       Importa: express, cors, dotenv, authRoutes, profileRoutes, rankingRoutes, jobRoutes
 │
 ├── lib/
 │   ├── prisma.ts
@@ -490,11 +510,14 @@ src/
 │   │   └── getCandidateProfile, upsertCandidateProfile,
 │   │       getCompanyProfile, upsertCompanyProfile,
 │   │       uploadCvToStorage
-│   └── ranking.service.ts
-│       └── Orquesta el cálculo y persiste en ProfileScore
-│           Exporta: computeAndSaveScore(userId)
-│           Exporta: getScoreByUserId(userId)
-│           Exporta: getScoreByCandidateId(candidateId)
+│   ├── ranking.service.ts
+│   │   └── Orquesta el cálculo y persiste en ProfileScore
+│   │       Exporta: computeAndSaveScore(userId)
+│   │       Exporta: getScoreByUserId(userId)
+│   │       Exporta: getScoreByCandidateId(candidateId)
+│   └── job.service.ts
+│       └── createJob, listJobs, getJobById, updateJob,
+│           updateJobStatus, getMyJobs
 │
 ├── controllers/
 │   ├── auth.controller.ts
@@ -503,8 +526,11 @@ src/
 │   ├── profile.controller.ts
 │   │   └── getCandidateProfile, updateCandidateProfile, uploadCv,
 │   │       getCompanyProfile, updateCompanyProfile
-│   └── ranking.controller.ts
-│       └── getMyScore, getCandidateScore, recalculateMyScore
+│   ├── ranking.controller.ts
+│   │   └── getMyScore, getCandidateScore, recalculateMyScore
+│   └── job.controller.ts
+│       └── createJob, listJobs, getJobById, updateJob,
+│           updateJobStatus, getMyJobs
 │
 └── routes/
     ├── auth.routes.ts
@@ -513,8 +539,11 @@ src/
     ├── profile.routes.ts
     │   └── GET|PUT /candidate, POST /candidate/cv,
     │       GET|PUT /company
-    └── ranking.routes.ts
-        └── GET /me, POST /recalculate, GET /:userId
+    ├── ranking.routes.ts
+    │   └── GET /me, POST /recalculate, GET /:userId
+    └── job.routes.ts
+        └── GET /, GET /company/mine, GET /:id,
+            POST /, PUT /:id, PATCH /:id/status
 
 ```
 
