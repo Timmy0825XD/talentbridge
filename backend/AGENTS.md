@@ -449,6 +449,15 @@ Todas requieren `Authorization: Bearer TOKEN` en el header.
 - `skills` — skills separadas por coma
 - `page` / `limit` — paginación
 
+### Postulaciones — `/api/applications` y `/api/jobs/:id`
+
+| Método | Ruta | Descripción | Roles | Auth |
+|---|---|---|---|---|
+| POST | `/jobs/:id/apply` | Postularse a una vacante | STUDENT, GRADUATE | Sí |
+| GET | `/jobs/:id/applicants` | Candidatos postulados ordenados por score | COMPANY | Sí |
+| PATCH | `/applications/:id/status` | Cambiar estado de postulación | COMPANY | Sí |
+| GET | `/applications/me` | Mis postulaciones activas e históricas | STUDENT, GRADUATE | Sí |
+
 ---
 
 ## Supabase Storage — CVs

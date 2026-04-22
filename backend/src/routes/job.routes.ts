@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
 import * as jobController from '../controllers/job.controller';
+import * as applicationController from '../controllers/application.controller';
+
 
 const router = Router();
 
@@ -44,6 +46,22 @@ router.patch(
   authenticate,
   authorize('COMPANY'),
   jobController.updateJobStatus
+);
+
+// Postularse a una vacante — candidatos
+router.post(
+  '/:id/apply',
+  authenticate,
+  authorize('STUDENT', 'GRADUATE'),
+  applicationController.applyToJob
+);
+
+// Ver candidatos postulados — empresa
+router.get(
+  '/:id/applicants',
+  authenticate,
+  authorize('COMPANY'),
+  applicationController.getJobApplicants
 );
 
 export default router;

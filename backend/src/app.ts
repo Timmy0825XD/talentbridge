@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.routes';
 import profileRoutes from './routes/profile.routes';
 import rankingRoutes from './routes/ranking.routes';
 import jobRoutes from './routes/job.routes';
+import applicationRoutes from './routes/application.routes';
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/ranking', rankingRoutes);
 app.use('/api/jobs', jobRoutes);
+app.use('/api/applications', applicationRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 TalentBridge API corriendo en http://localhost:${PORT}`);
