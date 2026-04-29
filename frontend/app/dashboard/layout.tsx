@@ -23,7 +23,7 @@ const navLinks: Record<string, { label: string; href: string }[]> = {
   ],
   COMPANY: [
     { label: "Dashboard", href: "/dashboard/company" },
-    { label: "Mis Vacantes", href: "/dashboard/vacantes" },
+    { label: "Mis Vacantes", href: "/dashboard/company/vacantes" },
     { label: "Buscar Talento", href: "/dashboard/talento" },
     { label: "Mi Perfil", href: "/profile/company" },
   ],
