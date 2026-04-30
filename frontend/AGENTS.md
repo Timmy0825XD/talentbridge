@@ -64,11 +64,17 @@ frontend/
 │   │   │   ├── candidate/
 │   │   │   │   ├── page.tsx                  # Dashboard candidato (STUDENT, GRADUATE)
 │   │   │   │   ├── explorar/page.tsx         # Explorar empleos — master/detail
-│   │   │   │   └── postulaciones/page.tsx    # (Sprint 2)
+│   │   │   │   └── postulaciones/page.tsx    # (Sprint 3)
 │   │   │   └── company/
-│   │   │       ├── page.tsx                  # Dashboard empresa (COMPANY)
-│   │   │       ├── vacantes/page.tsx         # (Sprint 2)
-│   │   │       └── talento/page.tsx          # (Sprint 2)
+│   │   │       ├── page.tsx                  # Dashboard empresa — conectado a API real
+│   │   │       ├── vacantes/
+│   │   │       │   ├── page.tsx              # Gestión de vacantes (CRUD completo)
+│   │   │       │   ├── _components/
+│   │   │       │   │   └── JobForm.tsx       # Formulario crear/editar vacante con pesos de ranking
+│   │   │       │   └── [id]/
+│   │   │       │       └── postulantes/
+│   │   │       │           └── page.tsx      # Vista master/detail de postulantes por vacante
+│   │   │       └── talento/page.tsx          # (Sprint 3)
 │   │   └── profile/
 │   │       ├── candidate/page.tsx            # Formulario perfil candidato
 │   │       └── company/page.tsx              # Formulario perfil empresa
@@ -94,6 +100,7 @@ frontend/
 - **El cliente Axios** (`src/lib/api.ts`) es el único punto de comunicación con el backend — nunca usar `fetch` directamente
 - **El contexto de auth** (`src/context/auth-context.tsx`) es la única fuente de verdad de la sesión
 - **Nunca acceder a `localStorage` directamente** en los componentes — usar el contexto de auth
+- **Componentes internos de una página** van en una carpeta `_components/` al mismo nivel que `page.tsx`
 
 ---
 
@@ -134,6 +141,9 @@ const res = await api.post("/auth/login", { email, password });
 
 // PUT
 const res = await api.put("/profile/candidate", data);
+
+// PATCH
+const res = await api.patch(`/applications/${id}/status`, { status });
 ```
 
 ---
@@ -277,35 +287,155 @@ POST /auth/reset-password → { token, newPassword }
 
 ---
 
+## Patrones de componentes — Sprint 2
+
+### Página con datos reales del backend
+
+Toda página que carga datos del backend sigue este patrón:
+
+```typescript
+const [data, setData]       = useState<MiTipo | null>(null);
+const [loading, setLoading] = useState(true);
+const [error, setError]     = useState('');
+
+useEffect(() => { if (user) loadData(); }, [user]);
+
+async function loadData() {
+  setLoading(true);
+  try {
+    const res = await api.get('/mi-endpoint');
+    setData(res.data);
+  } catch {
+    setError('Mensaje de error en español.');
+  } finally {
+    setLoading(false);
+  }
+}
+```
+
+### Peticiones en paralelo
+
+Cuando una página necesita múltiples endpoints, usar `Promise.all` para lanzarlas al mismo tiempo:
+
+```typescript
+const [resA, resB] = await Promise.all([
+  api.get('/endpoint-a'),
+  api.get('/endpoint-b'),
+]);
+```
+
+Cuando algunas pueden fallar sin romper la página, usar `Promise.allSettled`:
+
+```typescript
+const results = await Promise.allSettled(
+  ids.map(id => api.get(`/items/${id}`))
+);
+for (const r of results) {
+  if (r.status === 'fulfilled') { /* usar r.value.data */ }
+}
+```
+
+### Actualización optimista de estado
+
+Al hacer un PATCH (ej: cambiar estado de postulación), actualizar el estado local
+sin recargar desde el servidor para que la UI responda inmediatamente:
+
+```typescript
+setItems(prev =>
+  prev.map(item => item.id === targetId ? { ...item, status: newStatus } : item)
+);
+```
+
+### Layout master/detail
+
+Patrón usado en la página de postulantes y explorar vacantes:
+- Panel izquierdo fijo con lista scrollable
+- Panel derecho con detalle del ítem seleccionado
+- Al hacer click en un ítem de la lista, se carga su detalle con una petición separada
+- Estado vacío explícito cuando no hay ítem seleccionado
+
+```tsx
+<div className="flex-1 flex overflow-hidden gap-6 min-h-0">
+  {/* Master */}
+  <div className="w-[340px] shrink-0 flex flex-col overflow-hidden">
+    <div className="flex-1 overflow-y-auto space-y-2">
+      {items.map(item => (
+        <div key={item.id} onClick={() => selectItem(item)}>
+          {/* card */}
+        </div>
+      ))}
+    </div>
+  </div>
+  {/* Detail */}
+  <div className="flex-1 overflow-y-auto">
+    {!selected ? <EmptyState /> : <Detail item={selected} />}
+  </div>
+</div>
+```
+
+### Pantalla de error con reintento
+
+```tsx
+{error && (
+  <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+    <AlertCircle className="w-10 h-10 text-[#ba1a1a]" />
+    <p className="text-[#93000a] font-semibold">{error}</p>
+    <button onClick={loadData}
+      className="px-6 py-2 bg-[#006d37] text-white rounded-full text-sm font-bold">
+      Reintentar
+    </button>
+  </div>
+)}
+```
+
+### Función timeAgo
+
+Para mostrar fechas relativas ("hace 2 horas", "hace 3 días"):
+
+```typescript
+function timeAgo(iso: string): string {
+  const diff  = Date.now() - new Date(iso).getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(mins / 60);
+  const days  = Math.floor(hours / 24);
+  if (days > 0)  return `hace ${days} día${days > 1 ? 's' : ''}`;
+  if (hours > 0) return `hace ${hours} hora${hours > 1 ? 's' : ''}`;
+  return `hace ${mins} min`;
+}
+```
+
+---
+
 ## Convenciones de código
 
 ### Nomenclatura
 
 - Archivos de página: siempre `page.tsx` dentro de su carpeta de ruta
 - Layouts: siempre `layout.tsx` dentro de su carpeta
-- Componentes reutilizables: `PascalCase` → `AuthCard.tsx`
+- Componentes reutilizables: `PascalCase` → `JobForm.tsx`
 - Hooks personalizados: prefijo `use` → `useAuth`
 - Archivos de utilidad: `kebab-case` → `api.ts`, `auth-context.tsx`
+- Componentes internos de una página: en `_components/` al mismo nivel
 
-### TypeScript en formularios
+### TypeScript
 
-- Los formularios de perfil **no usan interfaces** por ahora — TypeScript infiere el tipo desde `EMPTY_FORM`
-- Se agregarán interfaces en Sprint 2 cuando los datos vengan del backend
 - Para errores de Axios usar siempre este patrón:
 
 ```typescript
 } catch (err: unknown) {
   const e = err as { response?: { data?: { error?: string } } };
-  setError(e.response?.data?.error ?? "Error inesperado.");
+  setError(e.response?.data?.error ?? 'Error inesperado.');
 }
 ```
+
+- Definir interfaces para todos los tipos que vienen del backend
+- No usar `any` — si es absolutamente necesario, justificar con comentario
+- Usar `as unknown as T` en lugar de `as any`
 
 ### Inputs — estilo estándar del proyecto
 
 ```typescript
-// Clase base reutilizable para todos los inputs
 const input = "w-full bg-[#f2f4f6] border-0 border-b-2 border-transparent focus:border-[#006d37] focus:ring-0 rounded-lg px-4 py-3 text-sm text-[#191c1e] placeholder:text-[#737781] outline-none transition-all";
-
 const label = "block text-xs font-semibold uppercase tracking-wider text-[#424750] mb-2";
 ```
 
@@ -366,6 +496,14 @@ Base URL: `http://localhost:3001/api` (desarrollo) — definido en `NEXT_PUBLIC_
 | POST | `/profile/candidate/cv` | `/profile/candidate` | ✅ |
 | GET | `/profile/company` | `/profile/company` | ✅ |
 | PUT | `/profile/company` | `/profile/company` | ✅ |
+| GET | `/jobs/company/mine` | `/dashboard/company`, `/dashboard/company/vacantes` | ✅ |
+| POST | `/jobs` | `/dashboard/company/vacantes` (JobForm) | ✅ |
+| PUT | `/jobs/:id` | `/dashboard/company/vacantes` (JobForm) | ✅ |
+| PATCH | `/jobs/:id/status` | `/dashboard/company/vacantes` | ✅ |
+| GET | `/jobs/:id` | `/dashboard/company/vacantes/[id]/postulantes` | ✅ |
+| GET | `/jobs/:id/applicants` | `/dashboard/company/vacantes/[id]/postulantes`, `/dashboard/company` | ✅ |
+| PATCH | `/applications/:id/status` | `/dashboard/company/vacantes/[id]/postulantes` | ✅ |
+| GET | `/ranking/:userId` | `/dashboard/company/vacantes/[id]/postulantes` | ✅ |
 
 ---
 
@@ -381,7 +519,9 @@ Base URL: `http://localhost:3001/api` (desarrollo) — definido en `NEXT_PUBLIC_
 | `/auth/reset-password` | `app/auth/reset-password/page.tsx` | ✅ Completo |
 | `/dashboard/candidate` | `app/dashboard/candidate/page.tsx` | ✅ Completo — datos estáticos |
 | `/dashboard/candidate/explorar` | `app/dashboard/candidate/explorar/page.tsx` | ✅ Completo — datos estáticos |
-| `/dashboard/company` | `app/dashboard/company/page.tsx` | ✅ Completo — datos estáticos |
+| `/dashboard/company` | `app/dashboard/company/page.tsx` | ✅ Completo — conectado a API real |
+| `/dashboard/company/vacantes` | `app/dashboard/company/vacantes/page.tsx` | ✅ Completo — CRUD completo |
+| `/dashboard/company/vacantes/[id]/postulantes` | `app/dashboard/company/vacantes/[id]/postulantes/page.tsx` | ✅ Completo — master/detail con ranking |
 | `/profile/candidate` | `app/profile/candidate/page.tsx` | ✅ Completo — conectado a API |
 | `/profile/company` | `app/profile/company/page.tsx` | ✅ Completo — conectado a API |
 
@@ -389,14 +529,15 @@ Base URL: `http://localhost:3001/api` (desarrollo) — definido en `NEXT_PUBLIC_
 
 ## Lo que NO está implementado aún
 
-- Postulaciones de candidato — `/dashboard/candidate/postulaciones` (Sprint 2)
-- Vacantes de empresa — `/dashboard/company/vacantes` (Sprint 2)
-- Buscar talento empresa — `/dashboard/company/talento` (Sprint 2)
-- Dashboards con datos reales del backend (Sprint 2)
-- Página de explorar con datos reales (Sprint 2)
-- Mantener sesión iniciada con sessionStorage (Sprint 2)
-- Reenvío de OTP desde login con solo email — pendiente backend (Sprint 2)
+- Postulaciones de candidato — `/dashboard/candidate/postulaciones` (Sprint 3)
+- Buscar talento empresa — `/dashboard/company/talento` (Sprint 3)
+- Dashboard candidato con datos reales del backend (Sprint 3)
+- Página de explorar vacantes con datos reales (Sprint 3)
 - Notificaciones (Sprint 3)
+- Contratos y seguimiento de entregas (Sprint 3)
+- Registro de pagos (Sprint 3)
+- Calificaciones mutuas (Sprint 4)
+- Dashboards y reportes PDF (Sprint 4)
 - Panel de administración (Sprint 4)
 
 ---
@@ -412,9 +553,11 @@ Base URL: `http://localhost:3001/api` (desarrollo) — definido en `NEXT_PUBLIC_
 - **Los imports siempre son** `@/lib/api` y `@/context/auth-context` — nunca `@/src/...`
 - **El dashboard tiene un layout compartido** en `app/dashboard/layout.tsx` — no repetir el header en las páginas hijas
 - **Rutas de candidato** dentro de `dashboard/candidate/`, rutas de empresa dentro de `dashboard/company/`
-- **Los formularios de perfil no tienen interfaces TypeScript** — TypeScript infiere el tipo desde `EMPTY_FORM`. Se agregarán en Sprint 2
-- **El botón "Ver CV"** en el dashboard candidato requiere hacer `GET /profile/candidate` para obtener el `cvUrl`
+- **Componentes internos de una página** van en `_components/` al mismo nivel que su `page.tsx`
 - **El acento de color del rol empresa es verde** (`#006d37`), el de candidato es azul (`#00386c`)
 - **El flujo NOT_VERIFIED** está manejado en el login — redirige automáticamente a verify-otp
+- **Toda página con datos del backend** debe tener estado de carga, estado de error con botón de reintentar, y estado vacío explícito
+- **Para peticiones paralelas** usar `Promise.all` (todas deben tener éxito) o `Promise.allSettled` (algunas pueden fallar)
+- **Para actualizaciones de estado** preferir actualización local optimista antes de llamar al servidor
 - Al agregar una página nueva, agregarla a la tabla de páginas implementadas de este archivo
 - Al consumir un endpoint nuevo, agregarlo a la tabla de endpoints de este archivo
