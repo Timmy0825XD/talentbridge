@@ -17,14 +17,14 @@ const navLinks: Record<string, { label: string; href: string }[]> = {
   ],
   GRADUATE: [
     { label: "Dashboard", href: "/dashboard/candidate" },
-    { label: "Postulaciones", href: "/dashboard/postulaciones" },
-    { label: "Explorar", href: "/dashboard/explorar" },
+    { label: "Postulaciones", href: "/dashboard/candidate/postulaciones" },
+    { label: "Explorar", href: "/dashboard/candidate/explorar" },
     { label: "Mi Perfil", href: "/profile/candidate" },
   ],
   COMPANY: [
     { label: "Dashboard", href: "/dashboard/company" },
     { label: "Mis Vacantes", href: "/dashboard/company/vacantes" },
-    { label: "Buscar Talento", href: "/dashboard/talento" },
+    { label: "Buscar Talento", href: "/dashboard/company/talento" },
     { label: "Mi Perfil", href: "/profile/company" },
   ],
 };
