@@ -63,17 +63,17 @@ frontend/
 │   │   │   ├── layout.tsx                    # Header compartido con nav dinámico por rol
 │   │   │   ├── candidate/
 │   │   │   │   ├── page.tsx                  # Dashboard candidato (STUDENT, GRADUATE)
-│   │   │   │   ├── explorar/page.tsx         # Explorar empleos — master/detail
+│   │   │   │   ├── explorar/page.tsx         # Explorar empleos — master/detail + filtros avanzados
 │   │   │   │   └── postulaciones/page.tsx    # (Sprint 3)
 │   │   │   └── company/
 │   │   │       ├── page.tsx                  # Dashboard empresa — conectado a API real
 │   │   │       ├── vacantes/
-│   │   │       │   ├── page.tsx              # Gestión de vacantes (CRUD completo)
+│   │   │       │   ├── page.tsx              # Gestión de vacantes con CRUD completo y filtros
 │   │   │       │   ├── _components/
-│   │   │       │   │   └── JobForm.tsx       # Formulario crear/editar vacante con pesos de ranking
+│   │   │       │   │   └── JobForm.tsx       # Formulario crear/editar vacante — reutilizable
 │   │   │       │   └── [id]/
 │   │   │       │       └── postulantes/
-│   │   │       │           └── page.tsx      # Vista master/detail de postulantes por vacante
+│   │   │       │           └── page.tsx      # Vista master/detail de postulantes con ranking
 │   │   │       └── talento/page.tsx          # (Sprint 3)
 │   │   └── profile/
 │   │       ├── candidate/page.tsx            # Formulario perfil candidato
@@ -125,9 +125,19 @@ El cliente Axios está configurado con dos interceptores:
 - Esto aplica a TODAS las peticiones — no hay que agregarlo manualmente
 
 **Interceptor de response:**
-- Si el backend responde con `401` (token expirado o inválido)
+- Si el backend responde con `401` (token expirado o inválido) **y la ruta NO es `/auth/`**
 - Limpia `localStorage` y redirige automáticamente a `/`
-- Maneja esto globalmente — no hay que manejarlo en cada componente
+- Las rutas de autenticación (`/auth/login`, `/auth/register`, etc.) están excluidas del redirect
+  para que puedan mostrar sus propios mensajes de error (ej: "Contraseña incorrecta")
+
+**Fix crítico aplicado en Sprint 2:**
+```typescript
+// CORRECTO — excluir rutas de auth del redirect automático
+const isAuthRoute = error.config?.url?.includes('/auth/');
+if (error.response?.status === 401 && !isAuthRoute) {
+  // limpiar localStorage y redirigir
+}
+```
 
 **Uso:**
 ```typescript
@@ -351,25 +361,23 @@ setItems(prev =>
 Patrón usado en la página de postulantes y explorar vacantes:
 - Panel izquierdo fijo con lista scrollable
 - Panel derecho con detalle del ítem seleccionado
-- Al hacer click en un ítem de la lista, se carga su detalle con una petición separada
+- Al hacer click en un ítem de la lista, se actualiza el detalle sin petición adicional
 - Estado vacío explícito cuando no hay ítem seleccionado
 
 ```tsx
-<div className="flex-1 flex overflow-hidden gap-6 min-h-0">
+<div className="flex gap-8 h-[calc(100vh-280px)]">
   {/* Master */}
-  <div className="w-[340px] shrink-0 flex flex-col overflow-hidden">
-    <div className="flex-1 overflow-y-auto space-y-2">
-      {items.map(item => (
-        <div key={item.id} onClick={() => selectItem(item)}>
-          {/* card */}
-        </div>
-      ))}
-    </div>
-  </div>
+  <aside className="w-[400px] flex flex-col overflow-y-auto">
+    {items.map(item => (
+      <div key={item.id} onClick={() => setSelected(item)}>
+        {/* card */}
+      </div>
+    ))}
+  </aside>
   {/* Detail */}
-  <div className="flex-1 overflow-y-auto">
+  <main className="flex-1 overflow-y-auto">
     {!selected ? <EmptyState /> : <Detail item={selected} />}
-  </div>
+  </main>
 </div>
 ```
 
@@ -404,6 +412,26 @@ function timeAgo(iso: string): string {
 }
 ```
 
+### Formulario con modo crear/editar reutilizable
+
+Patrón usado en `JobForm.tsx` — el mismo componente sirve para crear y editar:
+
+```typescript
+interface FormProps {
+  editingItem: Item | null;  // null = modo crear, objeto = modo editar
+  onSuccess: () => void;     // recarga lista y cierra
+  onCancel: () => void;      // cierra sin guardar
+}
+
+// En el submit:
+if (editingItem) {
+  await api.put(`/items/${editingItem.id}`, payload);
+} else {
+  await api.post('/items', payload);
+}
+onSuccess();
+```
+
 ---
 
 ## Convenciones de código
@@ -431,12 +459,13 @@ function timeAgo(iso: string): string {
 - Definir interfaces para todos los tipos que vienen del backend
 - No usar `any` — si es absolutamente necesario, justificar con comentario
 - Usar `as unknown as T` en lugar de `as any`
+- Tipar explícitamente variables locales que TypeScript no puede inferir (`const tag: string = ...`)
 
 ### Inputs — estilo estándar del proyecto
 
 ```typescript
-const input = "w-full bg-[#f2f4f6] border-0 border-b-2 border-transparent focus:border-[#006d37] focus:ring-0 rounded-lg px-4 py-3 text-sm text-[#191c1e] placeholder:text-[#737781] outline-none transition-all";
-const label = "block text-xs font-semibold uppercase tracking-wider text-[#424750] mb-2";
+const inputCls = "w-full bg-[#f2f4f6] border-0 border-b-2 border-transparent focus:border-[#006d37] focus:ring-0 rounded-lg px-4 py-3 text-sm text-[#191c1e] placeholder:text-[#737781] outline-none transition-all";
+const labelCls = "block text-xs font-semibold uppercase tracking-wider text-[#424750] mb-2";
 ```
 
 ### Mensajes de feedback
@@ -491,18 +520,22 @@ Base URL: `http://localhost:3001/api` (desarrollo) — definido en `NEXT_PUBLIC_
 | POST | `/auth/login` | `/auth/login` | ✅ |
 | POST | `/auth/forgot-password` | `/auth/forgot-password` | ✅ |
 | POST | `/auth/reset-password` | `/auth/reset-password` | ✅ |
-| GET | `/profile/candidate` | `/profile/candidate`, `/dashboard/candidate` | ✅ |
+| GET | `/profile/candidate` | `/profile/candidate`, `/dashboard/candidate`, `/dashboard/candidate/explorar` | ✅ |
 | PUT | `/profile/candidate` | `/profile/candidate` | ✅ |
 | POST | `/profile/candidate/cv` | `/profile/candidate` | ✅ |
 | GET | `/profile/company` | `/profile/company` | ✅ |
 | PUT | `/profile/company` | `/profile/company` | ✅ |
+| GET | `/jobs` | `/dashboard/candidate/explorar` | ✅ |
 | GET | `/jobs/company/mine` | `/dashboard/company`, `/dashboard/company/vacantes` | ✅ |
 | POST | `/jobs` | `/dashboard/company/vacantes` (JobForm) | ✅ |
 | PUT | `/jobs/:id` | `/dashboard/company/vacantes` (JobForm) | ✅ |
 | PATCH | `/jobs/:id/status` | `/dashboard/company/vacantes` | ✅ |
 | GET | `/jobs/:id` | `/dashboard/company/vacantes/[id]/postulantes` | ✅ |
 | GET | `/jobs/:id/applicants` | `/dashboard/company/vacantes/[id]/postulantes`, `/dashboard/company` | ✅ |
+| POST | `/jobs/:id/apply` | `/dashboard/candidate/explorar` | ✅ |
 | PATCH | `/applications/:id/status` | `/dashboard/company/vacantes/[id]/postulantes` | ✅ |
+| GET | `/applications/me` | `/dashboard/candidate/explorar` | ✅ |
+| GET | `/ranking/me` | `/dashboard/candidate/explorar` | ✅ |
 | GET | `/ranking/:userId` | `/dashboard/company/vacantes/[id]/postulantes` | ✅ |
 
 ---
@@ -518,7 +551,7 @@ Base URL: `http://localhost:3001/api` (desarrollo) — definido en `NEXT_PUBLIC_
 | `/auth/forgot-password` | `app/auth/forgot-password/page.tsx` | ✅ Completo |
 | `/auth/reset-password` | `app/auth/reset-password/page.tsx` | ✅ Completo |
 | `/dashboard/candidate` | `app/dashboard/candidate/page.tsx` | ✅ Completo — datos estáticos |
-| `/dashboard/candidate/explorar` | `app/dashboard/candidate/explorar/page.tsx` | ✅ Completo — datos estáticos |
+| `/dashboard/candidate/explorar` | `app/dashboard/candidate/explorar/page.tsx` | ✅ Completo — conectado a API, filtros avanzados |
 | `/dashboard/company` | `app/dashboard/company/page.tsx` | ✅ Completo — conectado a API real |
 | `/dashboard/company/vacantes` | `app/dashboard/company/vacantes/page.tsx` | ✅ Completo — CRUD completo |
 | `/dashboard/company/vacantes/[id]/postulantes` | `app/dashboard/company/vacantes/[id]/postulantes/page.tsx` | ✅ Completo — master/detail con ranking |
@@ -532,7 +565,6 @@ Base URL: `http://localhost:3001/api` (desarrollo) — definido en `NEXT_PUBLIC_
 - Postulaciones de candidato — `/dashboard/candidate/postulaciones` (Sprint 3)
 - Buscar talento empresa — `/dashboard/company/talento` (Sprint 3)
 - Dashboard candidato con datos reales del backend (Sprint 3)
-- Página de explorar vacantes con datos reales (Sprint 3)
 - Notificaciones (Sprint 3)
 - Contratos y seguimiento de entregas (Sprint 3)
 - Registro de pagos (Sprint 3)
@@ -559,5 +591,8 @@ Base URL: `http://localhost:3001/api` (desarrollo) — definido en `NEXT_PUBLIC_
 - **Toda página con datos del backend** debe tener estado de carga, estado de error con botón de reintentar, y estado vacío explícito
 - **Para peticiones paralelas** usar `Promise.all` (todas deben tener éxito) o `Promise.allSettled` (algunas pueden fallar)
 - **Para actualizaciones de estado** preferir actualización local optimista antes de llamar al servidor
+- **El interceptor 401 de Axios excluye rutas `/auth/`** — esto es intencional para que login/register muestren sus propios errores
+- **`JobForm.tsx`** es el patrón de referencia para formularios crear/editar reutilizables — seguir ese mismo patrón para futuros módulos
+- **La página de explorar** usa `Promise.allSettled` porque el endpoint de ranking puede fallar sin romper la página
 - Al agregar una página nueva, agregarla a la tabla de páginas implementadas de este archivo
 - Al consumir un endpoint nuevo, agregarlo a la tabla de endpoints de este archivo
