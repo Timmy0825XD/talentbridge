@@ -23,7 +23,7 @@ interface TopCandidate {
   fullName: string | null;
   headline: string | null;
   skills: string[];
-  profileScore: { totalScore: number } | null;
+  profileScore: { totalScore: number };
 }
 
 interface DashboardData {
@@ -85,7 +85,7 @@ export default function CompanyDashboardPage() {
                   fullName:     applicant.candidate.fullName,
                   headline:     applicant.candidate.headline,
                   skills:       applicant.candidate.skills ?? [],
-                  profileScore: applicant.candidate.profileScore,
+                  profileScore: {totalScore: applicant.scoreAtApply ?? 0},
                 });
               }
             }
