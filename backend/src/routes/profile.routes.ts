@@ -1,14 +1,13 @@
 import { Router } from 'express';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
-import { uploadCv } from '../middlewares/upload.middleware';
+import { uploadCv, uploadPhoto } from '../middlewares/upload.middleware';
 import * as profileController from '../controllers/profile.controller';
 
 const router = Router();
 
-// Todas las rutas de perfil requieren autenticación
 router.use(authenticate);
 
-// ─── CANDIDATO (STUDENT o GRADUATE) ──────────────────────────────────────────
+// ─── CANDIDATO ────────────────────────────────────────────────────────────────
 router.get(
   '/candidate',
   authorize('STUDENT', 'GRADUATE'),
@@ -28,6 +27,19 @@ router.post(
   profileController.uploadCv
 );
 
+router.post(
+  '/candidate/photo',
+  authorize('STUDENT', 'GRADUATE'),
+  uploadPhoto.single('photo'),
+  profileController.uploadPhoto
+);
+
+router.post(
+  '/candidate/extract-cv',
+  authorize('STUDENT', 'GRADUATE'),
+  profileController.extractCv
+);
+
 // ─── EMPRESA ──────────────────────────────────────────────────────────────────
 router.get(
   '/company',
@@ -39,12 +51,6 @@ router.put(
   '/company',
   authorize('COMPANY'),
   profileController.updateCompanyProfile
-);
-
-router.post(
-  '/candidate/extract-cv',
-  authorize('STUDENT', 'GRADUATE'),
-  profileController.extractCv
 );
 
 export default router;
