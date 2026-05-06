@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase';
 import { extractCvKeywords, ExtractedKeywords } from '../lib/cv-extractor';
 import { computeAndSaveScore } from './ranking.service';
 
-
 // ─── PERFIL CANDIDATO ─────────────────────────────────────────────────────────
 
 export async function getCandidateProfile(userId: string) {
@@ -23,9 +22,9 @@ export async function upsertCandidateProfile(userId: string, data: {
   institution?: string;
   skills?: string[];
   softSkills?: string[];
-  languages?: any;
-  projects?: any;
-  certifications?: any;
+  languages?: { language: string; level: string }[];
+  projects?: { title: string; description?: string; url?: string }[];
+  certifications?: { name: string; issuer?: string; year?: number }[];
   salaryExpected?: number;
   workMode?: string;
 }) {
@@ -34,9 +33,11 @@ export async function upsertCandidateProfile(userId: string, data: {
     update: data,
     create: { userId, ...data },
   });
+
   computeAndSaveScore(userId).catch(err =>
     console.error('Error recalculando score:', err)
   );
+
   return profile;
 }
 
@@ -68,6 +69,48 @@ export async function upsertCompanyProfile(userId: string, data: {
   return profile;
 }
 
+// ─── UPLOAD FOTO DE PERFIL ────────────────────────────────────────────────────
+
+export async function uploadPhotoToStorage(
+  userId: string,
+  fileBuffer: Buffer,
+  mimeType: string
+): Promise<string> {
+  // Determinar extensión según el tipo de archivo
+  const ext = mimeType === 'image/png' ? 'png'
+    : mimeType === 'image/webp' ? 'webp'
+    : 'jpg';
+
+  const fileName = `${userId}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(fileName, fileBuffer, {
+      contentType: mimeType,
+      upsert: true, // Reemplaza la foto anterior
+    });
+
+  if (error) {
+    console.error('Supabase Storage error (photo):', error);
+    throw new Error('STORAGE_UPLOAD_FAILED');
+  }
+
+  const { data } = supabase.storage
+    .from('avatars')
+    .getPublicUrl(fileName);
+
+  const photoUrl = data.publicUrl;
+
+  // Guardar la URL en el perfil
+  await prisma.candidateProfile.upsert({
+    where: { userId },
+    update: { photoUrl },
+    create: { userId, photoUrl },
+  });
+
+  return photoUrl;
+}
+
 // ─── CARGA DE CV EN SUPABASE STORAGE ─────────────────────────────────────────
 
 export async function uploadCvToStorage(
@@ -76,11 +119,10 @@ export async function uploadCvToStorage(
   originalName: string
 ): Promise<string> {
   const fileName = `${userId}_${Date.now()}.pdf`;
-  const filePath = fileName;
 
   const { error } = await supabase.storage
     .from('cvs')
-    .upload(filePath, fileBuffer, {
+    .upload(fileName, fileBuffer, {
       contentType: 'application/pdf',
       upsert: true,
     });
@@ -92,30 +134,24 @@ export async function uploadCvToStorage(
 
   const { data } = supabase.storage
     .from('cvs')
-    .getPublicUrl(filePath);
+    .getPublicUrl(fileName);
 
   const cvUrl = data.publicUrl;
 
-  // Guardar la URL en la BD
   await prisma.candidateProfile.upsert({
     where: { userId },
     update: { cvUrl },
     create: { userId, cvUrl },
   });
 
-  // Extraer keywords del CV de forma asíncrona
-  // No bloqueamos la respuesta — si falla no afecta la subida
   extractCvKeywords(cvUrl).then(async (extracted) => {
     const updateData: any = {};
-
-    if (extracted.technical.length > 0)
-      updateData.skills = extracted.technical;
-    if (extracted.soft.length > 0)
-      updateData.softSkills = extracted.soft;
+    if (extracted.technical.length > 0) updateData.skills = extracted.technical;
+    if (extracted.soft.length > 0) updateData.softSkills = extracted.soft;
     if (extracted.languages.length > 0)
       updateData.languages = extracted.languages.map(lang => ({
         language: lang,
-        level: 'No especificado'
+        level: 'No especificado',
       }));
 
     if (Object.keys(updateData).length > 0) {
@@ -149,7 +185,7 @@ export async function extractCvManually(userId: string): Promise<ExtractedKeywor
   if (extracted.languages.length > 0)
     updateData.languages = extracted.languages.map(lang => ({
       language: lang,
-      level: 'No especificado'
+      level: 'No especificado',
     }));
 
   if (Object.keys(updateData).length > 0) {
