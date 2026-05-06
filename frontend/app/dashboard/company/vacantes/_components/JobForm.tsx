@@ -14,7 +14,21 @@ interface Job {
   budgetMin: number | null;
   budgetMax: number | null;
   createdAt: string;
+  description: string;
+  duration: string | null;
+  deadline: string | null;
+  deliverables: string | null;
+  skills: string[];
   _count: { applications: number };
+  rankConfig: {
+    skillsWeight: number;
+    experienceWeight: number;
+    educationWeight: number;
+    certsWeight: number;
+    reputationWeight: number;
+    languagesWeight: number;
+    completionWeight: number;
+  } | null;
 }
 
 interface JobFormState {
@@ -56,7 +70,7 @@ const WEIGHT_LABELS: Record<string, string> = {
 export default function JobForm({ editingJob, onSuccess, onCancel }: JobFormProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [showWeights, setShowWeights] = useState(false);
+  const [showWeights, setShowWeights] = useState(!!editingJob?.rankConfig);
   const [skillInput, setSkillInput] = useState('');
 
   const [form, setForm] = useState<JobFormState>({
@@ -73,7 +87,20 @@ export default function JobForm({ editingJob, onSuccess, onCancel }: JobFormProp
     deliverables: (editingJob as any)?.deliverables ?? '',
   });
 
-  const [weights, setWeights] = useState(DEFAULT_WEIGHTS);
+  const [weights, setWeights] = useState(
+    editingJob?.rankConfig
+      ? {
+          skillsWeight:     editingJob.rankConfig.skillsWeight,
+          experienceWeight: editingJob.rankConfig.experienceWeight,
+          educationWeight:  editingJob.rankConfig.educationWeight,
+          certsWeight:      editingJob.rankConfig.certsWeight,
+          reputationWeight: editingJob.rankConfig.reputationWeight,
+          languagesWeight:  editingJob.rankConfig.languagesWeight,
+          completionWeight: editingJob.rankConfig.completionWeight,
+        }
+      : DEFAULT_WEIGHTS
+  );
+  
 
   const totalWeight  = Object.values(weights).reduce((a, b) => a + b, 0);
   const weightsValid = Math.abs(totalWeight - 1.0) < 0.01;

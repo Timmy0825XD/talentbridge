@@ -184,6 +184,15 @@ export async function updateJob(userId: string, jobId: string, data: {
   duration?: string;
   deadline?: string;
   deliverables?: string;
+  rankWeights?: {
+    skillsWeight?: number;
+    experienceWeight?: number;
+    educationWeight?: number;
+    certsWeight?: number;
+    reputationWeight?: number;
+    languagesWeight?: number;
+    completionWeight?: number;
+  };
 }) {
   const job = await prisma.job.findUnique({
     where: { id: jobId },
@@ -193,14 +202,58 @@ export async function updateJob(userId: string, jobId: string, data: {
   if (!job) throw new Error('JOB_NOT_FOUND');
   if (job.company.userId !== userId) throw new Error('UNAUTHORIZED');
 
-  const { deadline, ...rest } = data;
+  // Separar rankWeights del resto de los datos del job
+  const { deadline, rankWeights, ...rest } = data;
 
-  return prisma.job.update({
+  // Actualizar solo los campos del modelo Job
+  const updatedJob = await prisma.job.update({
     where: { id: jobId },
     data: {
       ...rest,
       deadline: deadline ? new Date(deadline) : undefined,
     },
+  });
+
+  // Actualizar o crear los pesos del ranking si se enviaron
+  if (rankWeights) {
+    const total =
+      (rankWeights.skillsWeight ?? 0.30) +
+      (rankWeights.experienceWeight ?? 0.25) +
+      (rankWeights.educationWeight ?? 0.15) +
+      (rankWeights.certsWeight ?? 0.10) +
+      (rankWeights.reputationWeight ?? 0.10) +
+      (rankWeights.languagesWeight ?? 0.05) +
+      (rankWeights.completionWeight ?? 0.05);
+
+    if (Math.abs(total - 1.0) > 0.01) throw new Error('INVALID_WEIGHTS');
+
+    await prisma.jobRankConfig.upsert({
+      where: { jobId },
+      update: {
+        skillsWeight: rankWeights.skillsWeight ?? 0.30,
+        experienceWeight: rankWeights.experienceWeight ?? 0.25,
+        educationWeight: rankWeights.educationWeight ?? 0.15,
+        certsWeight: rankWeights.certsWeight ?? 0.10,
+        reputationWeight: rankWeights.reputationWeight ?? 0.10,
+        languagesWeight: rankWeights.languagesWeight ?? 0.05,
+        completionWeight: rankWeights.completionWeight ?? 0.05,
+      },
+      create: {
+        jobId,
+        skillsWeight: rankWeights.skillsWeight ?? 0.30,
+        experienceWeight: rankWeights.experienceWeight ?? 0.25,
+        educationWeight: rankWeights.educationWeight ?? 0.15,
+        certsWeight: rankWeights.certsWeight ?? 0.10,
+        reputationWeight: rankWeights.reputationWeight ?? 0.10,
+        languagesWeight: rankWeights.languagesWeight ?? 0.05,
+        completionWeight: rankWeights.completionWeight ?? 0.05,
+      },
+    });
+  }
+
+  return prisma.job.findUnique({
+    where: { id: jobId },
+    include: { rankConfig: true },
   });
 }
 
