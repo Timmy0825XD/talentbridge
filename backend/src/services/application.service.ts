@@ -1,11 +1,11 @@
 import { prisma } from '../lib/prisma';
 import { ApplicationStatus } from '@prisma/client';
-import { calculateScore, DEFAULT_WEIGHTS, RankingWeights } from '../lib/ranking';
+import { calculateScore, DEFAULT_WEIGHTS, RankingWeights, combineScores } from '../lib/ranking';
+import { scoreCompatibility } from '../lib/gemini';
 
 // ─── POSTULARSE A UNA VACANTE ─────────────────────────────────────────────────
 
 export async function applyToJob(userId: string, jobId: string) {
-  // Verificar que la vacante existe y está activa
   const job = await prisma.job.findUnique({
     where: { id: jobId },
     include: { rankConfig: true },
@@ -14,77 +14,107 @@ export async function applyToJob(userId: string, jobId: string) {
   if (!job) throw new Error('JOB_NOT_FOUND');
   if (job.status !== 'ACTIVE') throw new Error('JOB_NOT_ACTIVE');
 
-  // Obtener el perfil del candidato
   const candidate = await prisma.candidateProfile.findUnique({
     where: { userId },
   });
 
   if (!candidate) throw new Error('CANDIDATE_PROFILE_NOT_FOUND');
 
-  // Verificar que no se haya postulado antes
   const existing = await prisma.application.findUnique({
     where: {
-      jobId_candidateId: {
-        jobId,
-        candidateId: candidate.id,
-      },
+      jobId_candidateId: { jobId, candidateId: candidate.id },
     },
   });
 
   if (existing) throw new Error('ALREADY_APPLIED');
 
-  // Calcular el score del candidato para esta vacante específica
-  // usando los pesos personalizados de la vacante si existen
+  // ── CAPA 1: Score base del perfil ────────────────────────────────────────
   const weights: RankingWeights = job.rankConfig
     ? {
-        skills: job.rankConfig.skillsWeight,
+        skills:     job.rankConfig.skillsWeight,
         experience: job.rankConfig.experienceWeight,
-        education: job.rankConfig.educationWeight,
-        certs: job.rankConfig.certsWeight,
+        education:  job.rankConfig.educationWeight,
+        certs:      job.rankConfig.certsWeight,
         reputation: job.rankConfig.reputationWeight,
-        languages: job.rankConfig.languagesWeight,
         completion: job.rankConfig.completionWeight,
       }
     : DEFAULT_WEIGHTS;
 
-  const scoreBreakdown = calculateScore({
-    skills: candidate.skills,
-    softSkills: candidate.softSkills,
-    languages: candidate.languages,
-    projects: candidate.projects,
+  const baseBreakdown = calculateScore({
+    skills:        candidate.skills,
+    softSkills:    candidate.softSkills,
+    languages:     candidate.languages,
+    projects:      candidate.projects,
     certifications: candidate.certifications,
-    career: candidate.career,
-    institution: candidate.institution,
-    semester: candidate.semester,
+    career:        candidate.career,
+    institution:   candidate.institution,
+    semester:      candidate.semester,
     graduationYear: candidate.graduationYear,
-    summary: candidate.summary,
-    cvUrl: candidate.cvUrl,
-    fullName: candidate.fullName,
-    phone: candidate.phone,
-    workMode: candidate.workMode,
+    summary:       candidate.summary,
+    cvUrl:         candidate.cvUrl,
+    fullName:      candidate.fullName,
+    phone:         candidate.phone,
+    photoUrl:      candidate.photoUrl,
+    workMode:      candidate.workMode,
     salaryExpected: candidate.salaryExpected,
   }, weights);
 
-  // Crear la postulación con el score calculado
+  // ── CAPA 2: Score de compatibilidad con IA (Gemini) ──────────────────────
+  const aiResult = await scoreCompatibility(
+    {
+      career:         candidate.career,
+      skills:         candidate.skills,
+      softSkills:     candidate.softSkills,
+      languages:      candidate.languages,
+      projects:       candidate.projects,
+      certifications: candidate.certifications,
+      summary:        candidate.summary,
+      workMode:       candidate.workMode,
+    },
+    {
+      title:       job.title,
+      area:        job.area,
+      skills:      job.skills,
+      description: job.description,
+      workMode:    job.workMode,
+      type:        job.type,
+    }
+  );
+
+  // ── Score final combinado ─────────────────────────────────────────────────
+  const finalScore = combineScores(baseBreakdown.total, aiResult.score);
+
+  console.log(`Score para ${userId} en vacante ${jobId}:`);
+  console.log(`  Base: ${baseBreakdown.total} | IA: ${aiResult.score} | Final: ${finalScore}`);
+  console.log(`  Razones: ${aiResult.reasons.join(', ')}`);
+
+  // Crear la postulación con el score final y los insights de la IA
   const application = await prisma.application.create({
     data: {
       jobId,
       candidateId: candidate.id,
-      scoreAtApply: scoreBreakdown.total,
+      scoreAtApply: finalScore,
     },
     include: {
       job: {
         select: {
           title: true,
-          company: {
-            select: { companyName: true },
-          },
+          company: { select: { companyName: true } },
         },
       },
     },
   });
 
-  return application;
+  return {
+    ...application,
+    aiInsights: {
+      baseScore:   baseBreakdown.total,
+      aiScore:     aiResult.score,
+      finalScore,
+      reasons:     aiResult.reasons,
+      gaps:        aiResult.gaps,
+    },
+  };
 }
 
 // ─── CANDIDATOS POSTULADOS ORDENADOS POR RANKING ──────────────────────────────
