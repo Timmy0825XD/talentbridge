@@ -7,10 +7,17 @@ export async function applyToJob(req: AuthRequest, res: Response) {
   try {
     const userId = req.user!.userId;
     const jobId = req.params['id'] as string;
-    const application = await applicationService.applyToJob(userId, jobId);
+    const result = await applicationService.applyToJob(userId, jobId);
+
     res.status(201).json({
       message: '¡Te postulaste exitosamente!',
-      application,
+      application: {
+        id:          result.id,
+        status:      result.status,
+        scoreAtApply: result.scoreAtApply,
+        job:         result.job,
+      },
+      aiInsights: result.aiInsights,
     });
   } catch (err: any) {
     if (err.message === 'JOB_NOT_FOUND')

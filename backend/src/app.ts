@@ -8,6 +8,8 @@ import jobRoutes from './routes/job.routes';
 import applicationRoutes from './routes/application.routes';
 
 dotenv.config();
+console.log('GEMINI_API_KEY cargada:', !!process.env.GEMINI_API_KEY);
+console.log('Primeros 8 chars:', process.env.GEMINI_API_KEY?.substring(0, 8));
 
 const app = express();
 const PORT = process.env.PORT || 3001;
