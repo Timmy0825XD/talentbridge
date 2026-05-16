@@ -118,3 +118,27 @@ export async function uploadPhoto(req: AuthRequest, res: Response) {
     res.status(500).json({ error: 'Error interno del servidor.' });
   }
 }
+
+export async function uploadLogo(req: AuthRequest, res: Response) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No se recibió ningún archivo.' });
+    }
+
+    const userId = req.user!.userId;
+    const logoUrl = await profileService.uploadLogoToStorage(
+      userId,
+      req.file.buffer,
+      req.file.mimetype
+    );
+
+    res.json({ message: 'Logo actualizado exitosamente.', logoUrl });
+  } catch (err: any) {
+    if (err.message === 'INVALID_FILE_TYPE')
+      return res.status(400).json({ error: 'Solo se permiten imágenes JPG, PNG o WebP.' });
+    if (err.message === 'STORAGE_UPLOAD_FAILED')
+      return res.status(500).json({ error: 'Error al subir el logo. Intenta de nuevo.' });
+    console.error('uploadLogo error:', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+}

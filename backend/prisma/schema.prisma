@@ -162,13 +162,15 @@ model Job {
 }
 
 model Application {
-  id          String            @id @default(uuid())
-  jobId       String
-  candidateId String
-  status      ApplicationStatus @default(RECEIVED)
+  id           String            @id @default(uuid())
+  jobId        String
+  candidateId  String
+  status       ApplicationStatus @default(RECEIVED)
   scoreAtApply Float?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  aiReasons    String[]          @default([])
+  aiGaps       String[]          @default([])
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   job       Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
   candidate CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)

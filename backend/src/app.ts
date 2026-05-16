@@ -6,10 +6,9 @@ import profileRoutes from './routes/profile.routes';
 import rankingRoutes from './routes/ranking.routes';
 import jobRoutes from './routes/job.routes';
 import applicationRoutes from './routes/application.routes';
+import keywordRoutes from './routes/keyword.routes';
 
 dotenv.config();
-console.log('GEMINI_API_KEY cargada:', !!process.env.GEMINI_API_KEY);
-console.log('Primeros 8 chars:', process.env.GEMINI_API_KEY?.substring(0, 8));
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -34,6 +33,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/ranking', rankingRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/applications', applicationRoutes);
+app.use('/api/keywords', keywordRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 TalentBridge API corriendo en http://localhost:${PORT}`);

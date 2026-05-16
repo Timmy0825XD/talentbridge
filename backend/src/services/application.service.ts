@@ -84,16 +84,14 @@ export async function applyToJob(userId: string, jobId: string) {
   // ── Score final combinado ─────────────────────────────────────────────────
   const finalScore = combineScores(baseBreakdown.total, aiResult.score);
 
-  console.log(`Score para ${userId} en vacante ${jobId}:`);
-  console.log(`  Base: ${baseBreakdown.total} | IA: ${aiResult.score} | Final: ${finalScore}`);
-  console.log(`  Razones: ${aiResult.reasons.join(', ')}`);
-
   // Crear la postulación con el score final y los insights de la IA
   const application = await prisma.application.create({
     data: {
       jobId,
       candidateId: candidate.id,
       scoreAtApply: finalScore,
+      aiReasons: aiResult.reasons,
+      aiGaps: aiResult.gaps,
     },
     include: {
       job: {

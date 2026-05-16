@@ -40,6 +40,7 @@ flujos de automatización de n8n.
 | zod | 3.x | Para validación de esquemas |
 | uuid | 9.x | Para generación de IDs |
 | pdf-parse | 1.1.1 | Extracción de texto de PDFs — usar `require('pdf-parse/lib/pdf-parse.js')` directamente |
+| @google/generative-ai | Latest | SDK de Google Gemini para IA |
 
 ### Advertencia crítica sobre Prisma
 
@@ -74,11 +75,22 @@ Todos los comandos y rutas deben ser compatibles con Windows.
 ### Supabase
 
 - Base de datos: PostgreSQL alojado en Supabase (región São Paulo)
-- Storage: bucket `cvs` para almacenar las hojas de vida en PDF
-- El bucket `cvs` tiene políticas RLS configuradas para permitir INSERT y SELECT a `anon`
 - La conexión a la BD se hace via `DATABASE_URL` con la connection string de Supabase
 - El cliente de Supabase Storage se inicializa en `src/lib/supabase.ts` con `SUPABASE_URL` y `SUPABASE_ANON_KEY`
 - Los archivos se suben directamente al bucket sin subcarpetas — el path es solo el nombre del archivo
+
+| Bucket | Uso | Políticas |
+|---|---|---|
+| `cvs` | CVs en PDF de candidatos | INSERT + SELECT anon |
+| `avatars` | Fotos de perfil de candidatos | INSERT + SELECT anon |
+| `logos` | Logos de empresas | INSERT + SELECT anon |
+
+Path de archivos:
+- CVs: `{userId}_{timestamp}.pdf`
+- Avatars: `{userId}.jpg/png/webp`
+- Logos: `{userId}.jpg/png/webp`
+
+En todos los casos `upsert: true` — el archivo nuevo reemplaza el anterior.
 
 ### Mailtrap
 
@@ -409,10 +421,14 @@ Todas requieren `Authorization: Bearer TOKEN` en el header.
 | Método | Ruta | Descripción | Roles | Auth |
 |---|---|---|---|---|
 | GET | `/profile/candidate` | Consultar perfil candidato | STUDENT, GRADUATE | Sí |
-| PUT | `/profile/candidate` | Crear o actualizar perfil candidato | STUDENT, GRADUATE | Sí |
-| POST | `/profile/candidate/cv` | Subir CV en PDF a Supabase Storage (máx 5MB) | STUDENT, GRADUATE | Sí |
+| PUT | `/profile/candidate` | Crear/actualizar perfil candidato | STUDENT, GRADUATE | Sí |
+| POST | `/profile/candidate/cv` | Subir CV + extracción IA | STUDENT, GRADUATE | Sí |
+| POST | `/profile/candidate/photo` | Subir foto de perfil (avatars bucket) | STUDENT, GRADUATE | Sí |
+| POST | `/profile/candidate/extract-cv` | Extracción manual de CV | STUDENT, GRADUATE | Sí |
 | GET | `/profile/company` | Consultar perfil empresa | COMPANY | Sí |
-| PUT | `/profile/company` | Crear o actualizar perfil empresa | COMPANY | Sí |
+| PUT | `/profile/company` | Crear/actualizar perfil empresa | COMPANY | Sí |
+| POST | `/profile/company/logo` | Subir logo empresa (logos bucket) | COMPANY | Sí |
+
 
 
 ### Extracción de CV — `/api/profile`
@@ -425,20 +441,22 @@ Todas requieren `Authorization: Bearer TOKEN` en el header.
 
 | Método | Ruta | Descripción | Roles | Auth |
 |---|---|---|---|---|
-| GET | `/ranking/me` | Consultar mi puntaje con desglose y sugerencias | STUDENT, GRADUATE | Sí |
-| POST | `/ranking/recalculate` | Forzar recálculo de mi puntaje | STUDENT, GRADUATE | Sí |
-| GET | `/ranking/:userId` | Consultar puntaje de un candidato específico | COMPANY, ADMIN | Sí |
+| GET | `/ranking/me` | Mi puntaje con desglose y sugerencias | STUDENT, GRADUATE | Sí |
+| POST | `/ranking/recalculate` | Recalcular mi puntaje | STUDENT, GRADUATE | Sí |
+| GET | `/ranking/:userId` | Puntaje de un candidato | COMPANY, ADMIN | Sí |
 
 ### Vacantes — `/api/jobs`
 
 | Método | Ruta | Descripción | Roles | Auth |
 |---|---|---|---|---|
 | GET | `/jobs` | Listar vacantes activas con filtros | Todos | Sí |
-| GET | `/jobs/company/mine` | Mis vacantes publicadas | COMPANY | Sí |
-| GET | `/jobs/:id` | Detalle de una vacante | Todos | Sí |
-| POST | `/jobs` | Publicar nueva vacante | COMPANY | Sí |
+| GET | `/jobs/company/mine` | Mis vacantes | COMPANY | Sí |
+| GET | `/jobs/:id` | Detalle de vacante | Todos | Sí |
+| POST | `/jobs` | Publicar vacante | COMPANY | Sí |
 | PUT | `/jobs/:id` | Editar vacante | COMPANY | Sí |
-| PATCH | `/jobs/:id/status` | Cambiar estado de vacante | COMPANY | Sí |
+| PATCH | `/jobs/:id/status` | Cambiar estado | COMPANY | Sí |
+| POST | `/jobs/:id/apply` | Postularse (score IA) | STUDENT, GRADUATE | Sí |
+| GET | `/jobs/:id/applicants` | Candidatos rankeados | COMPANY | Sí |
 
 **Filtros disponibles en GET /jobs:**
 - `search` — búsqueda en título y descripción
@@ -457,6 +475,11 @@ Todas requieren `Authorization: Bearer TOKEN` en el header.
 | GET | `/jobs/:id/applicants` | Candidatos postulados ordenados por score | COMPANY | Sí |
 | PATCH | `/applications/:id/status` | Cambiar estado de postulación | COMPANY | Sí |
 | GET | `/applications/me` | Mis postulaciones activas e históricas | STUDENT, GRADUATE | Sí |
+
+### Keywords — `/api/keywords`
+| Método | Ruta | Descripción | Auth |
+|---|---|---|---|
+| GET | `/keywords` | Listar keywords activas (filtro: ?type=TECHNICAL) | Sí |
 
 ---
 
@@ -572,6 +595,37 @@ El seed usa `upsert` — es seguro ejecutarlo múltiples veces sin duplicar dato
 
 Requiere `tsconfig.seed.json` en la raíz de `backend/` para que `ts-node` compile
 el seed correctamente con `rootDir: "."`.
+
+---
+
+
+## Motor de Ranking — Arquitectura híbrida
+
+### Score de perfil base (Capa 1 — 40% del score final)
+Calculado en `src/lib/ranking.ts`. No depende de keywords.
+Criterios: skills declaradas (20%), experiencia+proyectos (20%),
+formación académica (20%), certs+idiomas (10%), reputación (10%), completitud (20%).
+
+### Score de compatibilidad IA (Capa 2 — 60% del score final)
+Calculado en `src/lib/gemini.ts` al momento de postularse.
+Gemini evalúa compatibilidad semántica entre candidato y vacante.
+Devuelve: score, reasons[] y gaps[] — se guardan en la Application.
+Si Gemini falla retorna score neutro 50 — no bloquea la postulación.
+Retry automático con backoff en caso de rate limit 429.
+
+### CV Intelligence
+Cuando el candidato sube un CV:
+1. pdf-parse extrae texto plano
+2. Gemini extrae: skills, softSkills, languages, certifications, projects, summary
+3. Normalización: cada skill se compara contra la BD — si existe usa el nombre canónico
+4. Si no existe → se crea como nueva keyword en la BD (isActive: true)
+5. El perfil se actualiza automáticamente con los datos extraídos
+
+### Keywords dinámicas
+- Tabla `keywords` crece automáticamente con el uso real de la plataforma
+- Gemini normaliza variaciones (nodejs → node.js si node.js existe en BD)
+- El frontend usa GET /api/keywords para mostrar checkboxes al candidato
+- Admin puede revisar y desactivar keywords incorrectas (Sprint 4)
 
 ---
 
