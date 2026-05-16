@@ -53,4 +53,11 @@ router.put(
   profileController.updateCompanyProfile
 );
 
+router.post(
+  '/company/logo',
+  authorize('COMPANY'),
+  uploadPhoto.single('logo'),
+  profileController.uploadLogo
+);
+
 export default router;

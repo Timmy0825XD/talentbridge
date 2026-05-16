@@ -1,15 +1,13 @@
 import { prisma } from '../lib/prisma';
 import { supabase } from '../lib/supabase';
-import { extractCvKeywords, ExtractedKeywords } from '../lib/cv-extractor';
+import { extractCvIntelligent, ExtractedKeywords } from '../lib/cv-extractor';
+import { extractCvKeywords } from '../lib/cv-extractor';
 import { computeAndSaveScore } from './ranking.service';
 
 // ─── PERFIL CANDIDATO ─────────────────────────────────────────────────────────
 
 export async function getCandidateProfile(userId: string) {
-  const profile = await prisma.candidateProfile.findUnique({
-    where: { userId },
-  });
-  return profile;
+  return prisma.candidateProfile.findUnique({ where: { userId } });
 }
 
 export async function upsertCandidateProfile(userId: string, data: {
@@ -44,10 +42,7 @@ export async function upsertCandidateProfile(userId: string, data: {
 // ─── PERFIL EMPRESA ───────────────────────────────────────────────────────────
 
 export async function getCompanyProfile(userId: string) {
-  const profile = await prisma.companyProfile.findUnique({
-    where: { userId },
-  });
-  return profile;
+  return prisma.companyProfile.findUnique({ where: { userId } });
 }
 
 export async function upsertCompanyProfile(userId: string, data: {
@@ -61,57 +56,72 @@ export async function upsertCompanyProfile(userId: string, data: {
   contactPhone?: string;
   city?: string;
 }) {
-  const profile = await prisma.companyProfile.upsert({
+  return prisma.companyProfile.upsert({
     where: { userId },
     update: data,
     create: { userId, ...data },
   });
-  return profile;
 }
 
-// ─── UPLOAD FOTO DE PERFIL ────────────────────────────────────────────────────
+// ─── UPLOAD FOTO DE PERFIL (CANDIDATO) ───────────────────────────────────────
 
 export async function uploadPhotoToStorage(
   userId: string,
   fileBuffer: Buffer,
   mimeType: string
 ): Promise<string> {
-  // Determinar extensión según el tipo de archivo
   const ext = mimeType === 'image/png' ? 'png'
-    : mimeType === 'image/webp' ? 'webp'
-    : 'jpg';
+    : mimeType === 'image/webp' ? 'webp' : 'jpg';
 
   const fileName = `${userId}.${ext}`;
 
   const { error } = await supabase.storage
     .from('avatars')
-    .upload(fileName, fileBuffer, {
-      contentType: mimeType,
-      upsert: true, // Reemplaza la foto anterior
-    });
+    .upload(fileName, fileBuffer, { contentType: mimeType, upsert: true });
 
-  if (error) {
-    console.error('Supabase Storage error (photo):', error);
-    throw new Error('STORAGE_UPLOAD_FAILED');
-  }
+  if (error) throw new Error('STORAGE_UPLOAD_FAILED');
 
-  const { data } = supabase.storage
-    .from('avatars')
-    .getPublicUrl(fileName);
+  const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
 
-  const photoUrl = data.publicUrl;
-
-  // Guardar la URL en el perfil
   await prisma.candidateProfile.upsert({
     where: { userId },
-    update: { photoUrl },
-    create: { userId, photoUrl },
+    update: { photoUrl: data.publicUrl },
+    create: { userId, photoUrl: data.publicUrl },
   });
 
-  return photoUrl;
+  return data.publicUrl;
 }
 
-// ─── CARGA DE CV EN SUPABASE STORAGE ─────────────────────────────────────────
+// ─── UPLOAD LOGO EMPRESA ─────────────────────────────────────────────────────
+
+export async function uploadLogoToStorage(
+  userId: string,
+  fileBuffer: Buffer,
+  mimeType: string
+): Promise<string> {
+  const ext = mimeType === 'image/png' ? 'png'
+    : mimeType === 'image/webp' ? 'webp' : 'jpg';
+
+  const fileName = `${userId}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from('logos')
+    .upload(fileName, fileBuffer, { contentType: mimeType, upsert: true });
+
+  if (error) throw new Error('STORAGE_UPLOAD_FAILED');
+
+  const { data } = supabase.storage.from('logos').getPublicUrl(fileName);
+
+  await prisma.companyProfile.upsert({
+    where: { userId },
+    update: { logoUrl: data.publicUrl },
+    create: { userId, logoUrl: data.publicUrl },
+  });
+
+  return data.publicUrl;
+}
+
+// ─── UPLOAD CV + EXTRACCIÓN INTELIGENTE ──────────────────────────────────────
 
 export async function uploadCvToStorage(
   userId: string,
@@ -122,20 +132,11 @@ export async function uploadCvToStorage(
 
   const { error } = await supabase.storage
     .from('cvs')
-    .upload(fileName, fileBuffer, {
-      contentType: 'application/pdf',
-      upsert: true,
-    });
+    .upload(fileName, fileBuffer, { contentType: 'application/pdf', upsert: true });
 
-  if (error) {
-    console.error('Supabase Storage error:', error);
-    throw new Error('STORAGE_UPLOAD_FAILED');
-  }
+  if (error) throw new Error('STORAGE_UPLOAD_FAILED');
 
-  const { data } = supabase.storage
-    .from('cvs')
-    .getPublicUrl(fileName);
-
+  const { data } = supabase.storage.from('cvs').getPublicUrl(fileName);
   const cvUrl = data.publicUrl;
 
   await prisma.candidateProfile.upsert({
@@ -144,55 +145,46 @@ export async function uploadCvToStorage(
     create: { userId, cvUrl },
   });
 
-  extractCvKeywords(cvUrl).then(async (extracted) => {
+  // Extracción inteligente con Gemini en background
+  extractCvIntelligent(cvUrl).then(async (extracted) => {
     const updateData: any = {};
-    if (extracted.technical.length > 0) updateData.skills = extracted.technical;
-    if (extracted.soft.length > 0) updateData.softSkills = extracted.soft;
-    if (extracted.languages.length > 0)
-      updateData.languages = extracted.languages.map(lang => ({
-        language: lang,
-        level: 'No especificado',
-      }));
+
+    if (extracted.skills.length > 0)        updateData.skills = extracted.skills;
+    if (extracted.softSkills.length > 0)    updateData.softSkills = extracted.softSkills;
+    if (extracted.languages.length > 0)     updateData.languages = extracted.languages;
+    if (extracted.certifications.length > 0) updateData.certifications = extracted.certifications;
+    if (extracted.projects.length > 0)      updateData.projects = extracted.projects;
+    if (extracted.summary)                  updateData.summary = extracted.summary;
 
     if (Object.keys(updateData).length > 0) {
-      await prisma.candidateProfile.update({
-        where: { userId },
-        data: updateData,
-      });
+      await prisma.candidateProfile.update({ where: { userId }, data: updateData });
     }
+
     await computeAndSaveScore(userId);
-  }).catch(err => {
-    console.error('Error extrayendo keywords del CV:', err);
-  });
+    console.log(`CV Intelligence completado para usuario ${userId}`);
+  }).catch(err => console.error('Error en CV Intelligence:', err));
 
   return cvUrl;
 }
 
-// ─── EXTRACCIÓN MANUAL DE CV ──────────────────────────────────────────────────
+// ─── EXTRACCIÓN MANUAL ────────────────────────────────────────────────────────
 
 export async function extractCvManually(userId: string): Promise<ExtractedKeywords> {
-  const profile = await prisma.candidateProfile.findUnique({
-    where: { userId },
-  });
-
+  const profile = await prisma.candidateProfile.findUnique({ where: { userId } });
   if (!profile?.cvUrl) throw new Error('CV_NOT_FOUND');
 
   const extracted = await extractCvKeywords(profile.cvUrl);
 
   const updateData: any = {};
   if (extracted.technical.length > 0) updateData.skills = extracted.technical;
-  if (extracted.soft.length > 0) updateData.softSkills = extracted.soft;
+  if (extracted.soft.length > 0)      updateData.softSkills = extracted.soft;
   if (extracted.languages.length > 0)
     updateData.languages = extracted.languages.map(lang => ({
-      language: lang,
-      level: 'No especificado',
+      language: lang, level: 'No especificado'
     }));
 
   if (Object.keys(updateData).length > 0) {
-    await prisma.candidateProfile.update({
-      where: { userId },
-      data: updateData,
-    });
+    await prisma.candidateProfile.update({ where: { userId }, data: updateData });
   }
 
   return extracted;
