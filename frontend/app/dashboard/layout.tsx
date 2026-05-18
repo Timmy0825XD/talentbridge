@@ -13,7 +13,7 @@ const navLinks: Record<string, { label: string; href: string }[]> = {
     { label: "Dashboard", href: "/dashboard/candidate" },
     { label: "Postulaciones", href: "/dashboard/candidate/postulaciones" },
     { label: "Explorar", href: "/dashboard/candidate/explorar" },
-    { label: "Mi Perfil", href: "/dashboard/candidate/profile" },
+    { label: "Mi Perfil", href: "/profile/candidate" },
   ],
   GRADUATE: [
     { label: "Dashboard", href: "/dashboard/candidate" },
