@@ -73,10 +73,10 @@ frontend/
 │   │   │       │   │   └── JobForm.tsx       # Formulario crear/editar vacante — reutilizable
 │   │   │       │   └── [id]/
 │   │   │       │       └── postulantes/
-│   │   │       │           └── page.tsx      # Vista master/detail de postulantes con ranking
+│   │   │       │           └── page.tsx      # Vista master/detail de postulantes con ranking e IA
 │   │   │       └── talento/page.tsx          # (Sprint 3)
 │   │   └── profile/
-│   │       ├── candidate/page.tsx            # Formulario perfil candidato
+│   │       ├── candidate/page.tsx            # Perfil candidato — foto, CV, skills, certs, proyectos
 │   │       └── company/page.tsx              # Formulario perfil empresa
 │   ├── context/
 │   │   └── auth-context.tsx                  # Contexto global de autenticación
@@ -127,12 +127,10 @@ El cliente Axios está configurado con dos interceptores:
 **Interceptor de response:**
 - Si el backend responde con `401` (token expirado o inválido) **y la ruta NO es `/auth/`**
 - Limpia `localStorage` y redirige automáticamente a `/`
-- Las rutas de autenticación (`/auth/login`, `/auth/register`, etc.) están excluidas del redirect
-  para que puedan mostrar sus propios mensajes de error (ej: "Contraseña incorrecta")
+- Las rutas de autenticación están excluidas del redirect para mostrar sus propios errores
 
 **Fix crítico aplicado en Sprint 2:**
 ```typescript
-// CORRECTO — excluir rutas de auth del redirect automático
 const isAuthRoute = error.config?.url?.includes('/auth/');
 if (error.response?.status === 401 && !isAuthRoute) {
   // limpiar localStorage y redirigir
@@ -143,17 +141,13 @@ if (error.response?.status === 401 && !isAuthRoute) {
 ```typescript
 import api from "@/lib/api";
 
-// GET
 const res = await api.get("/profile/candidate");
-
-// POST
 const res = await api.post("/auth/login", { email, password });
-
-// PUT
 const res = await api.put("/profile/candidate", data);
-
-// PATCH
 const res = await api.patch(`/applications/${id}/status`, { status });
+const res = await api.post("/profile/candidate/photo", formData, {
+  headers: { "Content-Type": "multipart/form-data" }
+});
 ```
 
 ---
@@ -244,11 +238,8 @@ Los colores están definidos en `src/app/globals.css` con `@theme` de Tailwind v
 
 **En el código se usan siempre como colores inline** porque Tailwind v4 aún no expone los tokens `@theme` como clases estándar:
 ```tsx
-// ✅ Correcto
-className="bg-[#00386c] text-white"
-
-// ❌ Incorrecto — no funciona en v4
-className="bg-primary text-on-primary"
+className="bg-[#00386c] text-white"   // ✅ correcto
+className="bg-primary text-on-primary" // ❌ no funciona en v4
 ```
 
 ---
@@ -264,44 +255,51 @@ Configuradas en `layout.tsx` con `next/font/google`.
 
 ---
 
-## Flujo de autenticación implementado
+## Perfil de candidato — src/app/profile/candidate/page.tsx
 
-```
-POST /auth/register → { userId }
-  ↓
-/auth/verify-otp?userId=xxx → POST /auth/verify-otp → { message }
-  ↓
-/auth/login → POST /auth/login → { token, role, userId }
-  ↓
-AuthContext.login() → guarda en localStorage → redirige según rol
-  ↓
-/dashboard/candidate  (STUDENT, GRADUATE)
-/dashboard/company    (COMPANY)
-```
+Página completa rediseñada en Sprint 2. Características:
 
-**Caso NOT_VERIFIED en login:**
-- Si el backend responde con `code: "NOT_VERIFIED"` y `userId`
-- El frontend redirige automáticamente a `/auth/verify-otp?userId=xxx`
-- El backend reenvía el OTP al correo automáticamente en este caso
+**Secciones:**
+- Hero banner con foto de perfil, nombre, carrera y completitud del perfil (anillo circular)
+- Sidebar con navegación ancla a cada sección y resumen de conteos
+- Información básica (nombre, teléfono, resumen)
+- Información académica (institución, carrera, semestre/año de graduación según rol)
+- Preferencias laborales (modalidad, pretensión salarial)
+- Habilidades técnicas y blandas con autocompletado
+- Idiomas (nombre + nivel)
+- Certificaciones (nombre, institución, año)
+- Proyectos destacados (nombre, descripción, URL)
+- Hoja de vida (subida de PDF)
 
-**Recuperación de contraseña:**
-```
-/auth/forgot-password → POST /auth/forgot-password → envía email
-  ↓
-Link en email: /auth/reset-password?token=xxx
-  ↓
-POST /auth/reset-password → { token, newPassword }
-  ↓
-/auth/login
-```
+**Foto de perfil:**
+- Subida via `POST /profile/candidate/photo` con `multipart/form-data`
+- Campo `photo` en el FormData
+- Acepta JPG, PNG, WebP — máx 3MB
+- La URL resultante se guarda en `form.photoUrl`
+
+**Skills con autocompletado (`SkillInput`):**
+- Componente interno que consume `GET /keywords` para mostrar sugerencias
+- Filtra en tiempo real mientras el usuario escribe
+- Permite agregar skills que no existen en la BD (texto libre)
+- Muestra badge "Técnica" o "Blanda" según el tipo de keyword
+- Cierra el dropdown al hacer clic fuera (usa `useRef` + `mousedown`)
+
+**Completitud del perfil:**
+- Calculada localmente sobre 8 campos clave
+- Mostrada como anillo SVG animado en el hero
+
+**Endpoints consumidos en esta página:**
+- `GET /profile/candidate` — carga datos iniciales
+- `PUT /profile/candidate` — guarda el perfil
+- `POST /profile/candidate/cv` — sube el CV (campo `cv`, solo PDF, máx 5MB)
+- `POST /profile/candidate/photo` — sube foto (campo `photo`, JPG/PNG/WebP, máx 3MB)
+- `GET /keywords` — carga keywords para autocompletado de skills
 
 ---
 
 ## Patrones de componentes — Sprint 2
 
 ### Página con datos reales del backend
-
-Toda página que carga datos del backend sigue este patrón:
 
 ```typescript
 const [data, setData]       = useState<MiTipo | null>(null);
@@ -325,30 +323,21 @@ async function loadData() {
 
 ### Peticiones en paralelo
 
-Cuando una página necesita múltiples endpoints, usar `Promise.all` para lanzarlas al mismo tiempo:
-
 ```typescript
+// Todas deben tener éxito
 const [resA, resB] = await Promise.all([
+  api.get('/endpoint-a'),
+  api.get('/endpoint-b'),
+]);
+
+// Algunas pueden fallar sin romper la página
+const results = await Promise.allSettled([
   api.get('/endpoint-a'),
   api.get('/endpoint-b'),
 ]);
 ```
 
-Cuando algunas pueden fallar sin romper la página, usar `Promise.allSettled`:
-
-```typescript
-const results = await Promise.allSettled(
-  ids.map(id => api.get(`/items/${id}`))
-);
-for (const r of results) {
-  if (r.status === 'fulfilled') { /* usar r.value.data */ }
-}
-```
-
 ### Actualización optimista de estado
-
-Al hacer un PATCH (ej: cambiar estado de postulación), actualizar el estado local
-sin recargar desde el servidor para que la UI responda inmediatamente:
 
 ```typescript
 setItems(prev =>
@@ -358,23 +347,13 @@ setItems(prev =>
 
 ### Layout master/detail
 
-Patrón usado en la página de postulantes y explorar vacantes:
-- Panel izquierdo fijo con lista scrollable
-- Panel derecho con detalle del ítem seleccionado
-- Al hacer click en un ítem de la lista, se actualiza el detalle sin petición adicional
-- Estado vacío explícito cuando no hay ítem seleccionado
-
 ```tsx
 <div className="flex gap-8 h-[calc(100vh-280px)]">
-  {/* Master */}
   <aside className="w-[400px] flex flex-col overflow-y-auto">
     {items.map(item => (
-      <div key={item.id} onClick={() => setSelected(item)}>
-        {/* card */}
-      </div>
+      <div key={item.id} onClick={() => setSelected(item)}>{/* card */}</div>
     ))}
   </aside>
-  {/* Detail */}
   <main className="flex-1 overflow-y-auto">
     {!selected ? <EmptyState /> : <Detail item={selected} />}
   </main>
@@ -398,8 +377,6 @@ Patrón usado en la página de postulantes y explorar vacantes:
 
 ### Función timeAgo
 
-Para mostrar fechas relativas ("hace 2 horas", "hace 3 días"):
-
 ```typescript
 function timeAgo(iso: string): string {
   const diff  = Date.now() - new Date(iso).getTime();
@@ -414,22 +391,29 @@ function timeAgo(iso: string): string {
 
 ### Formulario con modo crear/editar reutilizable
 
-Patrón usado en `JobForm.tsx` — el mismo componente sirve para crear y editar:
-
 ```typescript
 interface FormProps {
-  editingItem: Item | null;  // null = modo crear, objeto = modo editar
-  onSuccess: () => void;     // recarga lista y cierra
-  onCancel: () => void;      // cierra sin guardar
+  editingItem: Item | null;
+  onSuccess: () => void;
+  onCancel: () => void;
 }
 
-// En el submit:
 if (editingItem) {
   await api.put(`/items/${editingItem.id}`, payload);
 } else {
   await api.post('/items', payload);
 }
 onSuccess();
+```
+
+### Subida de archivos con FormData
+
+```typescript
+const fd = new FormData();
+fd.append("photo", file);
+const res = await api.post("/profile/candidate/photo", fd, {
+  headers: { "Content-Type": "multipart/form-data" }
+});
 ```
 
 ---
@@ -447,9 +431,8 @@ onSuccess();
 
 ### TypeScript
 
-- Para errores de Axios usar siempre este patrón:
-
 ```typescript
+// Errores de Axios
 } catch (err: unknown) {
   const e = err as { response?: { data?: { error?: string } } };
   setError(e.response?.data?.error ?? 'Error inesperado.');
@@ -457,9 +440,8 @@ onSuccess();
 ```
 
 - Definir interfaces para todos los tipos que vienen del backend
-- No usar `any` — si es absolutamente necesario, justificar con comentario
-- Usar `as unknown as T` en lugar de `as any`
-- Tipar explícitamente variables locales que TypeScript no puede inferir (`const tag: string = ...`)
+- No usar `any` — justificar con comentario si es absolutamente necesario
+- Tipar explícitamente variables locales que TypeScript no puede inferir
 
 ### Inputs — estilo estándar del proyecto
 
@@ -471,14 +453,11 @@ const labelCls = "block text-xs font-semibold uppercase tracking-wider text-[#42
 ### Mensajes de feedback
 
 ```tsx
-// Error
 {error && (
   <div className="bg-[#ffdad6] text-[#93000a] text-sm font-medium px-4 py-3 rounded-xl">
     {error}
   </div>
 )}
-
-// Éxito
 {success && (
   <div className="bg-[#6bfe9c]/20 text-[#005228] text-sm font-medium px-4 py-3 rounded-xl">
     {success}
@@ -494,16 +473,6 @@ const labelCls = "block text-xs font-semibold uppercase tracking-wider text-[#42
 
 // Empresa (verde)
 <span className="w-8 h-8 border-2 border-[#006d37]/20 border-t-[#006d37] rounded-full animate-spin" />
-```
-
-### Botón submit estándar
-
-```tsx
-// Candidato
-<button className="bg-gradient-to-br from-[#00386c] to-[#1a4f8b] text-white px-10 py-3.5 rounded-full font-bold text-sm uppercase tracking-widest ...">
-
-// Empresa
-<button className="bg-gradient-to-br from-[#006d37] to-[#00743a] text-white px-10 py-3.5 rounded-full font-bold text-sm uppercase tracking-widest ...">
 ```
 
 ---
@@ -523,8 +492,10 @@ Base URL: `http://localhost:3001/api` (desarrollo) — definido en `NEXT_PUBLIC_
 | GET | `/profile/candidate` | `/profile/candidate`, `/dashboard/candidate`, `/dashboard/candidate/explorar` | ✅ |
 | PUT | `/profile/candidate` | `/profile/candidate` | ✅ |
 | POST | `/profile/candidate/cv` | `/profile/candidate` | ✅ |
+| POST | `/profile/candidate/photo` | `/profile/candidate` | ✅ |
 | GET | `/profile/company` | `/profile/company` | ✅ |
 | PUT | `/profile/company` | `/profile/company` | ✅ |
+| GET | `/keywords` | `/profile/candidate` | ✅ |
 | GET | `/jobs` | `/dashboard/candidate/explorar` | ✅ |
 | GET | `/jobs/company/mine` | `/dashboard/company`, `/dashboard/company/vacantes` | ✅ |
 | POST | `/jobs` | `/dashboard/company/vacantes` (JobForm) | ✅ |
@@ -536,7 +507,6 @@ Base URL: `http://localhost:3001/api` (desarrollo) — definido en `NEXT_PUBLIC_
 | PATCH | `/applications/:id/status` | `/dashboard/company/vacantes/[id]/postulantes` | ✅ |
 | GET | `/applications/me` | `/dashboard/candidate/explorar` | ✅ |
 | GET | `/ranking/me` | `/dashboard/candidate/explorar` | ✅ |
-| GET | `/ranking/:userId` | `/dashboard/company/vacantes/[id]/postulantes` | ✅ |
 
 ---
 
@@ -551,12 +521,12 @@ Base URL: `http://localhost:3001/api` (desarrollo) — definido en `NEXT_PUBLIC_
 | `/auth/forgot-password` | `app/auth/forgot-password/page.tsx` | ✅ Completo |
 | `/auth/reset-password` | `app/auth/reset-password/page.tsx` | ✅ Completo |
 | `/dashboard/candidate` | `app/dashboard/candidate/page.tsx` | ✅ Completo — datos estáticos |
-| `/dashboard/candidate/explorar` | `app/dashboard/candidate/explorar/page.tsx` | ✅ Completo — conectado a API, filtros avanzados |
-| `/dashboard/company` | `app/dashboard/company/page.tsx` | ✅ Completo — conectado a API real |
+| `/dashboard/candidate/explorar` | `app/dashboard/candidate/explorar/page.tsx` | ✅ Completo — API real, filtros avanzados, postulación |
+| `/dashboard/company` | `app/dashboard/company/page.tsx` | ✅ Completo — API real |
 | `/dashboard/company/vacantes` | `app/dashboard/company/vacantes/page.tsx` | ✅ Completo — CRUD completo |
-| `/dashboard/company/vacantes/[id]/postulantes` | `app/dashboard/company/vacantes/[id]/postulantes/page.tsx` | ✅ Completo — master/detail con ranking |
-| `/profile/candidate` | `app/profile/candidate/page.tsx` | ✅ Completo — conectado a API |
-| `/profile/company` | `app/profile/company/page.tsx` | ✅ Completo — conectado a API |
+| `/dashboard/company/vacantes/[id]/postulantes` | `app/dashboard/company/vacantes/[id]/postulantes/page.tsx` | ✅ Completo — master/detail, ranking, IA |
+| `/profile/candidate` | `app/profile/candidate/page.tsx` | ✅ Completo — foto, CV, skills con autocompletado, certs, proyectos |
+| `/profile/company` | `app/profile/company/page.tsx` | ✅ Completo — API real |
 
 ---
 
@@ -583,16 +553,15 @@ Base URL: `http://localhost:3001/api` (desarrollo) — definido en `NEXT_PUBLIC_
 - **Siempre `"use client"`** en componentes con hooks o eventos del browser
 - **Los mensajes de error van en español**
 - **Los imports siempre son** `@/lib/api` y `@/context/auth-context` — nunca `@/src/...`
-- **El dashboard tiene un layout compartido** en `app/dashboard/layout.tsx` — no repetir el header en las páginas hijas
-- **Rutas de candidato** dentro de `dashboard/candidate/`, rutas de empresa dentro de `dashboard/company/`
-- **Componentes internos de una página** van en `_components/` al mismo nivel que su `page.tsx`
-- **El acento de color del rol empresa es verde** (`#006d37`), el de candidato es azul (`#00386c`)
-- **El flujo NOT_VERIFIED** está manejado en el login — redirige automáticamente a verify-otp
-- **Toda página con datos del backend** debe tener estado de carga, estado de error con botón de reintentar, y estado vacío explícito
-- **Para peticiones paralelas** usar `Promise.all` (todas deben tener éxito) o `Promise.allSettled` (algunas pueden fallar)
-- **Para actualizaciones de estado** preferir actualización local optimista antes de llamar al servidor
-- **El interceptor 401 de Axios excluye rutas `/auth/`** — esto es intencional para que login/register muestren sus propios errores
-- **`JobForm.tsx`** es el patrón de referencia para formularios crear/editar reutilizables — seguir ese mismo patrón para futuros módulos
-- **La página de explorar** usa `Promise.allSettled` porque el endpoint de ranking puede fallar sin romper la página
-- Al agregar una página nueva, agregarla a la tabla de páginas implementadas de este archivo
-- Al consumir un endpoint nuevo, agregarlo a la tabla de endpoints de este archivo
+- **El dashboard tiene un layout compartido** — no repetir el header en páginas hijas
+- **Componentes internos** van en `_components/` al mismo nivel que su `page.tsx`
+- **El acento de color empresa es verde** (`#006d37`), el de candidato es azul (`#00386c`)
+- **Toda página con datos del backend** debe tener estado de carga, error con reintentar, y vacío explícito
+- **Para peticiones paralelas** usar `Promise.all` o `Promise.allSettled` según si todas deben tener éxito
+- **Para actualizaciones de estado** preferir actualización local optimista
+- **El interceptor 401 excluye rutas `/auth/`** — intencional para que login muestre sus propios errores
+- **`JobForm.tsx`** es el patrón de referencia para formularios crear/editar reutilizables
+- **`SkillInput`** en `profile/candidate/page.tsx` es el patrón de referencia para autocompletado con keywords
+- **Subida de archivos** usa `FormData` con `Content-Type: multipart/form-data`
+- Al agregar una página nueva, agregarla a la tabla de páginas implementadas
+- Al consumir un endpoint nuevo, agregarlo a la tabla de endpoints

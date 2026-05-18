@@ -83,7 +83,7 @@ export default function CompanyDashboardPage() {
                 topCandidates.push({
                   id:           cid,
                   fullName:     applicant.candidate.fullName,
-                  headline:     applicant.candidate.headline,
+                  headline: applicant.candidate.career ?? null,
                   skills:       applicant.candidate.skills ?? [],
                   profileScore: {totalScore: applicant.scoreAtApply ?? 0},
                 });

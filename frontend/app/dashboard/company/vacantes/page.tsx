@@ -11,6 +11,7 @@ import JobForm from './_components/JobForm';
 interface Job {
   id: string;
   title: string;
+  description: string;
   type: string;
   status: string;
   workMode: string;
@@ -18,7 +19,20 @@ interface Job {
   budgetMin: number | null;
   budgetMax: number | null;
   createdAt: string;
+  duration: string | null;
+  deadline: string | null;
+  deliverables: string | null;
+  skills: string[];
   _count: { applications: number };
+  rankConfig: {
+    skillsWeight: number;
+    experienceWeight: number;
+    educationWeight: number;
+    certsWeight: number;
+    reputationWeight: number;
+    languagesWeight: number;
+    completionWeight: number;
+  } | null;
 }
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string; dot: string; icon: React.ReactNode }> = {
