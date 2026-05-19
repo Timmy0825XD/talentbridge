@@ -78,9 +78,13 @@ model CandidateProfile {
   cvUrl          String?
   salaryExpected Int?
   workMode       String?
+  notificationsEnabled Boolean  @default(true)
+  notificationChannel  String   @default("telegram")
+  telegramChatId       String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   applications   Application[]
+  contracts Contract[]
   score          ProfileScore?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -104,8 +108,8 @@ model CompanyProfile {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   jobs          Job[]
+  contracts Contract[]
   
-
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("company_profiles")
@@ -157,6 +161,7 @@ model Job {
   company      CompanyProfile @relation(fields: [companyId], references: [id], onDelete: Cascade)
   applications Application[]
   rankConfig   JobRankConfig?
+  contracts Contract[]
 
   @@map("jobs")
 }
@@ -228,4 +233,57 @@ model Keyword {
   createdAt DateTime    @default(now())
 
   @@map("keywords")
+}
+
+enum ContractStatus {
+  PENDING_CANDIDATE
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+}
+
+model Contract {
+  id              String         @id @default(uuid())
+  jobId           String
+  candidateId     String
+  companyId       String
+  title           String
+  description     String
+  deliverables    String
+  startDate       DateTime
+  endDate         DateTime
+  totalAmount     Int
+  paymentScheme   String
+  contractFileUrl String?
+  status          ContractStatus @default(PENDING_CANDIDATE)
+  confirmedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  job       Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidate CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  company   CompanyProfile   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  payments  Payment[]
+
+  @@map("contracts")
+}
+
+model Payment {
+  id          String        @id @default(uuid())
+  contractId  String
+  amount      Int
+  description String
+  receiptUrl  String?
+  status      PaymentStatus @default(PENDING)
+  confirmedAt DateTime?
+  createdAt   DateTime      @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
 }
