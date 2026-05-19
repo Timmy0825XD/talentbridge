@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { JobStatus, JobType, WorkMode } from '@prisma/client';
+import { triggerNotificationWebhook } from './notification.service';
 
 // ─── PUBLICAR VACANTE ─────────────────────────────────────────────────────────
 
@@ -71,7 +72,11 @@ export async function createJob(userId: string, data: {
       },
     });
   }
-
+  // Disparar notificaciones en background — no bloquea la respuesta
+  triggerNotificationWebhook(job.id).catch(err =>
+    console.error('Error disparando notificaciones:', err)
+  );
+  
   return prisma.job.findUnique({
     where: { id: job.id },
     include: { rankConfig: true, company: true },
