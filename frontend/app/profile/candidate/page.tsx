@@ -5,14 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import api from "@/src/lib/api";
-import {
-  ArrowLeft, Save, Upload, X, FileText, User,
-  GraduationCap, Briefcase, Wrench, Plus, Globe,
-  Award, FolderGit2, Camera, Loader2, ExternalLink,
-  ChevronRight,
-} from "lucide-react";
-
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+import { ArrowLeft, Save, Upload, X, FileText, User, GraduationCap, Briefcase, Wrench, Plus, Globe, Award, FolderGit2, Camera, Loader2, ExternalLink, ChevronRight} from "lucide-react";
 
 interface Keyword { id: string; name: string; type: string; }
 interface Certification { name: string; issuer: string; year: string; }
@@ -50,8 +43,6 @@ const NAV_SECTIONS = [
   { id: "projects", label: "Proyectos",             icon: FolderGit2 },
   { id: "cv",       label: "Hoja de vida",          icon: FileText },
 ];
-
-// ─── Autocompletado ───────────────────────────────────────────────────────────
 
 function SkillInput({ value, onChange, onAdd, placeholder, suggestions }: {
   value: string; onChange: (v: string) => void;
@@ -111,8 +102,6 @@ function SkillInput({ value, onChange, onAdd, placeholder, suggestions }: {
     </div>
   );
 }
-
-// ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function CandidateProfilePage() {
   const { user, isLoading } = useAuth();
@@ -272,7 +261,6 @@ export default function CandidateProfilePage() {
   const techKeywords = keywords.filter(k => k.type === "TECHNICAL");
   const softKeywords = keywords.filter(k => k.type === "SOFT");
 
-  // Progreso del perfil (campos completados)
   const totalFields = 8;
   const filledFields = [
     form.fullName, form.summary, form.career, form.institution,
@@ -283,10 +271,7 @@ export default function CandidateProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#f7f9fb]">
-
-      {/* ── HERO BANNER ── */}
       <div className="relative overflow-hidden bg-gradient-to-br from-[#00386c] to-[#1a4f8b]">
-        {/* Blob decorativo */}
         <div className="absolute top-0 right-0 w-1/3 h-full opacity-10 pointer-events-none">
           <svg className="w-full h-full" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
             <path d="M44.7,-76.4C58.3,-69.2,70.1,-57.4,77.6,-43.3C85.2,-29.2,88.4,-12.7,86.6,3.3C84.8,19.3,77.9,34.7,68.2,48.2C58.5,61.7,46,73.3,31.4,78.1C16.8,82.9,0.1,80.9,-16.1,76.4C-32.3,71.9,-48.1,64.9,-60.1,53.2C-72.1,41.5,-80.4,25,-82.9,7.6C-85.3,-9.8,-82,-28.1,-72.4,-42.1C-62.7,-56.1,-46.8,-65.8,-31.6,-72.1C-16.4,-78.4,-1.8,-81.4,14.6,-80.6C30.9,-79.8,44.7,-76.4,44.7,-76.4Z" fill="#FFFFFF" transform="translate(100 100)" />
@@ -300,7 +285,6 @@ export default function CandidateProfilePage() {
           </Link>
 
           <div className="flex flex-col md:flex-row items-center md:items-end gap-8">
-            {/* Foto */}
             <div className="relative flex-shrink-0">
               <div className="w-36 h-36 rounded-3xl border-4 border-white/20 overflow-hidden shadow-2xl">
                 {form.photoUrl ? (
@@ -320,7 +304,6 @@ export default function CandidateProfilePage() {
                 onChange={handlePhotoUpload} disabled={photoUploading} className="hidden" />
             </div>
 
-            {/* Info */}
             <div className="flex-1 text-center md:text-left">
               <div className="inline-flex items-center gap-2 bg-[#6bfe9c]/20 text-[#6bfe9c] px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-3">
                 {user.role === "STUDENT" ? "Estudiante" : "Egresado"} · Disponible
@@ -331,7 +314,6 @@ export default function CandidateProfilePage() {
               <p className="text-white/60 text-lg font-medium">
                 {form.career || "Carrera"}{form.institution ? ` · ${form.institution}` : ""}
               </p>
-              {/* Acciones rápidas */}
               <div className="flex flex-wrap gap-3 mt-6 justify-center md:justify-start">
                 {form.cvUrl && (
                   <a href={form.cvUrl} target="_blank" rel="noopener noreferrer"
@@ -350,7 +332,6 @@ export default function CandidateProfilePage() {
               {photoSuccess && <p className="mt-3 text-[#6bfe9c] text-xs font-semibold">{photoSuccess}</p>}
             </div>
 
-            {/* Completitud del perfil */}
             <div className="flex-shrink-0 flex flex-col items-center gap-2">
               <div className="relative w-24 h-24 flex items-center justify-center">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 96 96">
@@ -374,10 +355,7 @@ export default function CandidateProfilePage() {
         </div>
       </div>
 
-      {/* ── BODY ── */}
       <div className="max-w-screen-xl mx-auto px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-10">
-
-        {/* ── Sidebar nav ── */}
         <aside className="lg:col-span-3 space-y-4 lg:sticky lg:top-6 self-start">
           <nav className="bg-white rounded-2xl border border-[#e6e8ea] overflow-hidden shadow-sm">
             <p className="px-5 pt-5 pb-3 text-[10px] font-black uppercase tracking-widest text-[#b0b4bc]">Secciones</p>
@@ -393,7 +371,6 @@ export default function CandidateProfilePage() {
             ))}
           </nav>
 
-          {/* Stats rápidos */}
           <div className="bg-white rounded-2xl border border-[#e6e8ea] p-5 shadow-sm space-y-3">
             <p className="text-[10px] font-black uppercase tracking-widest text-[#b0b4bc]">Resumen</p>
             {[
@@ -413,7 +390,6 @@ export default function CandidateProfilePage() {
           </div>
         </aside>
 
-        {/* ── Formulario ── */}
         <div className="lg:col-span-9 space-y-6">
 
           {saveError && (
@@ -428,8 +404,6 @@ export default function CandidateProfilePage() {
           )}
 
           <form id="hero" onSubmit={handleSave} className="space-y-6">
-
-            {/* ── Información básica ── */}
             <div className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
               <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-[#00386c] flex items-center justify-center">
@@ -463,7 +437,6 @@ export default function CandidateProfilePage() {
               </div>
             </div>
 
-            {/* ── Información académica ── */}
             <div id="academic" className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
               <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-[#006d37] flex items-center justify-center">
@@ -506,7 +479,6 @@ export default function CandidateProfilePage() {
               </div>
             </div>
 
-            {/* ── Preferencias laborales ── */}
             <div id="work" className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
               <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-[#00386c] flex items-center justify-center">
@@ -537,7 +509,6 @@ export default function CandidateProfilePage() {
               </div>
             </div>
 
-            {/* ── Habilidades ── */}
             <div id="skills" className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
               <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-[#006d37] flex items-center justify-center">
@@ -549,7 +520,6 @@ export default function CandidateProfilePage() {
                 </div>
               </div>
               <div className="p-8 space-y-8">
-                {/* Técnicas */}
                 <div>
                   <label className={lbl}>Habilidades técnicas</label>
                   <SkillInput value={skillInput} onChange={setSkillInput}
@@ -593,7 +563,6 @@ export default function CandidateProfilePage() {
               </div>
             </div>
 
-            {/* ── Idiomas ── */}
             <div id="langs" className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
               <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -649,7 +618,6 @@ export default function CandidateProfilePage() {
               </div>
             </div>
 
-            {/* ── Certificaciones ── */}
             <div id="certs" className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
               <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -711,7 +679,6 @@ export default function CandidateProfilePage() {
               </div>
             </div>
 
-            {/* ── Proyectos ── */}
             <div id="projects" className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
               <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -777,7 +744,6 @@ export default function CandidateProfilePage() {
               </div>
             </div>
 
-            {/* Botón guardar */}
             <div className="flex justify-end pt-2">
               <button type="submit" disabled={saving}
                 className="bg-gradient-to-br from-[#00386c] to-[#1a4f8b] text-white px-12 py-4 rounded-full font-black text-sm uppercase tracking-widest shadow-xl shadow-[#00386c]/20 hover:shadow-[#00386c]/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-3">
@@ -789,7 +755,6 @@ export default function CandidateProfilePage() {
             </div>
           </form>
 
-          {/* ── CV (fuera del form) ── */}
           <div id="cv" className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
             <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-[#006d37] flex items-center justify-center">
