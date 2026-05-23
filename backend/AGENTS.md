@@ -1,11 +1,36 @@
-
-
-
 # AGENTS.md — TalentBridge Backend
 
-Este archivo define las convenciones, arquitectura, stack y estado actual
+Este archivo define las convenciones, arquitectura, stack y **estado actual**
 del backend de TalentBridge. Debe ser leído por cualquier agente de IA
 antes de sugerir, generar o modificar código en este proyecto.
+
+**Regla de mantenimiento:** al cerrar un sprint o agregar un módulo, actualizar
+las secciones *Estado del proyecto*, *Endpoints* y *Mapa de archivos*.
+
+---
+
+## Índice
+
+1. [Identidad del proyecto](#identidad-del-proyecto)
+2. [Stack tecnológico](#stack-tecnológico--versiones-exactas)
+3. [Sistema operativo del equipo](#sistema-operativo-del-equipo)
+4. [Servicios externos](#servicios-externos)
+5. [Inicio rápido local](#inicio-rápido-local)
+6. [Arquitectura](#arquitectura-del-backend)
+7. [Convenciones de código](#convenciones-de-código)
+8. [Git Flow](#control-de-versiones--git-flow)
+9. [Variables de entorno](#variables-de-entorno)
+10. [Estado del proyecto por sprint](#estado-del-proyecto-por-sprint)
+11. [Modelo de datos — Prisma](#modelo-de-datos--prisma)
+12. [Endpoints implementados](#endpoints-implementados)
+13. [Supabase Storage](#supabase-storage)
+14. [Motor de ranking e IA](#motor-de-ranking--arquitectura-híbrida)
+15. [Notificaciones — n8n y Telegram](#notificaciones--n8n-y-telegram)
+16. [Mapa de archivos](#archivos-por-módulo--mapa-completo)
+17. [Seed de datos](#seed-de-datos)
+18. [Patrón para nuevos módulos](#patrón-para-agregar-nuevos-módulos)
+19. [Deuda técnica conocida](#deuda-técnica-conocida)
+20. [Notas para agentes de IA](#notas-para-agentes-de-ia)
 
 ---
 
@@ -17,34 +42,36 @@ con empresas que requieren perfiles calificados para proyectos, microtrabajos
 o contrataciones formales.
 
 Este backend expone una API REST que sirve al frontend de Next.js y a los
-flujos de automatización de n8n.
+flujos de automatización de **n8n** (webhooks, Telegram, WhatsApp planificado).
 
 ---
 
 ## Stack tecnológico — versiones exactas
 
-| Tecnología | Versión | Notar |
+| Tecnología | Versión | Nota |
 |---|---|---|
-| Node.js | 24.x | Gestionado con fnm |
+| Node.js | 24.x | Gestionado con fnm — ver `engines` en `package.json` |
 | npm | 11.x | |
 | TypeScript | 6.x | Strict mode activado |
 | Express | 5.x | |
 | Prisma ORM | 6.5.0 | **NUNCA actualizar a Prisma 7** |
-| @prisma/client | 6.5.0 | Debe coincidir exactamente con prisma |
+| @prisma/client | 6.5.0 | Debe coincidir exactamente con `prisma` |
 | PostgreSQL | 16.x | Alojado en Supabase |
-| @supabase/supabase-js | Latest | Para Supabase Storage |
-| bcryptjs | 2.x | Para hashing de contraseñas |
-| jsonwebtoken | 9.x | Para JWT |
-| nodemailer | Latest | Para envío de correos |
-| multer | 2.x | Para recibir archivos en el servidor |
-| zod | 3.x | Para validación de esquemas |
-| uuid | 9.x | Para generación de IDs |
-| pdf-parse | 1.1.1 | Extracción de texto de PDFs — usar `require('pdf-parse/lib/pdf-parse.js')` directamente |
-| @google/generative-ai | Latest | SDK de Google Gemini para IA |
+| @supabase/supabase-js | 2.x | Storage de archivos |
+| bcryptjs | 3.x | Hashing de contraseñas (factor 10) |
+| jsonwebtoken | 9.x | JWT stateless |
+| nodemailer | 8.x | SMTP (Mailtrap en dev) |
+| multer | 2.x | Uploads en memoria |
+| zod | 4.x | Instalado — **validación en controllers pendiente de adopción sistemática** |
+| uuid | 13.x | Tokens de reset |
+| pdf-parse | 1.1.x | Usar `require('pdf-parse/lib/pdf-parse.js')` — NO import default |
+| @google/generative-ai | 0.24.x | Gemini — modelo `gemini-2.5-flash` |
+| axios | 1.x | Webhook hacia n8n |
 
 ### Advertencia crítica sobre Prisma
 
 Prisma 7 introdujo cambios incompatibles con este proyecto:
+
 - Ya no acepta `url` en el datasource del `schema.prisma`
 - Requiere un archivo `prisma.config.ts` separado
 - El paquete PSL cambió su comportamiento
@@ -52,8 +79,7 @@ Prisma 7 introdujo cambios incompatibles con este proyecto:
 **Prisma debe permanecer fijado en 6.5.0.** Si se detecta una versión
 diferente, no actualizar — reportar al Scrum Master.
 
-La extensión de Prisma en VS Code debe estar fijada a comportamiento de
-Prisma 6 ejecutando desde la paleta de comandos:
+En VS Code, fijar comportamiento de Prisma 6 desde la paleta:
 `Prisma: Pin the current workspace to Prisma 6`
 
 ---
@@ -69,68 +95,98 @@ Todos los comandos y rutas deben ser compatibles con Windows.
 
 | Servicio | Uso | Plan |
 |---|---|---|
-| Supabase | Base de datos PostgreSQL + Storage de CVs | Gratuito |
-| Mailtrap | Envío de correos en desarrollo | Gratuito |
+| Supabase | PostgreSQL + Storage | Gratuito |
+| Mailtrap | Correos en desarrollo | Gratuito |
+| Google Gemini | Ranking IA + extracción de CV | API key |
+| n8n | Automatización de notificaciones | Self-hosted / cloud del equipo |
 
 ### Supabase
 
-- Base de datos: PostgreSQL alojado en Supabase (región São Paulo)
-- La conexión a la BD se hace via `DATABASE_URL` con la connection string de Supabase
-- El cliente de Supabase Storage se inicializa en `src/lib/supabase.ts` con `SUPABASE_URL` y `SUPABASE_ANON_KEY`
-- Los archivos se suben directamente al bucket sin subcarpetas — el path es solo el nombre del archivo
+- Base de datos: PostgreSQL en Supabase (región São Paulo)
+- Conexión vía `DATABASE_URL`
+- Cliente Storage en `src/lib/supabase.ts` con `SUPABASE_URL` y `SUPABASE_ANON_KEY`
+- **Sin subcarpetas en buckets** — el path es solo el nombre del archivo
 
 | Bucket | Uso | Políticas |
 |---|---|---|
-| `cvs` | CVs en PDF de candidatos | INSERT + SELECT anon |
-| `avatars` | Fotos de perfil de candidatos | INSERT + SELECT anon |
-| `logos` | Logos de empresas | INSERT + SELECT anon |
+| `cvs` | CVs PDF de candidatos | INSERT + SELECT anon |
+| `avatars` | Fotos de perfil | INSERT + SELECT anon |
+| `logos` | Logos de empresa | INSERT + SELECT anon |
 
 Path de archivos:
+
 - CVs: `{userId}_{timestamp}.pdf`
-- Avatars: `{userId}.jpg/png/webp`
-- Logos: `{userId}.jpg/png/webp`
+- Avatars: `{userId}.jpg` / `.png` / `.webp`
+- Logos: `{userId}.jpg` / `.png` / `.webp`
 
 En todos los casos `upsert: true` — el archivo nuevo reemplaza el anterior.
 
 ### Mailtrap
 
-- Solo se usa en desarrollo para capturar correos sin enviarlos a destinatarios reales
-- Configurado via SMTP en `src/lib/mailer.ts` usando Nodemailer
-- En producción se reemplazará por Resend con dominio verificado
+- Solo desarrollo — captura correos sin enviarlos a destinatarios reales
+- Configurado en `src/lib/mailer.ts` (Nodemailer + SMTP)
+- Producción: migración planificada a **Resend** (`RESEND_API_KEY` en `.env.example`)
+
+---
+
+## Inicio rápido local
+
+```bash
+cd backend
+npm install
+cp .env.example .env   # completar valores
+npx prisma generate
+npx prisma migrate dev
+npx prisma db seed      # keywords iniciales (~120)
+npm run dev             # http://localhost:3001
+```
+
+Health check: `GET http://localhost:3001/api/health`
 
 ---
 
 ## Arquitectura del backend
 
-El backend sigue una arquitectura en capas estricta. Cada capa tiene una
-responsabilidad única y no debe mezclar responsabilidades con otras capas.
+Arquitectura en **capas estrictas**. Cada capa tiene una responsabilidad única.
 
 ```
 backend/
 ├── src/
-│   ├── routes/          # Solo define URLs y conecta con controllers
-│   ├── controllers/     # Recibe req, extrae datos, llama service, devuelve res
-│   ├── services/        # Lógica de negocio pura — no importa nada de Express
-│   ├── middlewares/     # Funciones intermedias (autenticación, uploads)
-│   └── lib/             # Utilidades singleton (Prisma, JWT, Mailer, Supabase)
+│   ├── app.ts              # Entrada: middlewares globales + registro de rutas
+│   ├── routes/             # URLs → controllers (+ middlewares)
+│   ├── controllers/        # req/res → services → JSON
+│   ├── services/           # Lógica de negocio (sin Express)
+│   ├── middlewares/        # auth, uploads
+│   └── lib/                # Singletons y lógica pura (Prisma, JWT, IA, ranking)
 ├── prisma/
-│   ├── schema.prisma    # Definición del modelo de datos
-│   └── migrations/      # Historial de migraciones — nunca editar manualmente
-├── .env                 # Variables de entorno — NUNCA subir al repo
-├── .env.example         # Plantilla de variables — SÍ subir al repo
-├── nodemon.json         # Configuración de nodemon para desarrollo
-├── tsconfig.json        # Configuración de TypeScript
-└── package.json         # Dependencias y scripts
+│   ├── schema.prisma
+│   └── migrations/         # Nunca editar manualmente — solo nuevas migraciones
+├── .env                    # NUNCA subir al repo
+├── .env.example            # SÍ subir al repo
+├── nodemon.json
+├── tsconfig.json
+├── tsconfig.seed.json      # Solo para `prisma db seed`
+└── package.json
 ```
 
 ### Reglas de la arquitectura en capas
 
-- **routes** importa solo controllers y middlewares
-- **controllers** importan solo services y tipos de middlewares
-- **services** importan solo lib/prisma, lib/mailer, lib/jwt y lib/supabase
-- **lib** no importa nada del proyecto — solo librerías externas
-- **middlewares** importan solo lib/jwt
-- Ninguna capa salta otra — un controller nunca usa prisma o supabase directamente
+| Capa | Puede importar |
+|---|---|
+| **routes** | controllers, middlewares |
+| **controllers** | services, tipos de middlewares (`AuthRequest`) |
+| **services** | `lib/*`, otros **services** solo si es orquestación clara (ej. `job.service` → `notification.service`) |
+| **middlewares** | `lib/jwt` |
+| **lib** | Solo librerías externas — **nunca** services ni controllers |
+
+**Prohibido:**
+
+- Un controller usando `prisma` o `supabase` directamente
+- Un service devolviendo un `Response` de Express
+- Registrar rutas sueltas en `app.ts` (siempre archivo en `routes/`)
+
+**Excepción documentada:** `keyword.routes.ts` consulta Prisma inline.
+No replicar ese patrón — al tocar keywords, migrar a `keyword.service.ts` + controller.
 
 ---
 
@@ -142,76 +198,63 @@ backend/
 - Funciones exportadas: `camelCase` → `registerUser`, `getCandidateProfile`
 - Interfaces y tipos: `PascalCase` → `JwtPayload`, `AuthRequest`
 - Variables de entorno: `UPPER_SNAKE_CASE` → `JWT_SECRET`, `DATABASE_URL`
-- Tablas de BD (Prisma @@map): `snake_case` → `users`, `otp_codes`
-- Modelos de Prisma: `PascalCase` → `User`, `OtpCode`, `CandidateProfile`
+- Tablas BD (`@@map`): `snake_case` → `users`, `otp_codes`
+- Modelos Prisma: `PascalCase` → `User`, `CandidateProfile`
 
 ### TypeScript
 
-- **Strict mode** activado — no usar `any` salvo casos justificados con comentario
-- Siempre tipar los parámetros y retornos de funciones exportadas
-- Usar `interface` para tipos de objetos, `type` para uniones y alias simples
-- No usar `as any` — preferir `as unknown as T` si es absolutamente necesario
+- **Strict mode** — no usar `any` salvo casos justificados con comentario
+- Tipar parámetros y retornos de funciones exportadas
+- `interface` para objetos; `type` para uniones y alias
+- No usar `as any` — preferir `as unknown as T` si es imprescindible
+- En `catch`, preferir `unknown` y estrechar el tipo
 
 ### Manejo de errores en services
 
-Los services lanzan errores con códigos string en mayúsculas. Los controllers
-los capturan y los convierten en respuestas HTTP apropiadas:
+Los services lanzan `throw new Error('CODIGO_INTERNO')`.
+Los controllers mapean el código a HTTP y mensaje en español:
 
 ```typescript
-// En el service — lanzar error con código
+// Service
 throw new Error('EMAIL_TAKEN');
-throw new Error('OTP_INVALID');
-throw new Error('STORAGE_UPLOAD_FAILED');
 
-// En el controller — capturar y responder
-if (err.message === 'EMAIL_TAKEN')
+// Controller
+if (err instanceof Error && err.message === 'EMAIL_TAKEN')
   return res.status(409).json({ error: 'El correo ya está registrado.' });
 ```
 
-Códigos de error HTTP usados:
-
-| Código | Cuándo usarlo |
+| HTTP | Uso |
 |---|---|
-| 200 | Operación exitosa |
-| 201 | Recurso creado exitosamente |
-| 400 | Error del cliente — datos inválidos |
-| 401 | No autenticado — token ausente o inválido |
-| 403 | No autorizado — token válido pero sin permisos |
-| 404 | Recurso no encontrado |
-| 409 | Conflicto — recurso ya existe |
-| 500 | Error interno del servidor |
+| 200 | Éxito |
+| 201 | Recurso creado |
+| 400 | Datos inválidos |
+| 401 | Sin token o token inválido |
+| 403 | Rol sin permiso |
+| 404 | No encontrado |
+| 409 | Conflicto (duplicado, ya postuló, etc.) |
+| 500 | Error interno |
 
 ### Respuestas HTTP
 
-Siempre responder con JSON. Estructura estándar:
+Siempre JSON:
 
 ```typescript
-// Éxito
-res.status(200).json({ message: 'Descripción clara de lo que ocurrió.' });
+res.status(200).json({ message: 'Descripción clara.' });
 res.status(201).json({ message: '...', data: resultado });
-
-// Error
-res.status(4xx).json({ error: 'Mensaje claro para el usuario.' });
+res.status(4xx).json({ error: 'Mensaje para el usuario.' });
 ```
 
-Los mensajes de error deben estar en **español** — son los que ve el usuario final.
-Los códigos de error internos van en **inglés** en UPPER_SNAKE_CASE.
+- Mensajes al usuario: **español**
+- Códigos internos en services: **inglés** `UPPER_SNAKE_CASE`
 
 ### Commits
 
-Seguir la convención Conventional Commits:
+Conventional Commits:
 
 ```
 tipo(scope): descripción en imperativo
 
-Tipos válidos:
-  feat      → nueva funcionalidad
-  fix       → corrección de bug
-  chore     → configuración, dependencias, tareas de mantenimiento
-  refactor  → refactorización sin cambio de comportamiento
-  docs      → documentación
-  style     → formato, espaciado (no afecta lógica)
-  test      → pruebas
+feat | fix | chore | refactor | docs | style | test
 ```
 
 ---
@@ -219,279 +262,309 @@ Tipos válidos:
 ## Control de versiones — Git Flow
 
 Ramas permanentes:
+
 - `main` — producción estable, protegida
-- `develop` — rama de integración, protegida
+- `develop` — integración, protegida
 
 Ramas temporales:
-- `feature/nombre-descriptivo` — desarrollo de funcionalidades
-- `hotfix/nombre` — correcciones urgentes en producción
+
+- `feature/nombre-descriptivo`
+- `hotfix/nombre`
 
 Flujo obligatorio:
+
 ```
 1. git checkout develop && git pull origin develop
 2. git checkout -b feature/nombre
-3. [desarrollo + commits pequeños y descriptivos]
+3. [desarrollo + commits pequeños]
 4. git push -u origin feature/nombre
-5. Pull Request en GitHub: feature/nombre → develop
+5. Pull Request: feature/nombre → develop
 6. Revisión de al menos un integrante
 7. Merge a develop
-8. Eliminar rama feature local y remota
+8. Eliminar rama feature (local y remota)
 ```
 
-**Nunca hacer push directo a develop o main.**
+**Nunca hacer push directo a `develop` o `main`.**
 
 ---
 
 ## Variables de entorno
 
+Ver plantilla completa en `backend/.env.example`.
+
 | Variable | Descripción |
 |---|---|
-| `PORT` | Puerto del servidor (default: 3001) |
-| `NODE_ENV` | `development` o `production` |
-| `DATABASE_URL` | Connection string de PostgreSQL en Supabase |
-| `JWT_SECRET` | Secreto para firmar tokens JWT |
-| `JWT_EXPIRES_IN` | Duración del JWT (ej: `7d`) |
-| `OTP_EXPIRES_MINUTES` | Minutos de validez del OTP (default: 10) |
-| `RESET_TOKEN_EXPIRES_MINUTES` | Minutos de validez del token de reset (default: 15) |
-| `FRONTEND_URL` | URL del frontend para configurar CORS |
-| `SUPABASE_URL` | URL del proyecto de Supabase |
-| `SUPABASE_ANON_KEY` | Clave anon pública del proyecto de Supabase |
-| `SMTP_HOST` | Host SMTP de Mailtrap |
-| `SMTP_PORT` | Puerto SMTP de Mailtrap (2525 en dev) |
-| `SMTP_USER` | Usuario SMTP de Mailtrap |
-| `SMTP_PASS` | Contraseña SMTP de Mailtrap |
-| `SMTP_FROM` | Correo remitente |
+| `PORT` | Puerto del servidor (default: `3001`) |
+| `NODE_ENV` | `development` \| `production` |
+| `DATABASE_URL` | Connection string PostgreSQL (Supabase) |
+| `JWT_SECRET` | Secreto para firmar JWT |
+| `JWT_EXPIRES_IN` | Duración del JWT (ej. `7d`) |
+| `OTP_EXPIRES_MINUTES` | Validez OTP (default: 10) |
+| `RESET_TOKEN_EXPIRES_MINUTES` | Validez reset password (default: 15) |
+| `FRONTEND_URL` | Origen permitido en CORS |
+| `SUPABASE_URL` | URL del proyecto Supabase |
+| `SUPABASE_ANON_KEY` | Clave anon de Supabase Storage |
+| `GEMINI_API_KEY` | API de Google Gemini |
+| `N8N_WEBHOOK_URL` | Webhook que n8n expone al publicar vacante |
+| `TELEGRAM_BOT_TOKEN` | Bot de Telegram (flujo n8n) |
+| `SMTP_*` | Mailtrap en desarrollo |
+| `SMTP_FROM` | Remitente |
+| `RESEND_API_KEY` | Producción (planificado) |
+
+---
+
+## Estado del proyecto por sprint
+
+### Implementado (API + lógica)
+
+| Área | Sprint | Detalle |
+|---|---|---|
+| Auth (registro, OTP, login, reset) | 1 | JWT, bcrypt, Mailtrap |
+| Perfiles candidato y empresa | 1–2 | upsert, foto, logo, CV |
+| CV Intelligence | 2 | Gemini + pdf-parse + keywords dinámicas |
+| Ranking de perfil | 2 | `ProfileScore`, `GET/POST /ranking` |
+| Vacantes CRUD + filtros | 2 | Empresa publica/edita/estados |
+| Postulaciones + score híbrido | 2 | 40% perfil + 60% Gemini → `Application` |
+| Keywords API | 2 | `GET /keywords` |
+| Notificaciones (parcial) | 3 | Webhook n8n, Telegram chatId, preferencias |
+| Schema contratos/pagos | 3 | Modelos en BD — **sin rutas REST aún** |
+
+### Pendiente
+
+| Área | Sprint | Detalle |
+|---|---|---|
+| API REST de contratos | 3 | CRUD, upload PDF, confirmación candidato |
+| API REST de pagos | 3 | Registro y confirmación con comprobante |
+| Endurecer seguridad webhooks | 3 | Secret compartido en `/notifications/*` |
+| Validación Zod en controllers | 3+ | Dependencia ya instalada |
+| Tests automatizados | 3+ | Unit + integración mínima |
+| WhatsApp vía n8n | 3 | Canal alternativo a Telegram |
+| Calificaciones mutuas | 4 | |
+| Panel ADMIN / INSTITUTION | 4 | Roles ya en schema |
+| Reportes PDF | 4 | |
 
 ---
 
 ## Modelo de datos — Prisma
 
-### Enums
+Fuente de verdad: `prisma/schema.prisma`.
+
+### Enums principales
 
 ```prisma
-enum Role {
-  STUDENT      // Estudiante activo universitario
-  GRADUATE     // Egresado de institución de educación superior
-  COMPANY      // Empresa o MiPyme
-  INSTITUTION  // Institución educativa
-  ADMIN        // Administrador de la plataforma
-}
-
-enum KeywordType {
-  TECHNICAL   // Habilidades técnicas → va a skills[]
-  SOFT        // Habilidades blandas → va a softSkills[]
-  LANGUAGE    // Idiomas → va a languages JSON
-}
-
-enum JobType {
-  FORMAL      // Contrato formal
-  FREELANCE   // Proyecto puntual / microwork
-}
-
-enum JobStatus {
-  ACTIVE      // Visible para candidatos
-  SELECTING   // En proceso de selección
-  CLOSED      // Cerrada — ya se seleccionó
-  CANCELLED   // Cancelada por la empresa
-}
-
-enum ApplicationStatus {
-  RECEIVED    // Postulación recibida
-  REVIEWING   // En revisión por la empresa
-  SELECTED    // Candidato seleccionado
-  REJECTED    // Candidato descartado
-}
-
-enum WorkMode {
-  REMOTE
-  ONSITE
-  HYBRID
-}
+enum Role { STUDENT GRADUATE COMPANY INSTITUTION ADMIN }
+enum KeywordType { TECHNICAL SOFT LANGUAGE }
+enum JobType { FORMAL FREELANCE }
+enum JobStatus { ACTIVE SELECTING CLOSED CANCELLED }
+enum ApplicationStatus { RECEIVED REVIEWING SELECTED REJECTED }
+enum WorkMode { REMOTE ONSITE HYBRID }
+enum ContractStatus { PENDING_CANDIDATE ACTIVE COMPLETED CANCELLED }
+enum PaymentStatus { PENDING CONFIRMED }
 ```
 
+### Modelos — resumen
 
+| Modelo | Rol |
+|---|---|
+| **User** | Cuenta central; `isVerified`, `isActive`, `role` |
+| **OtpCode** / **ResetToken** | Verificación y recuperación |
+| **CandidateProfile** | Perfil 1:1; skills[], JSON projects/certs/languages; `cvUrl`, `photoUrl`; notificaciones (`telegramChatId`, `notificationsEnabled`) |
+| **CompanyProfile** | Perfil empresa 1:1; relación con `Job[]` |
+| **Job** | Vacante; `skills[]`, presupuesto, `JobRankConfig?` |
+| **Application** | Postulación única por par job+candidato; `scoreAtApply`, `aiReasons[]`, `aiGaps[]` |
+| **JobRankConfig** | Pesos por vacante (deben sumar ~1.0) |
+| **ProfileScore** | Puntaje global del candidato (recalculable) |
+| **Keyword** | Catálogo + crecimiento automático desde CV |
+| **Contract** / **Payment** | Sprint 3 — **solo schema**, sin services aún |
 
-### Modelos implementados
+### Migraciones relevantes
 
-#### User
-Tabla central del sistema. Todo usuario tiene un rol y estado de verificación.
-- `isVerified: false` hasta completar verificación OTP
-- `isActive: false` si fue suspendido por un administrador
-- Relaciones: OtpCode[], ResetToken[], CandidateProfile?, CompanyProfile?
+| Migración | Contenido |
+|---|---|
+| `init_auth_profiles` | Users, perfiles, OTP |
+| `sprint2_jobs_applications_ranking` | Jobs, applications, ranking |
+| `add_keywords_table` | Keywords + seed |
+| `add_ai_insights_to_application` | `aiReasons`, `aiGaps` |
+| `sprint3_notifications_contracts_payments` | Contratos, pagos, campos Telegram |
 
-#### OtpCode
-Código de 6 dígitos enviado al correo al registrarse.
-- Expira en 10 minutos
-- Se marca `used: true` al verificarse — no se elimina para mantener auditoría
-- Un usuario puede tener múltiples OTPs
+### Reglas de datos
 
-#### ResetToken
-Token UUID para recuperar contraseña.
-- Expira en 15 minutos
-- Se marca `used: true` al usarse
-
-#### CandidateProfile
-Perfil profesional de estudiantes y egresados.
-- Relación 1:1 con User
-- `skills` y `softSkills` son arrays de strings en PostgreSQL
-- `languages`, `projects` y `certifications` son JSON con estructura flexible
-- `cvUrl` almacena la URL pública del archivo en Supabase Storage
-- Siempre se crea/actualiza con `upsert`
-
-#### CompanyProfile
-Perfil corporativo de empresas.
-- Relación 1:1 con User
-- Siempre se crea/actualiza con `upsert`
-
-#### Job
-Vacante publicada por una empresa.
-- Estado inicial: `ACTIVE` — visible para candidatos
-- Estados: `ACTIVE`, `SELECTING`, `CLOSED`, `CANCELLED`
-- Tipos: `FORMAL` (contrato) o `FREELANCE` (proyecto puntual)
-- `skills` es array de strings con las habilidades requeridas
-- Relaciones: pertenece a `CompanyProfile`, tiene muchas `Application`, tiene un `JobRankConfig` opcional
-
-#### Application
-Postulación de un candidato a una vacante.
-- Restricción única: un candidato solo puede postularse una vez por vacante (`@@unique([jobId, candidateId])`)
-- `scoreAtApply` guarda el puntaje del candidato en el momento de postularse — no cambia aunque el perfil cambie después
-- Estados: `RECEIVED`, `REVIEWING`, `SELECTED`, `REJECTED`
-
-#### JobRankConfig
-Pesos personalizados del motor de ranking para una vacante específica.
-- Relación 1:1 con `Job`
-- Si no existe config para una vacante, el motor usa los pesos globales por defecto
-- La suma de todos los pesos debe ser siempre 1.0
-- Pesos por defecto: skills(0.30), experience(0.25), education(0.15), certs(0.10), reputation(0.10), languages(0.05), completion(0.05)
-
-#### ProfileScore
-Puntaje calculado de un candidato.
-- Relación 1:1 con `CandidateProfile`
-- Se recalcula cada vez que el candidato actualiza su perfil o sube un CV
-- `totalScore` es 0-100
-- Guarda el desglose por cada criterio del ranking
-
-#### Nuevos enums Sprint 2
-- `JobType`: FORMAL, FREELANCE
-- `JobStatus`: ACTIVE, SELECTING, CLOSED, CANCELLED  
-- `ApplicationStatus`: RECEIVED, REVIEWING, SELECTED, REJECTED
-- `WorkMode`: REMOTE, ONSITE, HYBRID
-
-#### Keyword
-Keywords gestionadas en BD para el extractor de CV y el motor de ranking.
-- `type`: TECHNICAL → va a `skills[]`, SOFT → va a `softSkills[]`, LANGUAGE → va a `languages JSON`
-- `category`: agrupa keywords por área (ej: "Desarrollo Web", "Diseño", "Administración")
-- `isActive`: permite desactivar keywords sin eliminarlas — el extractor solo usa las activas
-- Poblada inicialmente con `npx prisma db seed`
-- Gestionable desde el panel de administrador en Sprint 4
-
-
-
+- Perfiles: siempre **`upsert`**, nunca `create` + `update` separados
+- `scoreAtApply` se congela al postular — no se recalcula si el perfil cambia después
+- Keywords nuevas desde CV: `isActive: true` por defecto
 
 ---
 
 ## Endpoints implementados
 
-### Base URL en desarrollo
+### Base URL (desarrollo)
+
 ```
 http://localhost:3001/api
 ```
 
-### Health check
+Todas las rutas protegidas requieren:
+
 ```
-GET /api/health
+Authorization: Bearer <JWT>
 ```
+
+### Health
+
+| Método | Ruta | Auth |
+|---|---|---|
+| GET | `/health` | No |
 
 ### Autenticación — `/api/auth`
 
-| Método | Ruta | Descripción | Body requerido | Auth |
-|---|---|---|---|---|
-| POST | `/auth/register` | Registra usuario y envía OTP | `email, password, role` | No |
-| POST | `/auth/verify-otp` | Verifica OTP y activa cuenta | `userId, code` | No |
-| POST | `/auth/resend-otp` | Reenvía OTP al correo | `userId` | No |
-| POST | `/auth/login` | Autentica y devuelve JWT | `email, password` | No |
-| POST | `/auth/logout` | Cierra sesión stateless | ninguno | No |
-| POST | `/auth/forgot-password` | Envía enlace de recuperación | `email` | No |
-| POST | `/auth/reset-password` | Cambia la contraseña | `token, newPassword` | No |
+| Método | Ruta | Body | Auth |
+|---|---|---|---|
+| POST | `/auth/register` | `email, password, role` | No |
+| POST | `/auth/verify-otp` | `userId, code` | No |
+| POST | `/auth/resend-otp` | `userId` | No |
+| POST | `/auth/login` | `email, password` | No |
+| POST | `/auth/logout` | — | No |
+| POST | `/auth/forgot-password` | `email` | No |
+| POST | `/auth/reset-password` | `token, newPassword` | No |
 
 ### Perfiles — `/api/profile`
 
-Todas requieren `Authorization: Bearer TOKEN` en el header.
-
-| Método | Ruta | Descripción | Roles | Auth |
-|---|---|---|---|---|
-| GET | `/profile/candidate` | Consultar perfil candidato | STUDENT, GRADUATE | Sí |
-| PUT | `/profile/candidate` | Crear/actualizar perfil candidato | STUDENT, GRADUATE | Sí |
-| POST | `/profile/candidate/cv` | Subir CV + extracción IA | STUDENT, GRADUATE | Sí |
-| POST | `/profile/candidate/photo` | Subir foto de perfil (avatars bucket) | STUDENT, GRADUATE | Sí |
-| POST | `/profile/candidate/extract-cv` | Extracción manual de CV | STUDENT, GRADUATE | Sí |
-| GET | `/profile/company` | Consultar perfil empresa | COMPANY | Sí |
-| PUT | `/profile/company` | Crear/actualizar perfil empresa | COMPANY | Sí |
-| POST | `/profile/company/logo` | Subir logo empresa (logos bucket) | COMPANY | Sí |
-
-
-
-### Extracción de CV — `/api/profile`
-
-| Método | Ruta | Descripción | Roles | Auth |
-|---|---|---|---|---|
-| POST | `/profile/candidate/extract-cv` | Extrae keywords del CV manualmente y actualiza el perfil | STUDENT, GRADUATE | Sí |
+| Método | Ruta | Roles | Notas |
+|---|---|---|---|
+| GET | `/profile/candidate` | STUDENT, GRADUATE | |
+| PUT | `/profile/candidate` | STUDENT, GRADUATE | upsert |
+| POST | `/profile/candidate/cv` | STUDENT, GRADUATE | campo `cv`, PDF máx 5MB, extracción IA |
+| POST | `/profile/candidate/photo` | STUDENT, GRADUATE | campo `photo`, imagen máx **2MB** |
+| POST | `/profile/candidate/extract-cv` | STUDENT, GRADUATE | Re-procesar CV ya subido |
+| GET | `/profile/company` | COMPANY | |
+| PUT | `/profile/company` | COMPANY | upsert |
+| POST | `/profile/company/logo` | COMPANY | campo `logo`, imagen máx 2MB |
 
 ### Ranking — `/api/ranking`
 
-| Método | Ruta | Descripción | Roles | Auth |
-|---|---|---|---|---|
-| GET | `/ranking/me` | Mi puntaje con desglose y sugerencias | STUDENT, GRADUATE | Sí |
-| POST | `/ranking/recalculate` | Recalcular mi puntaje | STUDENT, GRADUATE | Sí |
-| GET | `/ranking/:userId` | Puntaje de un candidato | COMPANY, ADMIN | Sí |
+| Método | Ruta | Roles |
+|---|---|---|
+| GET | `/ranking/me` | STUDENT, GRADUATE |
+| POST | `/ranking/recalculate` | STUDENT, GRADUATE |
+| GET | `/ranking/:userId` | COMPANY, ADMIN |
 
 ### Vacantes — `/api/jobs`
 
-| Método | Ruta | Descripción | Roles | Auth |
-|---|---|---|---|---|
-| GET | `/jobs` | Listar vacantes activas con filtros | Todos | Sí |
-| GET | `/jobs/company/mine` | Mis vacantes | COMPANY | Sí |
-| GET | `/jobs/:id` | Detalle de vacante | Todos | Sí |
-| POST | `/jobs` | Publicar vacante | COMPANY | Sí |
-| PUT | `/jobs/:id` | Editar vacante | COMPANY | Sí |
-| PATCH | `/jobs/:id/status` | Cambiar estado | COMPANY | Sí |
-| POST | `/jobs/:id/apply` | Postularse (score IA) | STUDENT, GRADUATE | Sí |
-| GET | `/jobs/:id/applicants` | Candidatos rankeados | COMPANY | Sí |
+| Método | Ruta | Roles | Notas |
+|---|---|---|---|
+| GET | `/jobs` | Autenticado | Filtros abajo |
+| GET | `/jobs/company/mine` | COMPANY | |
+| GET | `/jobs/:id` | Autenticado | |
+| POST | `/jobs` | COMPANY | Dispara webhook n8n en background |
+| PUT | `/jobs/:id` | COMPANY | Verifica ownership |
+| PATCH | `/jobs/:id/status` | COMPANY | |
+| POST | `/jobs/:id/apply` | STUDENT, GRADUATE | Score híbrido |
+| GET | `/jobs/:id/applicants` | COMPANY | Ordenados por score |
 
-**Filtros disponibles en GET /jobs:**
-- `search` — búsqueda en título y descripción
-- `area` — área de la vacante
-- `workMode` — REMOTE, ONSITE, HYBRID
-- `type` — FORMAL, FREELANCE
-- `budgetMin` / `budgetMax` — rango de presupuesto
-- `skills` — skills separadas por coma
-- `page` / `limit` — paginación
+**Query params en `GET /jobs`:** `search`, `area`, `workMode`, `type`, `budgetMin`, `budgetMax`, `skills` (coma), `page`, `limit`
 
-### Postulaciones — `/api/applications` y `/api/jobs/:id`
+### Postulaciones — `/api/applications`
 
-| Método | Ruta | Descripción | Roles | Auth |
-|---|---|---|---|---|
-| POST | `/jobs/:id/apply` | Postularse a una vacante | STUDENT, GRADUATE | Sí |
-| GET | `/jobs/:id/applicants` | Candidatos postulados ordenados por score | COMPANY | Sí |
-| PATCH | `/applications/:id/status` | Cambiar estado de postulación | COMPANY | Sí |
-| GET | `/applications/me` | Mis postulaciones activas e históricas | STUDENT, GRADUATE | Sí |
+| Método | Ruta | Roles |
+|---|---|---|
+| GET | `/applications/me` | STUDENT, GRADUATE |
+| PATCH | `/applications/:id/status` | COMPANY |
+
+*(También: `POST /jobs/:id/apply` y `GET /jobs/:id/applicants` en router de jobs.)*
 
 ### Keywords — `/api/keywords`
-| Método | Ruta | Descripción | Auth |
+
+| Método | Ruta | Query | Auth |
 |---|---|---|---|
-| GET | `/keywords` | Listar keywords activas (filtro: ?type=TECHNICAL) | Sí |
+| GET | `/keywords` | `?type=TECHNICAL\|SOFT\|LANGUAGE` | Sí |
+
+### Notificaciones — `/api/notifications`
+
+| Método | Ruta | Auth | Consumidor |
+|---|---|---|---|
+| GET | `/notifications/jobs/:id/candidates` | **Sin JWT** (pendiente: secret) | n8n |
+| POST | `/notifications/telegram/register` | **Sin JWT** (pendiente: hardening) | Bot Telegram |
+| PATCH | `/notifications/preferences` | JWT candidato | Frontend perfil |
+
+Body `POST /telegram/register`: `{ userId, chatId }`
 
 ---
 
-## Supabase Storage — CVs
+## Supabase Storage
 
-- Bucket: `cvs` (público)
-- Políticas RLS: INSERT y SELECT permitidos para `anon`
-- Path del archivo: `{userId}_{timestamp}.pdf` — sin subcarpetas
-- URL pública formato: `https://{project}.supabase.co/storage/v1/object/public/cvs/{fileName}`
-- La URL pública se guarda en `candidateProfile.cvUrl`
-- Al subir un CV nuevo se reemplaza el anterior (`upsert: true`)
-- El archivo se recibe en memoria con Multer (`memoryStorage`) y se envía directamente a Supabase
+- Buckets públicos con políticas `anon` INSERT + SELECT
+- Multer `memoryStorage` — el buffer se sube directo a Supabase
+- URL pública: `https://{project}.supabase.co/storage/v1/object/public/{bucket}/{fileName}`
+- CV → `candidateProfile.cvUrl`
+
+---
+
+## Motor de ranking — Arquitectura híbrida
+
+### Dos contextos de puntaje (no confundir)
+
+| Contexto | Dónde | Pesos |
+|---|---|---|
+| **Perfil global** | `ProfileScore` vía `ranking.service` | `DEFAULT_WEIGHTS` en `lib/ranking.ts` |
+| **Al postular** | `Application.scoreAtApply` | `JobRankConfig` de la vacante o defaults del job service |
+
+`DEFAULT_WEIGHTS` (perfil global en código):
+
+```
+skills 0.20 | experience 0.20 | education 0.20 | certs 0.10 | reputation 0.10 | completion 0.20
+```
+
+`JobRankConfig` (por vacante, si la empresa personaliza):
+
+```
+skills 0.30 | experience 0.25 | education 0.15 | certs 0.10 | reputation 0.10 | languages 0.05 | completion 0.05
+```
+
+> Al postular, `application.service` mapea `JobRankConfig` a `RankingWeights`.
+> El campo `languagesWeight` del schema no tiene columna separada en el cálculo
+> actual — queda absorbido en la capa de certs/IA.
+
+### Score final al postular
+
+1. **Capa 1 (40%)** — `calculateScore()` en `lib/ranking.ts`
+2. **Capa 2 (60%)** — `scoreCompatibility()` en `lib/gemini.ts`
+3. **Combinación** — `combineScores(base, ai)` → guardado en `scoreAtApply`, `aiReasons`, `aiGaps`
+
+Si Gemini falla: score neutro **50**, no bloquea la postulación.
+Rate limit 429: hasta 3 reintentos con backoff.
+
+### CV Intelligence (upload de CV)
+
+1. `pdf-parse` extrae texto
+2. Gemini estructura skills, softSkills, languages, certs, projects, summary
+3. Normalización contra tabla `keywords` (nombre canónico o alta nueva)
+4. Perfil actualizado + recálculo de `ProfileScore`
+
+---
+
+## Notificaciones — n8n y Telegram
+
+### Flujo al publicar vacante
+
+```
+POST /api/jobs  →  job.service.createJob()
+                 →  triggerNotificationWebhook(jobId)  [background, no bloquea]
+                 →  POST N8N_WEBHOOK_URL { jobId }
+                 →  n8n llama GET /api/notifications/jobs/:id/candidates
+                 →  n8n envía Telegram a candidatos elegibles
+```
+
+### Criterios actuales en `getCandidatesToNotify`
+
+- `notificationsEnabled: true`
+- `telegramChatId` no nulo
+- `ProfileScore.totalScore >= 50` (umbral en código; alinear con producto si cambia)
+
+### Campos en `CandidateProfile`
+
+- `notificationsEnabled` (default `true`)
+- `notificationChannel` (default `"telegram"`)
+- `telegramChatId`
 
 ---
 
@@ -500,179 +573,113 @@ Todas requieren `Authorization: Bearer TOKEN` en el header.
 ```
 src/
 ├── app.ts
-│   └── Entrada de la aplicación. Registra middlewares globales y rutas.
-│       Importa: express, cors, dotenv, authRoutes, profileRoutes, rankingRoutes, jobRoutes
+│   └── CORS, JSON, rutas: auth, profile, ranking, jobs,
+│       applications, keywords, notifications
 │
 ├── lib/
-│   ├── prisma.ts
-│   │   └── Singleton del cliente de Prisma.
-│   ├── jwt.ts
-│   │   └── signToken(payload) y verifyToken(token).
-│   ├── mailer.ts
-│   │   └── Transporter Nodemailer con Mailtrap SMTP.
-│   │       Exporta: sendOtpEmail(to, code), sendResetEmail(to, token)
-│   ├── supabase.ts
-│   │   └── Cliente singleton de Supabase.
-│   │       Exporta: supabase (instancia de createClient)
-│   ├── cv-extractor.ts
-│   │   └── Descarga PDF desde Supabase Storage, extrae texto con pdf-parse,
-│   │       consulta keywords activas de la BD y las clasifica por tipo.
-│   │       IMPORTANTE: usar require('pdf-parse/lib/pdf-parse.js') — NO import default
-│   │       Exporta: extractCvKeywords(cvUrl) → ExtractedKeywords
-│   │       Exporta: interface ExtractedKeywords { technical, soft, languages }
-│   └── ranking.ts
-│       └── Lógica pura del cálculo del puntaje — no toca la BD
-│           Exporta: calculateScore(data, weights) → ScoreBreakdown
-│           Exporta: DEFAULT_WEIGHTS
-│           Exporta: interfaces RankingWeights, CandidateData, ScoreBreakdown
+│   ├── prisma.ts          → singleton PrismaClient
+│   ├── jwt.ts             → signToken, verifyToken, JwtPayload
+│   ├── mailer.ts          → sendOtpEmail, sendResetEmail
+│   ├── supabase.ts        → cliente Storage
+│   ├── ranking.ts         → calculateScore, combineScores, DEFAULT_WEIGHTS
+│   ├── gemini.ts          → scoreCompatibility, extractCvIntelligent
+│   └── cv-extractor.ts    → extractCvKeywords (pdf-parse + keywords BD)
 │
 ├── middlewares/
-│   ├── auth.middleware.ts
-│   │   └── authenticate — verifica JWT en header Authorization
-│   │       authorize(...roles) — verifica rol del usuario
-│   │       Extiende Request con AuthRequest que incluye req.user
-│   └── upload.middleware.ts
-│       └── uploadCv — Multer con memoryStorage, solo PDF, máx 5MB
+│   ├── auth.middleware.ts → authenticate, authorize, AuthRequest
+│   └── upload.middleware.ts → uploadCv (PDF 5MB), uploadPhoto (img 2MB)
 │
 ├── services/
 │   ├── auth.service.ts
-│   │   └── registerUser, verifyOtp, resendOtp, loginUser,
-│   │       forgotPassword, resetPassword
 │   ├── profile.service.ts
-│   │   └── getCandidateProfile, upsertCandidateProfile,
-│   │       getCompanyProfile, upsertCompanyProfile,
-│   │       uploadCvToStorage
 │   ├── ranking.service.ts
-│   │   └── Orquesta el cálculo y persiste en ProfileScore
-│   │       Exporta: computeAndSaveScore(userId)
-│   │       Exporta: getScoreByUserId(userId)
-│   │       Exporta: getScoreByCandidateId(candidateId)
-│   └── job.service.ts
-│       └── createJob, listJobs, getJobById, updateJob,
-│           updateJobStatus, getMyJobs
+│   ├── job.service.ts           → importa notification.service (webhook)
+│   ├── application.service.ts   → ranking + gemini al postular
+│   └── notification.service.ts  → candidatos elegibles, n8n, Telegram
 │
 ├── controllers/
 │   ├── auth.controller.ts
-│   │   └── register, verifyOtp, resendOtp, login, logout,
-│   │       forgotPassword, resetPassword
 │   ├── profile.controller.ts
-│   │   └── getCandidateProfile, updateCandidateProfile, uploadCv,
-│   │       getCompanyProfile, updateCompanyProfile
 │   ├── ranking.controller.ts
-│   │   └── getMyScore, getCandidateScore, recalculateMyScore
-│   └── job.controller.ts
-│       └── createJob, listJobs, getJobById, updateJob,
-│           updateJobStatus, getMyJobs
+│   ├── job.controller.ts
+│   ├── application.controller.ts
+│   └── notification.controller.ts
 │
 └── routes/
     ├── auth.routes.ts
-    │   └── POST /register, /verify-otp, /resend-otp, /login,
-    │       /logout, /forgot-password, /reset-password
     ├── profile.routes.ts
-    │   └── GET|PUT /candidate, POST /candidate/cv,
-    │       GET|PUT /company
     ├── ranking.routes.ts
-    │   └── GET /me, POST /recalculate, GET /:userId
-    └── job.routes.ts
-        └── GET /, GET /company/mine, GET /:id,
-            POST /, PUT /:id, PATCH /:id/status
-
+    ├── job.routes.ts              → incluye apply + applicants
+    ├── application.routes.ts
+    ├── keyword.routes.ts          → ⚠ excepción: Prisma inline
+    └── notification.routes.ts
 ```
 
 ---
 
 ## Seed de datos
 
-El proyecto tiene un seed inicial de keywords en `prisma/seed.ts`.
+Archivo: `prisma/seed.ts`
 
-Para ejecutarlo:
 ```bash
 npx prisma db seed
 ```
 
-Esto inserta ~120 keywords clasificadas por tipo y categoría en la tabla `keywords`.
-El seed usa `upsert` — es seguro ejecutarlo múltiples veces sin duplicar datos.
-
-Requiere `tsconfig.seed.json` en la raíz de `backend/` para que `ts-node` compile
-el seed correctamente con `rootDir: "."`.
+- ~120 keywords por tipo y categoría
+- `upsert` — seguro ejecutar varias veces
+- Requiere `tsconfig.seed.json` (`rootDir: "."`)
 
 ---
 
-
-## Motor de Ranking — Arquitectura híbrida
-
-### Score de perfil base (Capa 1 — 40% del score final)
-Calculado en `src/lib/ranking.ts`. No depende de keywords.
-Criterios: skills declaradas (20%), experiencia+proyectos (20%),
-formación académica (20%), certs+idiomas (10%), reputación (10%), completitud (20%).
-
-### Score de compatibilidad IA (Capa 2 — 60% del score final)
-Calculado en `src/lib/gemini.ts` al momento de postularse.
-Gemini evalúa compatibilidad semántica entre candidato y vacante.
-Devuelve: score, reasons[] y gaps[] — se guardan en la Application.
-Si Gemini falla retorna score neutro 50 — no bloquea la postulación.
-Retry automático con backoff en caso de rate limit 429.
-
-### CV Intelligence
-Cuando el candidato sube un CV:
-1. pdf-parse extrae texto plano
-2. Gemini extrae: skills, softSkills, languages, certifications, projects, summary
-3. Normalización: cada skill se compara contra la BD — si existe usa el nombre canónico
-4. Si no existe → se crea como nueva keyword en la BD (isActive: true)
-5. El perfil se actualiza automáticamente con los datos extraídos
-
-### Keywords dinámicas
-- Tabla `keywords` crece automáticamente con el uso real de la plataforma
-- Gemini normaliza variaciones (nodejs → node.js si node.js existe en BD)
-- El frontend usa GET /api/keywords para mostrar checkboxes al candidato
-- Admin puede revisar y desactivar keywords incorrectas (Sprint 4)
-
----
-
-## Patrones a seguir al agregar nuevos módulos
+## Patrón para agregar nuevos módulos
 
 ```
-1. Agregar modelos al schema.prisma
-2. Ejecutar: npx prisma migrate dev --name nombre_descriptivo
-3. Ejecutar: npx prisma generate
-4. Crear src/services/nombre.service.ts
-5. Crear src/controllers/nombre.controller.ts
-6. Crear src/routes/nombre.routes.ts
-7. Registrar las rutas en src/app.ts
-8. Probar con Postman
+1. Modelos en schema.prisma
+2. npx prisma migrate dev --name descripcion_clara
+3. npx prisma generate
+4. src/services/nombre.service.ts
+5. src/controllers/nombre.controller.ts
+6. src/routes/nombre.routes.ts
+7. Registrar en src/app.ts
+8. Probar (Postman / Thunder Client)
 9. Commit + PR → develop
-10. Actualizar este AGENTS.md
+10. Actualizar este AGENTS.md (estado, endpoints, mapa)
 ```
+
+Para endpoints con body: definir schema **Zod** en el controller (objetivo del equipo).
 
 ---
 
-## Lo que NO está implementado aún
+## Deuda técnica conocida
 
-- Motor de ranking de perfiles (Sprint 2)
-- Publicación y gestión de vacantes (Sprint 2)
-- Postulaciones (Sprint 2)
-- Notificaciones WhatsApp via n8n (Sprint 3)
-- Contratos y seguimiento de entregas (Sprint 3)
-- Registro de pagos (Sprint 3)
-- Calificaciones mutuas (Sprint 4)
-- Dashboards y reportes PDF (Sprint 4)
-- Panel de institución educativa (Sprint 4)
-- Panel de administración (Sprint 4)
+Registrar aquí evita que agentes “arreglen” cosas sin contexto del sprint.
+
+| Item | Prioridad | Notas |
+|---|---|---|
+| `/notifications/*` sin API key / secret | Alta | Endpoints públicos sensibles |
+| `POST /telegram/register` sin validar identidad | Alta | Cualquiera puede vincular chatId a un userId |
+| Zod instalado pero no usado | Media | Validar bodies en controllers nuevos |
+| `keyword.routes.ts` rompe capas | Media | Mover a service + controller |
+| Tests inexistentes | Media | Priorizar auth, apply, ownership jobs |
+| `err: any` en varios controllers | Baja | Migrar a `unknown` |
+| Roles ADMIN / INSTITUTION sin API | Sprint 4 | Solo en schema |
+| Contract / Payment sin REST | Sprint 3 | Schema listo |
 
 ---
 
 ## Notas para agentes de IA
 
 - **No sugerir Prisma 7** bajo ninguna circunstancia
-- **No usar `any` en TypeScript** sin justificación explícita en comentario
-- **No mezclar capas** — un service nunca devuelve un Response de Express
-- **No crear rutas directamente en app.ts** — siempre en archivos de routes separados
-- **No hardcodear valores sensibles** — siempre usar `process.env.VARIABLE`
-- **No eliminar migraciones existentes** — solo agregar nuevas
-- **Siempre usar `upsert`** para perfiles — nunca `create` + `update` separados
-- **Los mensajes de error al usuario van en español**
-- **Los códigos de error internos van en inglés en UPPER_SNAKE_CASE**
-- **El path de archivos en Supabase Storage no lleva subcarpetas** — solo el nombre del archivo
-- Al agregar un endpoint nuevo, agregarlo también a la tabla de endpoints de este archivo
-
-
+- **No usar `any`** sin comentario justificando
+- **No mezclar capas** — controller sin Prisma directo (salvo refactor de keywords)
+- **No crear rutas en `app.ts`** — usar `routes/`
+- **No hardcodear secretos** — `process.env`
+- **No editar migraciones viejas** — solo agregar nuevas
+- **Perfiles siempre con `upsert`**
+- **Errores al usuario en español**; códigos internos en `UPPER_SNAKE_CASE`
+- **Storage sin subcarpetas** en paths de Supabase
+- **pdf-parse:** `require('pdf-parse/lib/pdf-parse.js')`
+- Al agregar endpoint: actualizar tablas de *Endpoints* y *Mapa de archivos* en este documento
+- Al cerrar sprint: actualizar *Estado del proyecto* y *Deuda técnica*
+- **Gemini:** no bloquear flujos críticos si la API falla — degradar con valores neutros
+- **Webhooks n8n:** fallo silencioso en `triggerNotificationWebhook` — no revertir creación de vacante
