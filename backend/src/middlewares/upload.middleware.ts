@@ -46,3 +46,11 @@ export const uploadDocument = multer({
     }
   },
 });
+
+// Contrato PDF — acepta 'file' (frontend) o 'contract' (Postman legacy)
+export const uploadContractFile = uploadDocument.fields([
+  { name: 'file', maxCount: 1 },
+  { name: 'contract', maxCount: 1 },
+]);
+
+export const uploadDeliverableFile = uploadDocument.single('file');

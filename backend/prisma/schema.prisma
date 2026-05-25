@@ -179,6 +179,7 @@ model Application {
 
   job       Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
   candidate CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  contract  Contract?
 
   @@unique([jobId, candidateId])
   @@map("applications")
@@ -247,37 +248,76 @@ enum PaymentStatus {
   CONFIRMED
 }
 
+enum PaymentScheme {
+  SINGLE
+  MILESTONES
+  PERIODIC
+}
+
+enum DeliverableStatus {
+  PENDING
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
 model Contract {
   id              String         @id @default(uuid())
   jobId           String
   candidateId     String
   companyId       String
+  applicationId   String?        @unique
   title           String
   description     String
   deliverables    String
   startDate       DateTime
   endDate         DateTime
   totalAmount     Int
-  paymentScheme   String
+  paymentScheme   PaymentScheme  @default(SINGLE)
   contractFileUrl String?
   status          ContractStatus @default(PENDING_CANDIDATE)
   confirmedAt     DateTime?
+  cancelledAt     DateTime?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
-  job       Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  candidate CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  company   CompanyProfile   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  payments  Payment[]
+  job         Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidate   CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  company     CompanyProfile   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  application Application?     @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  payments    Payment[]
+  deliverableItems Deliverable[]
 
   @@map("contracts")
+}
+
+model Deliverable {
+  id              String            @id @default(uuid())
+  contractId      String
+  title           String
+  description     String            @default("")
+  dueDate         DateTime?
+  status          DeliverableStatus @default(PENDING)
+  fileUrl         String?
+  candidateNotes  String?
+  companyFeedback String?
+  submittedAt     DateTime?
+  reviewedAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@map("deliverables")
 }
 
 model Payment {
   id          String        @id @default(uuid())
   contractId  String
   amount      Int
-  description String
+  description String        @default("")
+  dueDate     DateTime?
+  sequence    Int           @default(1)
   receiptUrl  String?
   status      PaymentStatus @default(PENDING)
   confirmedAt DateTime?
