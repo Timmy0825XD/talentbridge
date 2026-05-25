@@ -1,144 +1,82 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { asyncHandler } from '../lib/errors/async-handler';
+import {
+  profileCvErrorMap,
+  profileLogoErrorMap,
+  profilePhotoErrorMap,
+} from '../lib/errors/error-maps/profile.errors';
 import * as profileService from '../services/profile.service';
 
-// ─── PERFIL CANDIDATO ─────────────────────────────────────────────────────────
+export const getCandidateProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const profile = await profileService.getCandidateProfile(req.user!.userId);
+  res.json(profile ?? {});
+}, undefined, 'getCandidateProfile');
 
-export async function getCandidateProfile(req: AuthRequest, res: Response) {
-  try {
-    const userId = req.user!.userId;
-    const profile = await profileService.getCandidateProfile(userId);
-    res.json(profile ?? {});
-  } catch (err) {
-    console.error('getCandidateProfile error:', err);
-    res.status(500).json({ error: 'Error interno del servidor.' });
+export const updateCandidateProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const profile = await profileService.upsertCandidateProfile(req.user!.userId, req.body);
+  res.json(profile);
+}, undefined, 'updateCandidateProfile');
+
+export const getCompanyProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const profile = await profileService.getCompanyProfile(req.user!.userId);
+  res.json(profile ?? {});
+}, undefined, 'getCompanyProfile');
+
+export const updateCompanyProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const profile = await profileService.upsertCompanyProfile(req.user!.userId, req.body);
+  res.json(profile);
+}, undefined, 'updateCompanyProfile');
+
+export const uploadCv = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No se recibió ningún archivo.' });
   }
-}
 
-export async function updateCandidateProfile(req: AuthRequest, res: Response) {
-  try {
-    const userId = req.user!.userId;
-    const profile = await profileService.upsertCandidateProfile(userId, req.body);
-    res.json(profile);
-  } catch (err) {
-    console.error('updateCandidateProfile error:', err);
-    res.status(500).json({ error: 'Error interno del servidor.' });
+  const cvUrl = await profileService.uploadCvToStorage(
+    req.user!.userId,
+    req.file.buffer,
+    req.file.originalname
+  );
+
+  res.json({ message: 'CV cargado exitosamente.', cvUrl });
+}, profileCvErrorMap, 'uploadCv');
+
+export const extractCv = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const extracted = await profileService.extractCvManually(req.user!.userId);
+  res.json({
+    message: 'Extracción completada.',
+    technical: extracted.technical,
+    soft: extracted.soft,
+    languages: extracted.languages,
+    total: extracted.technical.length + extracted.soft.length + extracted.languages.length,
+  });
+}, profileCvErrorMap, 'extractCv');
+
+export const uploadPhoto = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No se recibió ningún archivo.' });
   }
-}
 
-// ─── PERFIL EMPRESA ───────────────────────────────────────────────────────────
+  const photoUrl = await profileService.uploadPhotoToStorage(
+    req.user!.userId,
+    req.file.buffer,
+    req.file.mimetype
+  );
 
-export async function getCompanyProfile(req: AuthRequest, res: Response) {
-  try {
-    const userId = req.user!.userId;
-    const profile = await profileService.getCompanyProfile(userId);
-    res.json(profile ?? {});
-  } catch (err) {
-    console.error('getCompanyProfile error:', err);
-    res.status(500).json({ error: 'Error interno del servidor.' });
+  res.json({ message: 'Foto de perfil actualizada.', photoUrl });
+}, profilePhotoErrorMap, 'uploadPhoto');
+
+export const uploadLogo = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No se recibió ningún archivo.' });
   }
-}
 
-export async function updateCompanyProfile(req: AuthRequest, res: Response) {
-  try {
-    const userId = req.user!.userId;
-    const profile = await profileService.upsertCompanyProfile(userId, req.body);
-    res.json(profile);
-  } catch (err) {
-    console.error('updateCompanyProfile error:', err);
-    res.status(500).json({ error: 'Error interno del servidor.' });
-  }
-}
+  const logoUrl = await profileService.uploadLogoToStorage(
+    req.user!.userId,
+    req.file.buffer,
+    req.file.mimetype
+  );
 
-// ─── CARGA DE CV ──────────────────────────────────────────────────────────────
-
-export async function uploadCv(req: AuthRequest, res: Response) {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No se recibió ningún archivo.' });
-    }
-
-    const userId = req.user!.userId;
-    const cvUrl = await profileService.uploadCvToStorage(
-      userId,
-      req.file.buffer,
-      req.file.originalname
-    );
-
-    res.json({ message: 'CV cargado exitosamente.', cvUrl });
-  } catch (err: any) {
-    if (err.message === 'INVALID_FILE_TYPE')
-      return res.status(400).json({ error: 'Solo se permiten archivos PDF.' });
-    if (err.message === 'STORAGE_UPLOAD_FAILED')
-      return res.status(500).json({ error: 'Error al subir el archivo. Intenta de nuevo.' });
-    console.error('uploadCv error:', err);
-    res.status(500).json({ error: 'Error interno del servidor.' });
-  }
-}
-
-export async function extractCv(req: AuthRequest, res: Response) {
-  try {
-    const userId = req.user!.userId;
-    const extracted = await profileService.extractCvManually(userId);
-    res.json({
-      message: 'Extracción completada.',
-      technical: extracted.technical,
-      soft: extracted.soft,
-      languages: extracted.languages,
-      total: extracted.technical.length + extracted.soft.length + extracted.languages.length,
-    });
-  } catch (err: any) {
-    if (err.message === 'CV_NOT_FOUND')
-      return res.status(404).json({ error: 'No tienes un CV cargado.' });
-    console.error('extractCv error:', err);
-    res.status(500).json({ error: 'Error interno del servidor.' });
-  }
-}
-
-export async function uploadPhoto(req: AuthRequest, res: Response) {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No se recibió ningún archivo.' });
-    }
-
-    const userId = req.user!.userId;
-    const photoUrl = await profileService.uploadPhotoToStorage(
-      userId,
-      req.file.buffer,
-      req.file.mimetype
-    );
-
-    res.json({ message: 'Foto de perfil actualizada.', photoUrl });
-  } catch (err: any) {
-    if (err.message === 'INVALID_FILE_TYPE')
-      return res.status(400).json({ error: 'Solo se permiten imágenes JPG, PNG o WebP.' });
-    if (err.message === 'STORAGE_UPLOAD_FAILED')
-      return res.status(500).json({ error: 'Error al subir la imagen. Intenta de nuevo.' });
-    console.error('uploadPhoto error:', err);
-    res.status(500).json({ error: 'Error interno del servidor.' });
-  }
-}
-
-export async function uploadLogo(req: AuthRequest, res: Response) {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No se recibió ningún archivo.' });
-    }
-
-    const userId = req.user!.userId;
-    const logoUrl = await profileService.uploadLogoToStorage(
-      userId,
-      req.file.buffer,
-      req.file.mimetype
-    );
-
-    res.json({ message: 'Logo actualizado exitosamente.', logoUrl });
-  } catch (err: any) {
-    if (err.message === 'INVALID_FILE_TYPE')
-      return res.status(400).json({ error: 'Solo se permiten imágenes JPG, PNG o WebP.' });
-    if (err.message === 'STORAGE_UPLOAD_FAILED')
-      return res.status(500).json({ error: 'Error al subir el logo. Intenta de nuevo.' });
-    console.error('uploadLogo error:', err);
-    res.status(500).json({ error: 'Error interno del servidor.' });
-  }
-}
+  res.json({ message: 'Logo actualizado exitosamente.', logoUrl });
+}, profileLogoErrorMap, 'uploadLogo');

@@ -1,44 +1,24 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { asyncHandler } from '../lib/errors/async-handler';
+import {
+  rankingCandidateErrorMap,
+  rankingErrorMap,
+} from '../lib/errors/error-maps/ranking.errors';
 import * as rankingService from '../services/ranking.service';
 
-// GET /api/ranking/me — mi propio puntaje
-export async function getMyScore(req: AuthRequest, res: Response) {
-  try {
-    const userId = req.user!.userId;
-    const score = await rankingService.getScoreByUserId(userId);
-    res.json(score);
-  } catch (err: any) {
-    if (err.message === 'CANDIDATE_NOT_FOUND')
-      return res.status(404).json({ error: 'No tienes un perfil de candidato.' });
-    console.error('getMyScore error:', err);
-    res.status(500).json({ error: 'Error interno del servidor.' });
-  }
-}
+export const getMyScore = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const score = await rankingService.getScoreByUserId(req.user!.userId);
+  res.json(score);
+}, rankingErrorMap, 'getMyScore');
 
-// GET /api/ranking/:userId — puntaje de cualquier candidato (para empresas)
-export async function getCandidateScore(req: AuthRequest, res: Response) {
-  try {
-    const userId = req.params['userId'] as string;
-    const score = await rankingService.getScoreByUserId(userId);
-    res.json(score);
-  } catch (err: any) {
-    if (err.message === 'CANDIDATE_NOT_FOUND')
-      return res.status(404).json({ error: 'Candidato no encontrado.' });
-    console.error('getCandidateScore error:', err);
-    res.status(500).json({ error: 'Error interno del servidor.' });
-  }
-}
+export const getCandidateScore = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const score = await rankingService.getScoreByUserId(req.params['userId'] as string);
+  res.json(score);
+}, rankingCandidateErrorMap, 'getCandidateScore');
 
-// POST /api/ranking/recalculate — forzar recálculo del propio score
-export async function recalculateMyScore(req: AuthRequest, res: Response) {
-  try {
-    const userId = req.user!.userId;
-    await rankingService.computeAndSaveScore(userId);
-    const score = await rankingService.getScoreByUserId(userId);
-    res.json({ message: 'Puntaje recalculado exitosamente.', ...score });
-  } catch (err: any) {
-    console.error('recalculateMyScore error:', err);
-    res.status(500).json({ error: 'Error interno del servidor.' });
-  }
-}
+export const recalculateMyScore = asyncHandler(async (req: AuthRequest, res: Response) => {
+  await rankingService.computeAndSaveScore(req.user!.userId);
+  const score = await rankingService.getScoreByUserId(req.user!.userId);
+  res.json({ message: 'Puntaje recalculado exitosamente.', ...score });
+}, undefined, 'recalculateMyScore');
