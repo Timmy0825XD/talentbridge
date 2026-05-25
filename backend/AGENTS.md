@@ -327,16 +327,15 @@ Ver plantilla completa en `backend/.env.example`.
 | Postulaciones + score híbrido | 2 | 40% perfil + 60% Gemini → `Application` |
 | Keywords API | 2 | `GET /keywords` |
 | Notificaciones (parcial) | 3 | Webhook n8n, Telegram chatId, preferencias |
-| Schema contratos/pagos | 3 | Modelos en BD — **sin rutas REST aún** |
+| Contratos, pagos y entregables | 3 | API REST completa, validación Zod, reglas RF-19/21/22 |
 
 ### Pendiente
 
 | Área | Sprint | Detalle |
 |---|---|---|
-| API REST de contratos | 3 | CRUD, upload PDF, confirmación candidato |
-| API REST de pagos | 3 | Registro y confirmación con comprobante |
+| UI entregables en frontend | 3 | Oscar — consumir endpoints de deliverables |
 | Endurecer seguridad webhooks | 3 | Secret compartido en `/notifications/*` |
-| Validación Zod en controllers | 3+ | Dependencia ya instalada |
+| Validación Zod en otros módulos | 3+ | Adoptado en contratos; pendiente auth, jobs, etc. |
 | Tests automatizados | 3+ | Unit + integración mínima |
 | WhatsApp vía n8n | 3 | Canal alternativo a Telegram |
 | Calificaciones mutuas | 4 | |
@@ -360,6 +359,8 @@ enum ApplicationStatus { RECEIVED REVIEWING SELECTED REJECTED }
 enum WorkMode { REMOTE ONSITE HYBRID }
 enum ContractStatus { PENDING_CANDIDATE ACTIVE COMPLETED CANCELLED }
 enum PaymentStatus { PENDING CONFIRMED }
+enum PaymentScheme { SINGLE MILESTONES PERIODIC }
+enum DeliverableStatus { PENDING SUBMITTED APPROVED REJECTED }
 ```
 
 ### Modelos — resumen
@@ -371,11 +372,13 @@ enum PaymentStatus { PENDING CONFIRMED }
 | **CandidateProfile** | Perfil 1:1; skills[], JSON projects/certs/languages; `cvUrl`, `photoUrl`; notificaciones (`telegramChatId`, `notificationsEnabled`) |
 | **CompanyProfile** | Perfil empresa 1:1; relación con `Job[]` |
 | **Job** | Vacante; `skills[]`, presupuesto, `JobRankConfig?` |
-| **Application** | Postulación única por par job+candidato; `scoreAtApply`, `aiReasons[]`, `aiGaps[]` |
+| **Application** | Postulación única por par job+candidato; `scoreAtApply`, `aiReasons[]`, `aiGaps[]`; relación opcional con `Contract` |
 | **JobRankConfig** | Pesos por vacante (deben sumar ~1.0) |
 | **ProfileScore** | Puntaje global del candidato (recalculable) |
 | **Keyword** | Catálogo + crecimiento automático desde CV |
-| **Contract** / **Payment** | Sprint 3 — **solo schema**, sin services aún |
+| **Contract** | Acuerdo formal; `applicationId?`, `paymentScheme` enum, `contractFileUrl`, ciclo de estados |
+| **Payment** | Pago asociado a contrato; `sequence`, `dueDate?`, comprobante |
+| **Deliverable** | Entregable/hito rastreable; submit + review por candidato/empresa |
 
 ### Migraciones relevantes
 
@@ -386,12 +389,15 @@ enum PaymentStatus { PENDING CONFIRMED }
 | `add_keywords_table` | Keywords + seed |
 | `add_ai_insights_to_application` | `aiReasons`, `aiGaps` |
 | `sprint3_notifications_contracts_payments` | Contratos, pagos, campos Telegram |
+| `refactor_contracts_deliverables` | PaymentScheme enum, Deliverable, applicationId, reglas |
 
 ### Reglas de datos
 
 - Perfiles: siempre **`upsert`**, nunca `create` + `update` separados
 - `scoreAtApply` se congela al postular — no se recalcula si el perfil cambia después
 - Keywords nuevas desde CV: `isActive: true` por defecto
+- Contrato: requiere postulación `SELECTED`; candidato confirma solo si hay `contractFileUrl`
+- Cierre de contrato: todos los entregables `APPROVED` (si existen) + pagos confirmados ≥ `totalAmount`
 
 ---
 
@@ -488,6 +494,28 @@ Authorization: Bearer <JWT>
 
 Body `POST /telegram/register`: `{ userId, chatId }`
 
+### Contratos, pagos y entregables — `/api/contracts`
+
+| Método | Ruta | Roles | Notas |
+|---|---|---|---|
+| GET | `/contracts` | Autenticado | Lista con `paidAmount`, `remainingAmount`, `_count` |
+| GET | `/contracts/:id` | Autenticado | Detalle enriquecido + entregables |
+| POST | `/contracts` | COMPANY | Body validado con Zod; requiere candidato SELECTED |
+| POST | `/contracts/:id/file` | COMPANY | campo **`file`** (PDF), bucket `contracts` |
+| PATCH | `/contracts/:id/confirm` | STUDENT, GRADUATE | Requiere PDF subido por empresa |
+| PATCH | `/contracts/:id/cancel` | COMPANY | Solo PENDING_CANDIDATE o ACTIVE |
+| PATCH | `/contracts/:id/complete` | COMPANY | Valida entregables y pagos |
+| POST | `/contracts/:id/payments` | COMPANY | Valida monto vs total pendiente |
+| POST | `/contracts/payments/:id/receipt` | COMPANY | campo `receipt`, confirma pago |
+| GET | `/contracts/:id/deliverables` | COMPANY, STUDENT, GRADUATE | Lista entregables |
+| POST | `/contracts/:id/deliverables` | COMPANY | Crear hito/entregable |
+| POST | `/contracts/deliverables/:id/submit` | STUDENT, GRADUATE | campo `file` + `candidateNotes` |
+| PATCH | `/contracts/deliverables/:id/review` | COMPANY | `{ status: APPROVED\|REJECTED, companyFeedback? }` |
+
+**Body `POST /contracts`:** `candidateId`, `title`, `startDate`, `endDate`, `totalAmount`, opcionales: `jobId`, `description`, `deliverables`, `paymentScheme`, `items[]`
+
+**Ciclo de estados:** `PENDING_CANDIDATE` → `ACTIVE` (confirmación candidato) → `COMPLETED` | `CANCELLED`
+
 ---
 
 ## Supabase Storage
@@ -495,7 +523,18 @@ Body `POST /telegram/register`: `{ userId, chatId }`
 - Buckets públicos con políticas `anon` INSERT + SELECT
 - Multer `memoryStorage` — el buffer se sube directo a Supabase
 - URL pública: `https://{project}.supabase.co/storage/v1/object/public/{bucket}/{fileName}`
+
+| Bucket | Uso | Paths |
+|---|---|---|
+| `cvs` | CVs PDF de candidatos | `{userId}_{timestamp}.pdf` |
+| `avatars` | Fotos de perfil | `{userId}.{ext}` |
+| `logos` | Logos de empresa | `{userId}.{ext}` |
+| `contracts` | PDFs de contrato, comprobantes, entregables | `contract_{id}.pdf`, `receipt_{id}.pdf`, `deliverable_{id}.pdf` |
+
 - CV → `candidateProfile.cvUrl`
+- Contrato → `contract.contractFileUrl`
+- Comprobante → `payment.receiptUrl`
+- Entregable → `deliverable.fileUrl`
 
 ---
 
@@ -574,7 +613,7 @@ POST /api/jobs  →  job.service.createJob()
 src/
 ├── app.ts
 │   └── CORS, JSON, rutas: auth, profile, ranking, jobs,
-│       applications, keywords, notifications
+│       applications, keywords, notifications, contracts
 │
 ├── lib/
 │   ├── prisma.ts          → singleton PrismaClient
@@ -583,11 +622,15 @@ src/
 │   ├── supabase.ts        → cliente Storage
 │   ├── ranking.ts         → calculateScore, combineScores, DEFAULT_WEIGHTS
 │   ├── gemini.ts          → scoreCompatibility, extractCvIntelligent
-│   └── cv-extractor.ts    → extractCvKeywords (pdf-parse + keywords BD)
+│   ├── cv-extractor.ts    → extractCvKeywords (pdf-parse + keywords BD)
+│   ├── contract-helpers.ts → pickUploadedFile, computePaymentTotals
+│   └── validators/
+│       └── contract.validators.ts → schemas Zod contratos/pagos/entregables
 │
 ├── middlewares/
 │   ├── auth.middleware.ts → authenticate, authorize, AuthRequest
-│   └── upload.middleware.ts → uploadCv (PDF 5MB), uploadPhoto (img 2MB)
+│   ├── upload.middleware.ts → uploadCv, uploadPhoto, uploadDocument, uploadContractFile
+│   └── upload-error.middleware.ts → handleMulterError (mensajes en español)
 │
 ├── services/
 │   ├── auth.service.ts
@@ -595,7 +638,9 @@ src/
 │   ├── ranking.service.ts
 │   ├── job.service.ts           → importa notification.service (webhook)
 │   ├── application.service.ts   → ranking + gemini al postular
-│   └── notification.service.ts  → candidatos elegibles, n8n, Telegram
+│   ├── notification.service.ts  → candidatos elegibles, n8n, Telegram
+│   ├── contract.service.ts      → contratos, pagos, ciclo de vida
+│   └── deliverable.service.ts   → entregables, submit, review
 │
 ├── controllers/
 │   ├── auth.controller.ts
@@ -603,7 +648,9 @@ src/
 │   ├── ranking.controller.ts
 │   ├── job.controller.ts
 │   ├── application.controller.ts
-│   └── notification.controller.ts
+│   ├── notification.controller.ts
+│   ├── contract.controller.ts
+│   └── deliverable.controller.ts
 │
 └── routes/
     ├── auth.routes.ts
@@ -612,7 +659,8 @@ src/
     ├── job.routes.ts              → incluye apply + applicants
     ├── application.routes.ts
     ├── keyword.routes.ts          → ⚠ excepción: Prisma inline
-    └── notification.routes.ts
+    ├── notification.routes.ts
+    └── contract.routes.ts         → contratos + pagos + entregables
 ```
 
 ---
@@ -658,12 +706,12 @@ Registrar aquí evita que agentes “arreglen” cosas sin contexto del sprint.
 |---|---|---|
 | `/notifications/*` sin API key / secret | Alta | Endpoints públicos sensibles |
 | `POST /telegram/register` sin validar identidad | Alta | Cualquiera puede vincular chatId a un userId |
-| Zod instalado pero no usado | Media | Validar bodies en controllers nuevos |
+| Zod solo en módulo contratos | Media | Extender a auth, jobs, profile |
 | `keyword.routes.ts` rompe capas | Media | Mover a service + controller |
-| Tests inexistentes | Media | Priorizar auth, apply, ownership jobs |
-| `err: any` en varios controllers | Baja | Migrar a `unknown` |
+| Tests inexistentes | Media | Priorizar auth, apply, contracts |
+| `err: any` en controllers legacy | Baja | Migrar a `unknown` |
 | Roles ADMIN / INSTITUTION sin API | Sprint 4 | Solo en schema |
-| Contract / Payment sin REST | Sprint 3 | Schema listo |
+| UI entregables en frontend | Sprint 3 | Oscar — endpoints listos |
 
 ---
 

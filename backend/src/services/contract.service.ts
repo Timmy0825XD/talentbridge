@@ -1,72 +1,151 @@
 import { prisma } from '../lib/prisma';
 import { supabase } from '../lib/supabase';
-import { ContractStatus, PaymentStatus } from '@prisma/client';
+import { computePaymentTotals } from '../lib/contract-helpers';
+import {
+  ContractStatus,
+  DeliverableStatus,
+  PaymentScheme,
+  PaymentStatus,
+} from '@prisma/client';
+import type { CreateContractInput, CreatePaymentInput } from '../lib/validators/contract.validators';
+
+const contractInclude = {
+  candidate: {
+    select: {
+      fullName: true,
+      photoUrl: true,
+      user: { select: { email: true } },
+    },
+  },
+  company: { select: { companyName: true, logoUrl: true } },
+  job: { select: { title: true } },
+  payments: { orderBy: { sequence: 'asc' as const } },
+  deliverableItems: { orderBy: { createdAt: 'asc' as const } },
+  _count: { select: { payments: true, deliverableItems: true } },
+};
+
+function enrichContract<T extends { totalAmount: number; payments: { amount: number; status: PaymentStatus }[] }>(
+  contract: T
+) {
+  const totals = computePaymentTotals(contract.payments, contract.totalAmount);
+  return { ...contract, ...totals };
+}
+
+function parseOptionalDate(value?: string): Date | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) throw new Error('INVALID_DATE');
+  return date;
+}
+
+async function getCompanyOrThrow(userId: string) {
+  const company = await prisma.companyProfile.findUnique({ where: { userId } });
+  if (!company) throw new Error('COMPANY_PROFILE_NOT_FOUND');
+  return company;
+}
+
+async function getCandidateOrThrow(userId: string) {
+  const candidate = await prisma.candidateProfile.findUnique({ where: { userId } });
+  if (!candidate) throw new Error('CANDIDATE_NOT_FOUND');
+  return candidate;
+}
+
+async function assertContractAccess(userId: string, contract: { companyId: string; candidateId: string }) {
+  const company = await prisma.companyProfile.findUnique({ where: { userId } });
+  const candidate = await prisma.candidateProfile.findUnique({ where: { userId } });
+
+  const hasAccess =
+    company?.id === contract.companyId ||
+    candidate?.id === contract.candidateId;
+
+  if (!hasAccess) throw new Error('UNAUTHORIZED');
+}
 
 // ─── CREAR CONTRATO ───────────────────────────────────────────────────────────
 
-export async function createContract(
-  userId: string,
-  data: {
-    jobId?: string;
-    candidateId: string;
-    title: string;
-    description?: string;
-    deliverables?: string;
-    startDate: string;
-    endDate: string;
-    totalAmount: number;
-    paymentScheme?: string;
-  }
-) {
-  const company = await prisma.companyProfile.findUnique({ where: { userId } });
-  if (!company) throw new Error('COMPANY_PROFILE_NOT_FOUND');
+export async function createContract(userId: string, data: CreateContractInput) {
+  const company = await getCompanyOrThrow(userId);
 
   const candidate = await prisma.candidateProfile.findUnique({
     where: { id: data.candidateId },
   });
   if (!candidate) throw new Error('CANDIDATE_NOT_FOUND');
 
-  // Si no viene jobId, buscarlo desde la Application SELECTED del candidato
-  // para esta empresa — así el frontend no necesita enviarlo explícitamente
   let jobId = data.jobId;
-  if (!jobId) {
-    const application = await prisma.application.findFirst({
-      where: {
-        candidateId: candidate.id,
-        job: { companyId: company.id },
-        status: 'SELECTED',
-      },
-      select: { jobId: true },
-    });
-    if (!application) throw new Error('JOB_NOT_FOUND');
-    jobId = application.jobId;
-  }
+  let applicationId: string | undefined;
 
-  // Verificar que la vacante pertenece a esta empresa
+  const application = await prisma.application.findFirst({
+    where: {
+      candidateId: candidate.id,
+      status: 'SELECTED',
+      job: { companyId: company.id, ...(jobId ? { id: jobId } : {}) },
+    },
+    select: { id: true, jobId: true },
+  });
+
+  if (!application) throw new Error('APPLICATION_NOT_SELECTED');
+  jobId = application.jobId;
+  applicationId = application.id;
+
+  const existing = await prisma.contract.findFirst({
+    where: {
+      jobId,
+      candidateId: candidate.id,
+      status: { not: ContractStatus.CANCELLED },
+    },
+  });
+  if (existing) throw new Error('CONTRACT_ALREADY_EXISTS');
+
   const job = await prisma.job.findFirst({
     where: { id: jobId, companyId: company.id },
   });
   if (!job) throw new Error('JOB_NOT_FOUND');
 
-  return prisma.contract.create({
-    data: {
-      jobId,
-      candidateId:   data.candidateId,
-      companyId:     company.id,
-      title:         data.title,
-      description:   data.description   ?? '',
-      deliverables:  data.deliverables  ?? '',   // ← nunca undefined
-      startDate: new Date(data.startDate!),
-      endDate: new Date(data.endDate!),
-      totalAmount: data.totalAmount ?? 0,
-      paymentScheme: data.paymentScheme ?? '',
-    },
-    include: {
-      candidate: { select: { fullName: true, user: { select: { email: true } } } },
-      company:   { select: { companyName: true } },
-      job:       { select: { title: true } },
-    },
+  const contract = await prisma.$transaction(async tx => {
+    const created = await tx.contract.create({
+      data: {
+        jobId,
+        candidateId: candidate.id,
+        companyId: company.id,
+        applicationId,
+        title: data.title,
+        description: data.description ?? '',
+        deliverables: data.deliverables ?? '',
+        startDate: new Date(data.startDate),
+        endDate: new Date(data.endDate),
+        totalAmount: data.totalAmount,
+        paymentScheme: (data.paymentScheme as PaymentScheme) ?? PaymentScheme.SINGLE,
+      },
+      include: contractInclude,
+    });
+
+    if (data.items?.length) {
+      await tx.deliverable.createMany({
+        data: data.items.map(item => ({
+          contractId: created.id,
+          title: item.title,
+          description: item.description ?? '',
+          dueDate: parseOptionalDate(item.dueDate),
+        })),
+      });
+    }
+
+    if (job.status === 'ACTIVE') {
+      await tx.job.update({
+        where: { id: jobId },
+        data: { status: 'SELECTING' },
+      });
+    }
+
+    return created;
   });
+
+  const full = await prisma.contract.findUnique({
+    where: { id: contract.id },
+    include: contractInclude,
+  });
+
+  return enrichContract(full!);
 }
 
 // ─── SUBIR PDF DEL CONTRATO ───────────────────────────────────────────────────
@@ -77,14 +156,19 @@ export async function uploadContractFile(
   fileBuffer: Buffer,
   mimeType: string
 ): Promise<string> {
-  // Verificar que el contrato pertenece a la empresa
-  const company = await prisma.companyProfile.findUnique({ where: { userId } });
-  if (!company) throw new Error('COMPANY_PROFILE_NOT_FOUND');
+  const company = await getCompanyOrThrow(userId);
 
   const contract = await prisma.contract.findFirst({
     where: { id: contractId, companyId: company.id },
   });
   if (!contract) throw new Error('CONTRACT_NOT_FOUND');
+
+  if (
+    contract.status !== ContractStatus.PENDING_CANDIDATE &&
+    contract.status !== ContractStatus.ACTIVE
+  ) {
+    throw new Error('CONTRACT_NOT_EDITABLE');
+  }
 
   const ext = mimeType === 'application/pdf' ? 'pdf'
     : mimeType === 'image/png' ? 'png' : 'jpg';
@@ -109,8 +193,7 @@ export async function uploadContractFile(
 // ─── CONFIRMAR CONTRATO (CANDIDATO) ──────────────────────────────────────────
 
 export async function confirmContract(userId: string, contractId: string) {
-  const candidate = await prisma.candidateProfile.findUnique({ where: { userId } });
-  if (!candidate) throw new Error('CANDIDATE_NOT_FOUND');
+  const candidate = await getCandidateOrThrow(userId);
 
   const contract = await prisma.contract.findFirst({
     where: { id: contractId, candidateId: candidate.id },
@@ -118,46 +201,71 @@ export async function confirmContract(userId: string, contractId: string) {
   if (!contract) throw new Error('CONTRACT_NOT_FOUND');
   if (contract.status !== ContractStatus.PENDING_CANDIDATE)
     throw new Error('CONTRACT_NOT_PENDING');
+  if (!contract.contractFileUrl) throw new Error('CONTRACT_FILE_REQUIRED');
 
-  return prisma.contract.update({
+  const updated = await prisma.contract.update({
     where: { id: contractId },
     data: {
       status: ContractStatus.ACTIVE,
       confirmedAt: new Date(),
     },
+    include: contractInclude,
   });
+
+  return enrichContract(updated);
+}
+
+// ─── CANCELAR CONTRATO ───────────────────────────────────────────────────────
+
+export async function cancelContract(userId: string, contractId: string) {
+  const company = await getCompanyOrThrow(userId);
+
+  const contract = await prisma.contract.findFirst({
+    where: { id: contractId, companyId: company.id },
+  });
+  if (!contract) throw new Error('CONTRACT_NOT_FOUND');
+
+  if (
+    contract.status !== ContractStatus.PENDING_CANDIDATE &&
+    contract.status !== ContractStatus.ACTIVE
+  ) {
+    throw new Error('CONTRACT_NOT_CANCELLABLE');
+  }
+
+  const updated = await prisma.contract.update({
+    where: { id: contractId },
+    data: {
+      status: ContractStatus.CANCELLED,
+      cancelledAt: new Date(),
+    },
+    include: contractInclude,
+  });
+
+  return enrichContract(updated);
 }
 
 // ─── MIS CONTRATOS ────────────────────────────────────────────────────────────
 
 export async function getMyContracts(userId: string, role: string) {
-  if (role === 'COMPANY') {
-    const company = await prisma.companyProfile.findUnique({ where: { userId } });
-    if (!company) throw new Error('COMPANY_PROFILE_NOT_FOUND');
+  let contracts;
 
-    return prisma.contract.findMany({
+  if (role === 'COMPANY') {
+    const company = await getCompanyOrThrow(userId);
+    contracts = await prisma.contract.findMany({
       where: { companyId: company.id },
-      include: {
-        candidate: { select: { fullName: true, photoUrl: true } },
-        job: { select: { title: true } },
-        payments: true,
-      },
+      include: contractInclude,
+      orderBy: { createdAt: 'desc' },
+    });
+  } else {
+    const candidate = await getCandidateOrThrow(userId);
+    contracts = await prisma.contract.findMany({
+      where: { candidateId: candidate.id },
+      include: contractInclude,
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  const candidate = await prisma.candidateProfile.findUnique({ where: { userId } });
-  if (!candidate) throw new Error('CANDIDATE_NOT_FOUND');
-
-  return prisma.contract.findMany({
-    where: { candidateId: candidate.id },
-    include: {
-      company: { select: { companyName: true, logoUrl: true } },
-      job: { select: { title: true } },
-      payments: true,
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  return contracts.map(enrichContract);
 }
 
 // ─── DETALLE DEL CONTRATO ─────────────────────────────────────────────────────
@@ -165,29 +273,13 @@ export async function getMyContracts(userId: string, role: string) {
 export async function getContractById(userId: string, contractId: string) {
   const contract = await prisma.contract.findUnique({
     where: { id: contractId },
-    include: {
-      candidate: {
-        select: { fullName: true, photoUrl: true, user: { select: { email: true } } },
-      },
-      company: { select: { companyName: true, logoUrl: true } },
-      job: { select: { title: true } },
-      payments: true,
-    },
+    include: contractInclude,
   });
 
   if (!contract) throw new Error('CONTRACT_NOT_FOUND');
+  await assertContractAccess(userId, contract);
 
-  // Verificar acceso — solo empresa o candidato del contrato
-  const company = await prisma.companyProfile.findUnique({ where: { userId } });
-  const candidate = await prisma.candidateProfile.findUnique({ where: { userId } });
-
-  const hasAccess =
-    company?.id === contract.companyId ||
-    candidate?.id === contract.candidateId;
-
-  if (!hasAccess) throw new Error('UNAUTHORIZED');
-
-  return contract;
+  return enrichContract(contract);
 }
 
 // ─── REGISTRAR PAGO ───────────────────────────────────────────────────────────
@@ -195,23 +287,38 @@ export async function getContractById(userId: string, contractId: string) {
 export async function createPayment(
   userId: string,
   contractId: string,
-  data: { amount: number; description: string }
+  data: CreatePaymentInput
 ) {
-  const company = await prisma.companyProfile.findUnique({ where: { userId } });
-  if (!company) throw new Error('COMPANY_PROFILE_NOT_FOUND');
+  const company = await getCompanyOrThrow(userId);
 
   const contract = await prisma.contract.findFirst({
     where: { id: contractId, companyId: company.id },
+    include: { payments: true },
   });
   if (!contract) throw new Error('CONTRACT_NOT_FOUND');
   if (contract.status !== ContractStatus.ACTIVE)
     throw new Error('CONTRACT_NOT_ACTIVE');
 
+  if (contract.paymentScheme === PaymentScheme.SINGLE && contract.payments.length >= 1) {
+    throw new Error('SINGLE_PAYMENT_LIMIT');
+  }
+
+  const totals = computePaymentTotals(contract.payments, contract.totalAmount);
+  if (totals.pendingAmount + totals.paidAmount + data.amount > contract.totalAmount) {
+    throw new Error('PAYMENT_EXCEEDS_TOTAL');
+  }
+
+  const nextSequence = contract.payments.length > 0
+    ? Math.max(...contract.payments.map(p => p.sequence)) + 1
+    : 1;
+
   return prisma.payment.create({
     data: {
       contractId,
       amount: data.amount,
-      description: data.description,
+      description: data.description ?? '',
+      dueDate: parseOptionalDate(data.dueDate),
+      sequence: data.sequence ?? nextSequence,
     },
   });
 }
@@ -224,8 +331,7 @@ export async function uploadPaymentReceipt(
   fileBuffer: Buffer,
   mimeType: string
 ): Promise<string> {
-  const company = await prisma.companyProfile.findUnique({ where: { userId } });
-  if (!company) throw new Error('COMPANY_PROFILE_NOT_FOUND');
+  const company = await getCompanyOrThrow(userId);
 
   const payment = await prisma.payment.findFirst({
     where: {
@@ -262,18 +368,36 @@ export async function uploadPaymentReceipt(
 // ─── COMPLETAR CONTRATO ───────────────────────────────────────────────────────
 
 export async function completeContract(userId: string, contractId: string) {
-  const company = await prisma.companyProfile.findUnique({ where: { userId } });
-  if (!company) throw new Error('COMPANY_PROFILE_NOT_FOUND');
+  const company = await getCompanyOrThrow(userId);
 
   const contract = await prisma.contract.findFirst({
     where: { id: contractId, companyId: company.id },
+    include: {
+      payments: true,
+      deliverableItems: true,
+    },
   });
   if (!contract) throw new Error('CONTRACT_NOT_FOUND');
   if (contract.status !== ContractStatus.ACTIVE)
     throw new Error('CONTRACT_NOT_ACTIVE');
 
-  return prisma.contract.update({
+  if (contract.deliverableItems.length > 0) {
+    const pending = contract.deliverableItems.filter(
+      d => d.status !== DeliverableStatus.APPROVED
+    );
+    if (pending.length > 0) throw new Error('DELIVERABLES_PENDING');
+  }
+
+  const totals = computePaymentTotals(contract.payments, contract.totalAmount);
+  if (contract.totalAmount > 0 && totals.paidAmount < contract.totalAmount) {
+    throw new Error('PAYMENTS_INCOMPLETE');
+  }
+
+  const updated = await prisma.contract.update({
     where: { id: contractId },
     data: { status: ContractStatus.COMPLETED },
+    include: contractInclude,
   });
+
+  return enrichContract(updated);
 }
