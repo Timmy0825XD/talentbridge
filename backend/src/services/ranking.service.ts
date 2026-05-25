@@ -85,13 +85,6 @@ export async function getScoreByUserId(userId: string) {
   };
 }
 
-export async function getScoreByCandidateId(candidateId: string) {
-  const score = await prisma.profileScore.findUnique({
-    where: { candidateId },
-  });
-  return score?.totalScore ?? 0;
-}
-
 function generateSuggestions(
   score: any,
   profile: any

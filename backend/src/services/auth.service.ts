@@ -120,6 +120,17 @@ export async function forgotPassword(email: string) {
   await sendResetEmail(email, token);
 }
 
+// ─── REENVÍO OTP PARA LOGIN NO VERIFICADO ─────────────────────────────────────
+
+export async function resendOtpForUnverifiedEmail(email: string): Promise<{ userId?: string }> {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (user) {
+    await resendOtp(user.id);
+    return { userId: user.id };
+  }
+  return {};
+}
+
 // ─── RESET DE CONTRASEÑA ──────────────────────────────────────────────────────
 
 export async function resetPassword(token: string, newPassword: string) {

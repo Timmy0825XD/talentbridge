@@ -1,88 +1,57 @@
 import { Response } from 'express';
-import { AuthRequest } from '../middlewares/auth.middleware';
-import * as applicationService from '../services/application.service';
 import { ApplicationStatus } from '@prisma/client';
+import { AuthRequest } from '../middlewares/auth.middleware';
+import { asyncHandler } from '../lib/errors/async-handler';
+import {
+  applicationApplicantsErrorMap,
+  applicationErrorMap,
+  applicationStatusErrorMap,
+  myApplicationsErrorMap,
+} from '../lib/errors/error-maps/application.errors';
+import * as applicationService from '../services/application.service';
 
-export async function applyToJob(req: AuthRequest, res: Response) {
-  try {
-    const userId = req.user!.userId;
-    const jobId = req.params['id'] as string;
-    const result = await applicationService.applyToJob(userId, jobId);
+export const applyToJob = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const result = await applicationService.applyToJob(
+    req.user!.userId,
+    req.params['id'] as string
+  );
 
-    res.status(201).json({
-      message: '¡Te postulaste exitosamente!',
-      application: {
-        id:          result.id,
-        status:      result.status,
-        scoreAtApply: result.scoreAtApply,
-        job:         result.job,
-      },
-      aiInsights: result.aiInsights,
-    });
-  } catch (err: any) {
-    if (err.message === 'JOB_NOT_FOUND')
-      return res.status(404).json({ error: 'Vacante no encontrada.' });
-    if (err.message === 'JOB_NOT_ACTIVE')
-      return res.status(400).json({ error: 'Esta vacante no está disponible.' });
-    if (err.message === 'CANDIDATE_PROFILE_NOT_FOUND')
-      return res.status(400).json({ error: 'Debes completar tu perfil antes de postularte.' });
-    if (err.message === 'ALREADY_APPLIED')
-      return res.status(409).json({ error: 'Ya te postulaste a esta vacante.' });
-    console.error('applyToJob error:', err);
-    res.status(500).json({ error: 'Error interno del servidor.' });
+  res.status(201).json({
+    message: '¡Te postulaste exitosamente!',
+    application: {
+      id: result.id,
+      status: result.status,
+      scoreAtApply: result.scoreAtApply,
+      job: result.job,
+    },
+    aiInsights: result.aiInsights,
+  });
+}, applicationErrorMap, 'applyToJob');
+
+export const getJobApplicants = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const applicants = await applicationService.getJobApplicants(
+    req.user!.userId,
+    req.params['id'] as string
+  );
+  res.json(applicants);
+}, applicationApplicantsErrorMap, 'getJobApplicants');
+
+export const updateApplicationStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { status } = req.body;
+
+  if (!Object.values(ApplicationStatus).includes(status)) {
+    return res.status(400).json({ error: 'Estado de postulación inválido.' });
   }
-}
 
-export async function getJobApplicants(req: AuthRequest, res: Response) {
-  try {
-    const userId = req.user!.userId;
-    const jobId = req.params['id'] as string;
-    const applicants = await applicationService.getJobApplicants(userId, jobId);
-    res.json(applicants);
-  } catch (err: any) {
-    if (err.message === 'JOB_NOT_FOUND')
-      return res.status(404).json({ error: 'Vacante no encontrada.' });
-    if (err.message === 'UNAUTHORIZED')
-      return res.status(403).json({ error: 'No tienes permiso para ver esta información.' });
-    console.error('getJobApplicants error:', err);
-    res.status(500).json({ error: 'Error interno del servidor.' });
-  }
-}
+  const application = await applicationService.updateApplicationStatus(
+    req.user!.userId,
+    req.params['id'] as string,
+    status as ApplicationStatus
+  );
+  res.json(application);
+}, applicationStatusErrorMap, 'updateApplicationStatus');
 
-export async function updateApplicationStatus(req: AuthRequest, res: Response) {
-  try {
-    const userId = req.user!.userId;
-    const applicationId = req.params['id'] as string;
-    const { status } = req.body;
-
-    if (!Object.values(ApplicationStatus).includes(status))
-      return res.status(400).json({ error: 'Estado de postulación inválido.' });
-
-    const application = await applicationService.updateApplicationStatus(
-      userId,
-      applicationId,
-      status as ApplicationStatus
-    );
-    res.json(application);
-  } catch (err: any) {
-    if (err.message === 'APPLICATION_NOT_FOUND')
-      return res.status(404).json({ error: 'Postulación no encontrada.' });
-    if (err.message === 'UNAUTHORIZED')
-      return res.status(403).json({ error: 'No tienes permiso para modificar esta postulación.' });
-    console.error('updateApplicationStatus error:', err);
-    res.status(500).json({ error: 'Error interno del servidor.' });
-  }
-}
-
-export async function getMyApplications(req: AuthRequest, res: Response) {
-  try {
-    const userId = req.user!.userId;
-    const applications = await applicationService.getMyApplications(userId);
-    res.json(applications);
-  } catch (err: any) {
-    if (err.message === 'CANDIDATE_PROFILE_NOT_FOUND')
-      return res.status(400).json({ error: 'No tienes un perfil de candidato.' });
-    console.error('getMyApplications error:', err);
-    res.status(500).json({ error: 'Error interno del servidor.' });
-  }
-}
+export const getMyApplications = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const applications = await applicationService.getMyApplications(req.user!.userId);
+  res.json(applications);
+}, myApplicationsErrorMap, 'getMyApplications');

@@ -1,5 +1,11 @@
 import { prisma } from '../lib/prisma';
-import { supabase } from '../lib/supabase';
+import {
+  getCandidateOrThrow,
+  getCompanyOrThrow,
+  getContractForUser,
+} from '../lib/access/profile-access';
+import { parseOptionalDate } from '../lib/dates/parse-date';
+import { uploadToStorage } from '../lib/storage/upload';
 import { ContractStatus, DeliverableStatus } from '@prisma/client';
 import type {
   CreateDeliverableInput,
@@ -7,37 +13,8 @@ import type {
   SubmitDeliverableInput,
 } from '../lib/validators/contract.validators';
 
-function parseOptionalDate(value?: string): Date | undefined {
-  if (!value) return undefined;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) throw new Error('INVALID_DATE');
-  return date;
-}
-
-async function getContractForUser(contractId: string, userId: string) {
-  const contract = await prisma.contract.findUnique({
-    where: { id: contractId },
-    include: {
-      company: { select: { userId: true, id: true } },
-      candidate: { select: { userId: true, id: true } },
-    },
-  });
-  if (!contract) throw new Error('CONTRACT_NOT_FOUND');
-
-  const company = await prisma.companyProfile.findUnique({ where: { userId } });
-  const candidate = await prisma.candidateProfile.findUnique({ where: { userId } });
-
-  const hasAccess =
-    company?.id === contract.companyId ||
-    candidate?.id === contract.candidateId;
-
-  if (!hasAccess) throw new Error('UNAUTHORIZED');
-  return contract;
-}
-
 async function getDeliverableForCompany(deliverableId: string, userId: string) {
-  const company = await prisma.companyProfile.findUnique({ where: { userId } });
-  if (!company) throw new Error('COMPANY_PROFILE_NOT_FOUND');
+  const company = await getCompanyOrThrow(userId);
 
   const deliverable = await prisma.deliverable.findFirst({
     where: {
@@ -51,8 +28,7 @@ async function getDeliverableForCompany(deliverableId: string, userId: string) {
 }
 
 async function getDeliverableForCandidate(deliverableId: string, userId: string) {
-  const candidate = await prisma.candidateProfile.findUnique({ where: { userId } });
-  if (!candidate) throw new Error('CANDIDATE_NOT_FOUND');
+  const candidate = await getCandidateOrThrow(userId);
 
   const deliverable = await prisma.deliverable.findFirst({
     where: {
@@ -83,8 +59,7 @@ export async function createDeliverable(
   contractId: string,
   data: CreateDeliverableInput
 ) {
-  const company = await prisma.companyProfile.findUnique({ where: { userId } });
-  if (!company) throw new Error('COMPANY_PROFILE_NOT_FOUND');
+  const company = await getCompanyOrThrow(userId);
 
   const contract = await prisma.contract.findFirst({
     where: { id: contractId, companyId: company.id },
@@ -137,14 +112,12 @@ export async function submitDeliverable(
       : mimeType === 'image/png' ? 'png' : 'jpg';
     const fileName = `deliverable_${deliverableId}.${ext}`;
 
-    const { error } = await supabase.storage
-      .from('contracts')
-      .upload(fileName, fileBuffer, { contentType: mimeType, upsert: true });
-
-    if (error) throw new Error('STORAGE_UPLOAD_FAILED');
-
-    const { data: urlData } = supabase.storage.from('contracts').getPublicUrl(fileName);
-    fileUrl = urlData.publicUrl;
+    fileUrl = await uploadToStorage({
+      bucket: 'contracts',
+      fileName,
+      buffer: fileBuffer,
+      mimeType,
+    });
   }
 
   return prisma.deliverable.update({

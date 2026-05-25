@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
-import { handleMulterError } from '../middlewares/upload-error.middleware';
+import {
+  handleMulterError,
+  handleReceiptMulterError,
+} from '../middlewares/upload-error.middleware';
 import {
   uploadContractFile,
   uploadDeliverableFile,
@@ -13,10 +16,8 @@ const router = Router();
 
 router.use(authenticate);
 
-// Mis contratos — empresa y candidato
 router.get('/', contractController.getMyContracts);
 
-// Entregables — rutas estáticas antes de /:id
 router.post(
   '/deliverables/:id/submit',
   authorize('STUDENT', 'GRADUATE'),
@@ -31,26 +32,22 @@ router.patch(
   deliverableController.reviewDeliverable
 );
 
-// Subir comprobante de pago — ruta estática
 router.post(
   '/payments/:id/receipt',
   authorize('COMPANY'),
   uploadDocument.single('receipt'),
-  handleMulterError,
+  handleReceiptMulterError,
   contractController.uploadPaymentReceipt
 );
 
-// Crear contrato — solo empresa
 router.post(
   '/',
   authorize('COMPANY'),
   contractController.createContract
 );
 
-// Detalle de contrato
 router.get('/:id', contractController.getContractById);
 
-// Entregables de un contrato
 router.get(
   '/:id/deliverables',
   authorize('COMPANY', 'STUDENT', 'GRADUATE'),
@@ -63,7 +60,6 @@ router.post(
   deliverableController.createDeliverable
 );
 
-// Subir PDF del contrato — solo empresa
 router.post(
   '/:id/file',
   authorize('COMPANY'),
@@ -72,28 +68,24 @@ router.post(
   contractController.uploadContractFile
 );
 
-// Confirmar contrato — solo candidato
 router.patch(
   '/:id/confirm',
   authorize('STUDENT', 'GRADUATE'),
   contractController.confirmContract
 );
 
-// Cancelar contrato — solo empresa
 router.patch(
   '/:id/cancel',
   authorize('COMPANY'),
   contractController.cancelContract
 );
 
-// Completar contrato — solo empresa
 router.patch(
   '/:id/complete',
   authorize('COMPANY'),
   contractController.completeContract
 );
 
-// Registrar pago — solo empresa
 router.post(
   '/:id/payments',
   authorize('COMPANY'),

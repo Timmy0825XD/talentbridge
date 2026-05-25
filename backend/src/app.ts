@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import profileRoutes from './routes/profile.routes';
 import rankingRoutes from './routes/ranking.routes';
@@ -9,11 +8,10 @@ import applicationRoutes from './routes/application.routes';
 import keywordRoutes from './routes/keyword.routes';
 import notificationRoutes from './routes/notification.routes';
 import contractRoutes from './routes/contract.routes';
-
-dotenv.config();
+import { notFoundHandler } from './middlewares/not-found.middleware';
+import { globalErrorHandler } from './middlewares/global-error.middleware';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
 
 app.use(cors({
   origin: process.env.FRONTEND_URL,
@@ -39,9 +37,7 @@ app.use('/api/keywords', keywordRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/contracts', contractRoutes);
 
-app.listen(PORT, () => {
-  console.log(`🚀 TalentBridge API corriendo en http://localhost:${PORT}`);
-  console.log(`📋 Health check: http://localhost:${PORT}/api/health`);
-});
+app.use(notFoundHandler);
+app.use(globalErrorHandler);
 
 export default app;

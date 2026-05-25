@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma';
-import { supabase } from '../lib/supabase';
+import { uploadToStorage } from '../lib/storage/upload';
 import { extractCvIntelligent, ExtractedKeywords } from '../lib/cv-extractor';
 import { extractCvKeywords } from '../lib/cv-extractor';
 import { computeAndSaveScore } from './ranking.service';
@@ -75,21 +75,20 @@ export async function uploadPhotoToStorage(
 
   const fileName = `${userId}.${ext}`;
 
-  const { error } = await supabase.storage
-    .from('avatars')
-    .upload(fileName, fileBuffer, { contentType: mimeType, upsert: true });
-
-  if (error) throw new Error('STORAGE_UPLOAD_FAILED');
-
-  const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
+  const publicUrl = await uploadToStorage({
+    bucket: 'avatars',
+    fileName,
+    buffer: fileBuffer,
+    mimeType,
+  });
 
   await prisma.candidateProfile.upsert({
     where: { userId },
-    update: { photoUrl: data.publicUrl },
-    create: { userId, photoUrl: data.publicUrl },
+    update: { photoUrl: publicUrl },
+    create: { userId, photoUrl: publicUrl },
   });
 
-  return data.publicUrl;
+  return publicUrl;
 }
 
 // ─── UPLOAD LOGO EMPRESA ─────────────────────────────────────────────────────
@@ -104,21 +103,20 @@ export async function uploadLogoToStorage(
 
   const fileName = `${userId}.${ext}`;
 
-  const { error } = await supabase.storage
-    .from('logos')
-    .upload(fileName, fileBuffer, { contentType: mimeType, upsert: true });
-
-  if (error) throw new Error('STORAGE_UPLOAD_FAILED');
-
-  const { data } = supabase.storage.from('logos').getPublicUrl(fileName);
+  const publicUrl = await uploadToStorage({
+    bucket: 'logos',
+    fileName,
+    buffer: fileBuffer,
+    mimeType,
+  });
 
   await prisma.companyProfile.upsert({
     where: { userId },
-    update: { logoUrl: data.publicUrl },
-    create: { userId, logoUrl: data.publicUrl },
+    update: { logoUrl: publicUrl },
+    create: { userId, logoUrl: publicUrl },
   });
 
-  return data.publicUrl;
+  return publicUrl;
 }
 
 // ─── UPLOAD CV + EXTRACCIÓN INTELIGENTE ──────────────────────────────────────
@@ -130,14 +128,12 @@ export async function uploadCvToStorage(
 ): Promise<string> {
   const fileName = `${userId}_${Date.now()}.pdf`;
 
-  const { error } = await supabase.storage
-    .from('cvs')
-    .upload(fileName, fileBuffer, { contentType: 'application/pdf', upsert: true });
-
-  if (error) throw new Error('STORAGE_UPLOAD_FAILED');
-
-  const { data } = supabase.storage.from('cvs').getPublicUrl(fileName);
-  const cvUrl = data.publicUrl;
+  const cvUrl = await uploadToStorage({
+    bucket: 'cvs',
+    fileName,
+    buffer: fileBuffer,
+    mimeType: 'application/pdf',
+  });
 
   await prisma.candidateProfile.upsert({
     where: { userId },

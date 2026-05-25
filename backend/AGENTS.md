@@ -611,12 +611,11 @@ POST /api/jobs  →  job.service.createJob()
 
 ```
 src/
-├── app.ts
-│   └── CORS, JSON, rutas: auth, profile, ranking, jobs,
-│       applications, keywords, notifications, contracts
+├── server.ts              → dotenv + app.listen (entry point dev/prod)
+├── app.ts                 → Express config, rutas, 404, error handler global
 │
 ├── lib/
-│   ├── prisma.ts          → singleton PrismaClient
+│   ├── prisma.ts          → singleton PrismaClient (query log solo en dev)
 │   ├── jwt.ts             → signToken, verifyToken, JwtPayload
 │   ├── mailer.ts          → sendOtpEmail, sendResetEmail
 │   ├── supabase.ts        → cliente Storage
@@ -624,43 +623,55 @@ src/
 │   ├── gemini.ts          → scoreCompatibility, extractCvIntelligent
 │   ├── cv-extractor.ts    → extractCvKeywords (pdf-parse + keywords BD)
 │   ├── contract-helpers.ts → pickUploadedFile, computePaymentTotals
+│   ├── access/
+│   │   └── profile-access.ts → getCompanyOrThrow, assertContractAccess, etc.
+│   ├── dates/
+│   │   └── parse-date.ts  → parseOptionalDate
+│   ├── storage/
+│   │   └── upload.ts      → uploadToStorage (Supabase)
+│   ├── validation/
+│   │   └── zod-utils.ts   → formatFirstZodIssue
+│   ├── errors/
+│   │   ├── app-error.ts
+│   │   ├── async-handler.ts
+│   │   ├── handle-service-error.ts
+│   │   └── error-maps/    → auth, profile, job, application, contract, etc.
 │   └── validators/
-│       └── contract.validators.ts → schemas Zod contratos/pagos/entregables
+│       └── contract.validators.ts
 │
 ├── middlewares/
-│   ├── auth.middleware.ts → authenticate, authorize, AuthRequest
-│   ├── upload.middleware.ts → uploadCv, uploadPhoto, uploadDocument, uploadContractFile
-│   └── upload-error.middleware.ts → handleMulterError (mensajes en español)
+│   ├── auth.middleware.ts
+│   ├── upload.middleware.ts
+│   ├── upload-error.middleware.ts → createMulterErrorHandler por ruta
+│   ├── not-found.middleware.ts
+│   └── global-error.middleware.ts
 │
 ├── services/
 │   ├── auth.service.ts
 │   ├── profile.service.ts
 │   ├── ranking.service.ts
-│   ├── job.service.ts           → importa notification.service (webhook)
-│   ├── application.service.ts   → ranking + gemini al postular
-│   ├── notification.service.ts  → candidatos elegibles, n8n, Telegram
-│   ├── contract.service.ts      → contratos, pagos, ciclo de vida
-│   └── deliverable.service.ts   → entregables, submit, review
+│   ├── job.service.ts
+│   ├── application.service.ts
+│   ├── notification.service.ts
+│   ├── keyword.service.ts
+│   ├── contract.service.ts
+│   └── deliverable.service.ts
 │
-├── controllers/
-│   ├── auth.controller.ts
-│   ├── profile.controller.ts
-│   ├── ranking.controller.ts
-│   ├── job.controller.ts
-│   ├── application.controller.ts
-│   ├── notification.controller.ts
-│   ├── contract.controller.ts
-│   └── deliverable.controller.ts
+├── controllers/           → asyncHandler + error-maps (sin Prisma directo)
+│   └── ... (todos los dominios + keyword.controller.ts)
 │
-└── routes/
-    ├── auth.routes.ts
-    ├── profile.routes.ts
-    ├── ranking.routes.ts
-    ├── job.routes.ts              → incluye apply + applicants
-    ├── application.routes.ts
-    ├── keyword.routes.ts          → ⚠ excepción: Prisma inline
-    ├── notification.routes.ts
-    └── contract.routes.ts         → contratos + pagos + entregables
+└── routes/                → solo wiring + middlewares
+    └── ...
+```
+
+### Patrón infra para nuevos módulos (Sprint 4+)
+
+```
+1. service → lanza throw new Error('CODIGO') o AppError
+2. lib/errors/error-maps/nombre.errors.ts → mapa código → { status, body }
+3. controller → asyncHandler(handler, errorMap, 'logLabel')
+4. routes → authenticate + authorize + registrar en app.ts
+5. validators en lib/validators/ si aplica Zod
 ```
 
 ---
@@ -686,15 +697,16 @@ npx prisma db seed
 2. npx prisma migrate dev --name descripcion_clara
 3. npx prisma generate
 4. src/services/nombre.service.ts
-5. src/controllers/nombre.controller.ts
-6. src/routes/nombre.routes.ts
-7. Registrar en src/app.ts
-8. Probar (Postman / Thunder Client)
-9. Commit + PR → develop
-10. Actualizar este AGENTS.md (estado, endpoints, mapa)
+5. lib/errors/error-maps/nombre.errors.ts
+6. src/controllers/nombre.controller.ts  (asyncHandler + errorMap)
+7. src/routes/nombre.routes.ts
+8. Registrar en src/app.ts
+9. Probar (Postman / Thunder Client)
+10. Commit + PR → develop
+11. Actualizar este AGENTS.md
 ```
 
-Para endpoints con body: definir schema **Zod** en el controller (objetivo del equipo).
+Para endpoints con body: definir schema **Zod** en `lib/validators/` (contratos ya lo usan).
 
 ---
 
@@ -707,11 +719,10 @@ Registrar aquí evita que agentes “arreglen” cosas sin contexto del sprint.
 | `/notifications/*` sin API key / secret | Alta | Endpoints públicos sensibles |
 | `POST /telegram/register` sin validar identidad | Alta | Cualquiera puede vincular chatId a un userId |
 | Zod solo en módulo contratos | Media | Extender a auth, jobs, profile |
-| `keyword.routes.ts` rompe capas | Media | Mover a service + controller |
 | Tests inexistentes | Media | Priorizar auth, apply, contracts |
-| `err: any` en controllers legacy | Baja | Migrar a `unknown` |
 | Roles ADMIN / INSTITUTION sin API | Sprint 4 | Solo en schema |
 | UI entregables en frontend | Sprint 3 | Oscar — endpoints listos |
+| JWT_EXPIRES_IN / OTP env vars no cableadas | Baja | Hardcoded en jwt.ts / auth.service |
 
 ---
 
@@ -719,7 +730,9 @@ Registrar aquí evita que agentes “arreglen” cosas sin contexto del sprint.
 
 - **No sugerir Prisma 7** bajo ninguna circunstancia
 - **No usar `any`** sin comentario justificando
-- **No mezclar capas** — controller sin Prisma directo (salvo refactor de keywords)
+- **No mezclar capas** — controller sin Prisma directo
+- **Usar asyncHandler + error-maps** en controllers nuevos
+- **Entry point:** `server.ts` (no `app.listen` en app.ts)
 - **No crear rutas en `app.ts`** — usar `routes/`
 - **No hardcodear secretos** — `process.env`
 - **No editar migraciones viejas** — solo agregar nuevas

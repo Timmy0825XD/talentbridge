@@ -1,6 +1,12 @@
 import { prisma } from '../lib/prisma';
-import { supabase } from '../lib/supabase';
 import { computePaymentTotals } from '../lib/contract-helpers';
+import {
+  assertContractAccess,
+  getCandidateOrThrow,
+  getCompanyOrThrow,
+} from '../lib/access/profile-access';
+import { parseOptionalDate } from '../lib/dates/parse-date';
+import { uploadToStorage } from '../lib/storage/upload';
 import {
   ContractStatus,
   DeliverableStatus,
@@ -29,36 +35,6 @@ function enrichContract<T extends { totalAmount: number; payments: { amount: num
 ) {
   const totals = computePaymentTotals(contract.payments, contract.totalAmount);
   return { ...contract, ...totals };
-}
-
-function parseOptionalDate(value?: string): Date | undefined {
-  if (!value) return undefined;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) throw new Error('INVALID_DATE');
-  return date;
-}
-
-async function getCompanyOrThrow(userId: string) {
-  const company = await prisma.companyProfile.findUnique({ where: { userId } });
-  if (!company) throw new Error('COMPANY_PROFILE_NOT_FOUND');
-  return company;
-}
-
-async function getCandidateOrThrow(userId: string) {
-  const candidate = await prisma.candidateProfile.findUnique({ where: { userId } });
-  if (!candidate) throw new Error('CANDIDATE_NOT_FOUND');
-  return candidate;
-}
-
-async function assertContractAccess(userId: string, contract: { companyId: string; candidateId: string }) {
-  const company = await prisma.companyProfile.findUnique({ where: { userId } });
-  const candidate = await prisma.candidateProfile.findUnique({ where: { userId } });
-
-  const hasAccess =
-    company?.id === contract.companyId ||
-    candidate?.id === contract.candidateId;
-
-  if (!hasAccess) throw new Error('UNAUTHORIZED');
 }
 
 // ─── CREAR CONTRATO ───────────────────────────────────────────────────────────
@@ -174,20 +150,19 @@ export async function uploadContractFile(
     : mimeType === 'image/png' ? 'png' : 'jpg';
   const fileName = `contract_${contractId}.${ext}`;
 
-  const { error } = await supabase.storage
-    .from('contracts')
-    .upload(fileName, fileBuffer, { contentType: mimeType, upsert: true });
-
-  if (error) throw new Error('STORAGE_UPLOAD_FAILED');
-
-  const { data } = supabase.storage.from('contracts').getPublicUrl(fileName);
+  const publicUrl = await uploadToStorage({
+    bucket: 'contracts',
+    fileName,
+    buffer: fileBuffer,
+    mimeType,
+  });
 
   await prisma.contract.update({
     where: { id: contractId },
-    data: { contractFileUrl: data.publicUrl },
+    data: { contractFileUrl: publicUrl },
   });
 
-  return data.publicUrl;
+  return publicUrl;
 }
 
 // ─── CONFIRMAR CONTRATO (CANDIDATO) ──────────────────────────────────────────
@@ -345,24 +320,23 @@ export async function uploadPaymentReceipt(
     : mimeType === 'image/png' ? 'png' : 'jpg';
   const fileName = `receipt_${paymentId}.${ext}`;
 
-  const { error } = await supabase.storage
-    .from('contracts')
-    .upload(fileName, fileBuffer, { contentType: mimeType, upsert: true });
-
-  if (error) throw new Error('STORAGE_UPLOAD_FAILED');
-
-  const { data } = supabase.storage.from('contracts').getPublicUrl(fileName);
+  const publicUrl = await uploadToStorage({
+    bucket: 'contracts',
+    fileName,
+    buffer: fileBuffer,
+    mimeType,
+  });
 
   await prisma.payment.update({
     where: { id: paymentId },
     data: {
-      receiptUrl: data.publicUrl,
+      receiptUrl: publicUrl,
       status: PaymentStatus.CONFIRMED,
       confirmedAt: new Date(),
     },
   });
 
-  return data.publicUrl;
+  return publicUrl;
 }
 
 // ─── COMPLETAR CONTRATO ───────────────────────────────────────────────────────
