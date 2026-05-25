@@ -13,18 +13,21 @@ const navLinks: Record<string, { label: string; href: string }[]> = {
     { label: "Dashboard", href: "/dashboard/candidate" },
     { label: "Postulaciones", href: "/dashboard/candidate/postulaciones" },
     { label: "Explorar", href: "/dashboard/candidate/explorar" },
+    { label: "Contratos", href: "/dashboard/candidate/contratos" },
     { label: "Mi Perfil", href: "/profile/candidate" },
   ],
   GRADUATE: [
     { label: "Dashboard", href: "/dashboard/candidate" },
     { label: "Postulaciones", href: "/dashboard/candidate/postulaciones" },
     { label: "Explorar", href: "/dashboard/candidate/explorar" },
+    { label: "Contratos", href: "/dashboard/candidate/contratos" },
     { label: "Mi Perfil", href: "/profile/candidate" },
   ],
   COMPANY: [
     { label: "Dashboard", href: "/dashboard/company" },
     { label: "Mis Vacantes", href: "/dashboard/company/vacantes" },
     { label: "Buscar Talento", href: "/dashboard/company/talento" },
+    { label: "Contratos", href: "/dashboard/company/contratos" },
     { label: "Mi Perfil", href: "/profile/company" },
   ],
 };

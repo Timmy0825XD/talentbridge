@@ -7,49 +7,64 @@ import { ContractStatus, PaymentStatus } from '@prisma/client';
 export async function createContract(
   userId: string,
   data: {
-    jobId: string;
-    candidateProfileId: string;
+    jobId?: string;
+    candidateId: string;
     title: string;
-    description: string;
-    deliverables: string;
+    description?: string;
+    deliverables?: string;
     startDate: string;
     endDate: string;
     totalAmount: number;
-    paymentScheme: string;
+    paymentScheme?: string;
   }
 ) {
   const company = await prisma.companyProfile.findUnique({ where: { userId } });
   if (!company) throw new Error('COMPANY_PROFILE_NOT_FOUND');
 
-  // Verificar que el candidato existe
   const candidate = await prisma.candidateProfile.findUnique({
-    where: { id: data.candidateProfileId },
+    where: { id: data.candidateId },
   });
   if (!candidate) throw new Error('CANDIDATE_NOT_FOUND');
 
+  // Si no viene jobId, buscarlo desde la Application SELECTED del candidato
+  // para esta empresa — así el frontend no necesita enviarlo explícitamente
+  let jobId = data.jobId;
+  if (!jobId) {
+    const application = await prisma.application.findFirst({
+      where: {
+        candidateId: candidate.id,
+        job: { companyId: company.id },
+        status: 'SELECTED',
+      },
+      select: { jobId: true },
+    });
+    if (!application) throw new Error('JOB_NOT_FOUND');
+    jobId = application.jobId;
+  }
+
   // Verificar que la vacante pertenece a esta empresa
   const job = await prisma.job.findFirst({
-    where: { id: data.jobId, companyId: company.id },
+    where: { id: jobId, companyId: company.id },
   });
   if (!job) throw new Error('JOB_NOT_FOUND');
 
   return prisma.contract.create({
     data: {
-      jobId: data.jobId,
-      candidateId: data.candidateProfileId,
-      companyId: company.id,
-      title: data.title,
-      description: data.description,
-      deliverables: data.deliverables,
-      startDate: new Date(data.startDate),
-      endDate: new Date(data.endDate),
-      totalAmount: data.totalAmount,
-      paymentScheme: data.paymentScheme,
+      jobId,
+      candidateId:   data.candidateId,
+      companyId:     company.id,
+      title:         data.title,
+      description:   data.description   ?? '',
+      deliverables:  data.deliverables  ?? '',   // ← nunca undefined
+      startDate: new Date(data.startDate!),
+      endDate: new Date(data.endDate!),
+      totalAmount: data.totalAmount ?? 0,
+      paymentScheme: data.paymentScheme ?? '',
     },
     include: {
       candidate: { select: { fullName: true, user: { select: { email: true } } } },
-      company: { select: { companyName: true } },
-      job: { select: { title: true } },
+      company:   { select: { companyName: true } },
+      job:       { select: { title: true } },
     },
   });
 }
