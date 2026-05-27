@@ -36,6 +36,7 @@ interface Contract {
   job: { id: string; title: string } | null;
   company: { companyName: string | null; city: string | null } | null;
   payments: Payment[];
+  deliverableItems?: import("@/src/types/api").Deliverable[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -335,6 +336,7 @@ export default function ContratoDetallePage() {
             contractId={contractId}
             contractStatus={contract.status}
             role="CANDIDATE"
+            initialDeliverables={contract.deliverableItems}
           />
         </div>
 

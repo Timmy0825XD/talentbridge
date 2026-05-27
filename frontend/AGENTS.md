@@ -26,7 +26,8 @@ comunica con ella a través de un cliente Axios centralizado.
 | React | 19.2.4 | |
 | TypeScript | 5.x | Strict mode activado |
 | Tailwind CSS | 4.x | Sin archivo de config — usa @theme en globals.css |
-| Axios | 1.15.0 | Cliente centralizado en src/lib/api.ts |
+| Axios | 1.15.0 | Cliente centralizado en src/lib/api.ts — **timeout 30s** |
+| @tanstack/react-query | 5.x | Caché de GET compartidos — ver hooks en src/hooks/queries/ |
 | lucide-react | 1.8.0 | Para iconos |
 
 ### Advertencia crítica sobre Tailwind v4
@@ -50,6 +51,13 @@ frontend/
 ├── src/
 │   ├── types/
 │   │   └── api.ts                            # Tipos compartidos — fuente de verdad (Sprint 3)
+│   ├── providers/
+│   │   └── query-provider.tsx                # QueryClientProvider (React Query)
+│   ├── hooks/
+│   │   └── queries/                          # useQuery hooks + query-keys.ts
+│   ├── lib/
+│   │   ├── api.ts                            # Axios + timeout 30s
+│   │   └── query-client.ts                   # Defaults staleTime 60s
 │   ├── components/
 │   │   └── contracts/
 │   │       └── DeliverablesPanel.tsx         # Panel entregables empresa/candidato (Sprint 3)
@@ -104,6 +112,43 @@ frontend/
 
 ---
 
+## Política de performance (obligatoria)
+
+Evidencia DevTools en [`docs/performance/`](../docs/performance/README.md). Todo PR de perf debe documentar fila antes/después.
+
+### Fetching con React Query
+
+- GET compartidos entre páginas → **`useQuery`** en `src/hooks/queries/` + claves en `query-keys.ts`
+- Mutaciones → `useMutation` + `queryClient.invalidateQueries` con la key afectada
+- **Prohibido** `useEffect` + `api.get` en páginas ya migradas a hooks
+- Carga **lazy**: datos solo usados en modales/formularios (ej. applicants al abrir "Nuevo contrato")
+- Spinners **locales** > full-page cuando hay datos parciales visibles
+
+### Hooks disponibles
+
+| Hook | Endpoint |
+|---|---|
+| `useMyApplications` | GET `/applications/me` |
+| `useCandidateProfile` | GET `/profile/candidate` |
+| `useCompanyJobs` | GET `/jobs/company/mine` |
+| `useJobsList(params?)` | GET `/jobs` |
+| `useJobApplicants(id)` | GET `/jobs/:id/applicants` |
+| `useContracts` | GET `/contracts` |
+| `useContractDetail(id)` | GET `/contracts/:id` |
+| `useMyRanking` | GET `/ranking/me` |
+| `useKeywords` | GET `/keywords` (staleTime 5 min) |
+
+### Cliente Axios
+
+- **Timeout:** 30 segundos — errores de timeout deben mostrar mensaje en español + botón reintentar
+- **DeliverablesPanel:** aceptar prop `initialDeliverables` desde `contract.deliverableItems` para evitar refetch duplicado
+
+### Política de no ruptura de API
+
+Optimizar **cómo** se consume la API, nunca cambiar rutas ni eliminar campos del JSON de respuesta.
+
+---
+
 ## Variables de entorno
 
 | Variable | Descripción |
@@ -116,6 +161,7 @@ frontend/
 
 - **Request:** agrega `Authorization: Bearer {tb_token}` automáticamente
 - **Response:** si `401` y ruta no es `/auth/` → limpia localStorage y redirige a `/`
+- **Timeout:** `30_000` ms — peticiones colgadas fallan con error de timeout
 
 ```typescript
 import api from "@/src/lib/api";
@@ -409,3 +455,4 @@ const lbl = "block text-xs font-semibold uppercase tracking-wider text-[#424750]
 - **`/dashboard/company/talento`** — NO implementar hasta que Josheph exponga el endpoint
 - Al agregar página: actualizar tabla de páginas implementadas
 - Al consumir endpoint nuevo: agregarlo a la tabla de endpoints
+- **Performance:** seguir [`docs/performance/`](../docs/performance/README.md) — React Query para GET compartidos, lazy load, evidencia DevTools por PR

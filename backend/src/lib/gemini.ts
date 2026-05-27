@@ -17,15 +17,20 @@ export interface CvExtractionResult {
 
 // ─── HELPER: llamar a Gemini con retry ───────────────────────────────────────
 
-async function callGemini(prompt: string, attempt = 1): Promise<string> {
+let geminiClient: GoogleGenerativeAI | null = null;
+
+function getGeminiModel() {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY no definida');
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
+  if (!geminiClient) geminiClient = new GoogleGenerativeAI(apiKey);
+  return geminiClient.getGenerativeModel({
     model: 'gemini-3.5-flash',
     generationConfig: { responseMimeType: 'application/json' },
   });
+}
+
+async function callGemini(prompt: string, attempt = 1): Promise<string> {
+  const model = getGeminiModel();
 
   try {
     const result = await model.generateContent(prompt);

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import api from "@/src/lib/api";
+import { useCandidateProfile, useKeywords } from "@/src/hooks/queries";
 import {
   ArrowLeft, Save, Upload, X, FileText, User, GraduationCap,
   Briefcase, Wrench, Plus, Globe, Award, FolderGit2, Camera,
@@ -15,6 +16,8 @@ interface Keyword      { id: string; name: string; type: string; }
 interface Certification { name: string; issuer: string; year: string; }
 interface Project       { name: string; description: string; url: string; }
 interface Language      { language: string; level: string; }
+
+const EMPTY_KEYWORDS: Keyword[] = [];
 
 const EMPTY_FORM = {
   fullName:            "",
@@ -132,10 +135,13 @@ export default function CandidateProfilePage() {
   const [cvSuccess, setCvSuccess]           = useState("");
   const [photoError, setPhotoError]         = useState("");
   const [photoSuccess, setPhotoSuccess]     = useState("");
-  const [keywords, setKeywords]             = useState<Keyword[]>([]);
   // Toggle notificaciones
   const [togglingNotifs, setTogglingNotifs] = useState(false);
   const [notifsMsg, setNotifsMsg]           = useState("");
+
+  const { data: profileData } = useCandidateProfile(!!user);
+  const { data: keywordsData } = useKeywords(!!user);
+  const keywords = (keywordsData as Keyword[] | undefined) ?? EMPTY_KEYWORDS;
 
   useEffect(() => {
     if (!isLoading && !user) router.replace("/auth/login");
@@ -143,38 +149,32 @@ export default function CandidateProfilePage() {
   }, [user, isLoading, router]);
 
   useEffect(() => {
-    if (!user) return;
-    Promise.allSettled([api.get("/profile/candidate"), api.get("/keywords")])
-      .then(([profileRes, kwRes]) => {
-        if (profileRes.status === "fulfilled") {
-          const d = profileRes.value.data;
-          setForm({
-            fullName:       d.fullName       ?? "",
-            phone:          d.phone          ?? "",
-            summary:        d.summary        ?? "",
-            career:         d.career         ?? "",
-            institution:    d.institution    ?? "",
-            semester:       d.semester       != null ? String(d.semester) : "",
-            graduationYear: d.graduationYear != null ? String(d.graduationYear) : "",
-            workMode:       d.workMode       ?? "remote",
-            salaryExpected: d.salaryExpected != null ? String(d.salaryExpected) : "",
-            skills:         d.skills         ?? [],
-            softSkills:     d.softSkills     ?? [],
-            languages:      d.languages      ?? [],
-            certifications: (d.certifications ?? []).map((c: Certification) => ({
-              name: c.name ?? "", issuer: c.issuer ?? "", year: c.year != null ? String(c.year) : "",
-            })),
-            projects: (d.projects ?? []).map((p: Project) => ({
-              name: p.name ?? "", description: p.description ?? "", url: p.url ?? "",
-            })),
-            cvUrl:               d.cvUrl               ?? "",
-            photoUrl:            d.photoUrl            ?? "",
-            notificationsEnabled: d.notificationsEnabled ?? true,
-          });
-        }
-        if (kwRes.status === "fulfilled") setKeywords(kwRes.value.data ?? []);
-      });
-  }, [user]);
+    if (!profileData) return;
+    const d = profileData;
+    setForm({
+      fullName:       d.fullName       ?? "",
+      phone:          d.phone          ?? "",
+      summary:        d.summary        ?? "",
+      career:         d.career         ?? "",
+      institution:    d.institution    ?? "",
+      semester:       d.semester       != null ? String(d.semester) : "",
+      graduationYear: d.graduationYear != null ? String(d.graduationYear) : "",
+      workMode:       d.workMode       ?? "remote",
+      salaryExpected: d.salaryExpected != null ? String(d.salaryExpected) : "",
+      skills:         d.skills         ?? [],
+      softSkills:     d.softSkills     ?? [],
+      languages:      d.languages      ?? [],
+      certifications: (d.certifications ?? []).map((c: Certification) => ({
+        name: c.name ?? "", issuer: c.issuer ?? "", year: c.year != null ? String(c.year) : "",
+      })),
+      projects: (d.projects ?? []).map((p: Project) => ({
+        name: p.name ?? "", description: p.description ?? "", url: p.url ?? "",
+      })),
+      cvUrl:               d.cvUrl               ?? "",
+      photoUrl:            d.photoUrl            ?? "",
+      notificationsEnabled: d.notificationsEnabled ?? true,
+    });
+  }, [profileData]);
 
   function set<K extends keyof typeof EMPTY_FORM>(field: K, value: typeof EMPTY_FORM[K]) {
     setForm(prev => ({ ...prev, [field]: value }));

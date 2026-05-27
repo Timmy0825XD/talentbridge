@@ -6,18 +6,18 @@ import { scoreCompatibility } from '../lib/gemini';
 // ─── POSTULARSE A UNA VACANTE ─────────────────────────────────────────────────
 
 export async function applyToJob(userId: string, jobId: string) {
-  const job = await prisma.job.findUnique({
-    where: { id: jobId },
-    include: { rankConfig: true },
-  });
+  const [job, candidate] = await Promise.all([
+    prisma.job.findUnique({
+      where: { id: jobId },
+      include: { rankConfig: true },
+    }),
+    prisma.candidateProfile.findUnique({
+      where: { userId },
+    }),
+  ]);
 
   if (!job) throw new Error('JOB_NOT_FOUND');
   if (job.status !== 'ACTIVE') throw new Error('JOB_NOT_ACTIVE');
-
-  const candidate = await prisma.candidateProfile.findUnique({
-    where: { userId },
-  });
-
   if (!candidate) throw new Error('CANDIDATE_PROFILE_NOT_FOUND');
 
   const existing = await prisma.application.findUnique({

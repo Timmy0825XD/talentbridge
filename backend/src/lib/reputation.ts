@@ -1,23 +1,20 @@
 import { RatingRaterRole } from '@prisma/client';
 import { prisma } from './prisma';
 
-function averageOverall(scores: number[]): number {
-  if (scores.length === 0) return 0;
-  const sum = scores.reduce((acc, s) => acc + s, 0);
-  return Math.round((sum / scores.length) * 100) / 100;
-}
-
 export async function recalculateCandidateReputation(candidateId: string): Promise<void> {
-  const ratings = await prisma.contractRating.findMany({
+  const agg = await prisma.contractRating.aggregate({
     where: {
       raterRole: RatingRaterRole.COMPANY,
       contract: { candidateId },
     },
-    select: { overallScore: true },
+    _avg: { overallScore: true },
+    _count: { overallScore: true },
   });
 
-  const reputationAvg = averageOverall(ratings.map(r => r.overallScore));
-  const ratingCount = ratings.length;
+  const ratingCount = agg._count.overallScore;
+  const reputationAvg = ratingCount > 0
+    ? Math.round((agg._avg.overallScore ?? 0) * 100) / 100
+    : 0;
 
   await prisma.candidateProfile.update({
     where: { id: candidateId },
@@ -26,16 +23,19 @@ export async function recalculateCandidateReputation(candidateId: string): Promi
 }
 
 export async function recalculateCompanyReputation(companyId: string): Promise<void> {
-  const ratings = await prisma.contractRating.findMany({
+  const agg = await prisma.contractRating.aggregate({
     where: {
       raterRole: RatingRaterRole.CANDIDATE,
       contract: { companyId },
     },
-    select: { overallScore: true },
+    _avg: { overallScore: true },
+    _count: { overallScore: true },
   });
 
-  const reputationAvg = averageOverall(ratings.map(r => r.overallScore));
-  const ratingCount = ratings.length;
+  const ratingCount = agg._count.overallScore;
+  const reputationAvg = ratingCount > 0
+    ? Math.round((agg._avg.overallScore ?? 0) * 100) / 100
+    : 0;
 
   await prisma.companyProfile.update({
     where: { id: companyId },

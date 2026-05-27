@@ -30,6 +30,14 @@ const contractInclude = {
   _count: { select: { payments: true, deliverableItems: true } },
 };
 
+/** Listado: sin arrays de pagos/entregables — detalle sigue usando contractInclude */
+const contractListInclude = {
+  candidate: { select: { fullName: true, photoUrl: true } },
+  company: { select: { companyName: true, logoUrl: true } },
+  job: { select: { title: true } },
+  _count: { select: { payments: true, deliverableItems: true } },
+};
+
 function enrichContract<T extends { totalAmount: number; payments: { amount: number; status: PaymentStatus }[] }>(
   contract: T
 ) {
@@ -116,12 +124,15 @@ export async function createContract(userId: string, data: CreateContractInput) 
     return created;
   });
 
-  const full = await prisma.contract.findUnique({
-    where: { id: contract.id },
-    include: contractInclude,
-  });
+  if (data.items?.length) {
+    const full = await prisma.contract.findUnique({
+      where: { id: contract.id },
+      include: contractInclude,
+    });
+    return enrichContract(full!);
+  }
 
-  return enrichContract(full!);
+  return enrichContract(contract);
 }
 
 // ─── SUBIR PDF DEL CONTRATO ───────────────────────────────────────────────────
@@ -222,25 +233,15 @@ export async function cancelContract(userId: string, contractId: string) {
 // ─── MIS CONTRATOS ────────────────────────────────────────────────────────────
 
 export async function getMyContracts(userId: string, role: string) {
-  let contracts;
+  const where = role === 'COMPANY'
+    ? { company: { userId } }
+    : { candidate: { userId } };
 
-  if (role === 'COMPANY') {
-    const company = await getCompanyOrThrow(userId);
-    contracts = await prisma.contract.findMany({
-      where: { companyId: company.id },
-      include: contractInclude,
-      orderBy: { createdAt: 'desc' },
-    });
-  } else {
-    const candidate = await getCandidateOrThrow(userId);
-    contracts = await prisma.contract.findMany({
-      where: { candidateId: candidate.id },
-      include: contractInclude,
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  return contracts.map(enrichContract);
+  return prisma.contract.findMany({
+    where,
+    include: contractListInclude,
+    orderBy: { createdAt: 'desc' },
+  });
 }
 
 // ─── DETALLE DEL CONTRATO ─────────────────────────────────────────────────────

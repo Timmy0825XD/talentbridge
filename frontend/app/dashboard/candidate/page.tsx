@@ -2,16 +2,17 @@
 
 import { useAuth } from "@/src/context/auth-context";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
-import api from "@/src/lib/api";
-import { ProfileScoreResponse, ApplicationWithJob, Contract } from "@/src/types/api";
+import {
+  useMyApplications,
+  useMyRanking,
+  useContracts,
+} from "@/src/hooks/queries";
 import {
   Send, ArrowRight, GraduationCap, FileText, Pencil,
   Briefcase, CheckCircle2, Clock, AlertCircle, Star,
 } from "lucide-react";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const roleLabel: Record<string, string> = {
   STUDENT: "Estudiante",
@@ -32,37 +33,20 @@ const CONTRACT_STATUS_LABEL: Record<string, string> = {
   CANCELLED:         "Cancelado",
 };
 
-// ─── Componente ───────────────────────────────────────────────────────────────
-
 export default function CandidateDashboardPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const enabled = !!user && user.role !== "COMPANY";
 
-  const [score, setScore]             = useState<ProfileScoreResponse | null>(null);
-  const [applications, setApplications] = useState<ApplicationWithJob[]>([]);
-  const [contracts, setContracts]     = useState<Contract[]>([]);
-  const [loading, setLoading]         = useState(true);
+  const { data: score = null, isLoading: scoreLoading } = useMyRanking(enabled);
+  const { data: applications = [], isLoading: appsLoading } = useMyApplications(enabled);
+  const { data: contracts = [], isLoading: contractsLoading } = useContracts(enabled);
+
+  const loading = scoreLoading || appsLoading || contractsLoading;
 
   useEffect(() => {
     if (!isLoading && user?.role === "COMPANY") router.replace("/dashboard/company");
   }, [user, isLoading, router]);
-
-  useEffect(() => {
-    if (user) loadAll();
-  }, [user]);
-
-  async function loadAll() {
-    setLoading(true);
-    const [scoreRes, appsRes, contractsRes] = await Promise.allSettled([
-      api.get<ProfileScoreResponse>("/ranking/me"),
-      api.get<ApplicationWithJob[]>("/applications/me"),
-      api.get<Contract[]>("/contracts"),
-    ]);
-    if (scoreRes.status === "fulfilled")     setScore(scoreRes.value.data);
-    if (appsRes.status === "fulfilled")      setApplications(appsRes.value.data);
-    if (contractsRes.status === "fulfilled") setContracts(contractsRes.value.data);
-    setLoading(false);
-  }
 
   if (isLoading || !user) {
     return (
@@ -72,12 +56,11 @@ export default function CandidateDashboardPage() {
     );
   }
 
-  // Datos calculados
-  const activeApps     = applications.filter(a => a.status !== "REJECTED");
+  const activeApps      = applications.filter(a => a.status !== "REJECTED");
   const activeContracts = contracts.filter(c => c.status === "ACTIVE");
   const pendingContracts = contracts.filter(c => c.status === "PENDING_CANDIDATE");
-  const scoreValue     = score ? Math.round(score.totalScore) : null;
-  const topSuggestions = score?.suggestions?.slice(0, 2) ?? [];
+  const scoreValue      = score ? Math.round(score.totalScore) : null;
+  const topSuggestions  = score?.suggestions?.slice(0, 2) ?? [];
 
   const scoreLabel = scoreValue === null ? "—"
     : scoreValue >= 80 ? "Excelente"
@@ -120,8 +103,6 @@ export default function CandidateDashboardPage() {
 
   return (
     <main className="pb-20 px-8 pt-8 max-w-screen-2xl mx-auto space-y-12">
-
-      {/* Hero */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-end">
         <div className="lg:col-span-7">
           <h1 className="text-5xl lg:text-6xl font-headline font-extrabold text-[#00386c] tracking-tight leading-tight">
@@ -136,8 +117,7 @@ export default function CandidateDashboardPage() {
           </p>
         </div>
 
-        {/* Alerta contratos pendientes */}
-        {pendingContracts.length > 0 && (
+        {pendingContracts.length > 0 ? (
           <div className="lg:col-span-5 flex justify-end">
             <Link href="/dashboard/candidate/contratos"
               className="bg-[#fff3cd] border border-[#ffc107]/30 rounded-xl p-5 flex items-center gap-4 w-full lg:w-auto hover:shadow-md transition-all">
@@ -155,9 +135,7 @@ export default function CandidateDashboardPage() {
               </span>
             </Link>
           </div>
-        )}
-
-        {pendingContracts.length === 0 && (
+        ) : (
           <div className="lg:col-span-5 flex justify-end">
             <div className="bg-[#f2f4f6] rounded-xl p-5 flex items-center gap-4 w-full lg:w-auto">
               <div className="flex -space-x-3">
@@ -177,7 +155,6 @@ export default function CandidateDashboardPage() {
         )}
       </section>
 
-      {/* Stats */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {statsCards.map(({ icon, label, value, sub, bg, textValue, textSub, textLabel }) => (
           <div key={label} className={`${bg} p-8 rounded-xl flex flex-col justify-between h-48`}>
@@ -194,8 +171,6 @@ export default function CandidateDashboardPage() {
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-
-        {/* Postulaciones recientes */}
         <div className="lg:col-span-8 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-headline font-bold text-[#00386c]">Postulaciones activas</h2>
@@ -258,14 +233,11 @@ export default function CandidateDashboardPage() {
           )}
         </div>
 
-        {/* Sidebar — perfil y score */}
         <div className="lg:col-span-4 space-y-6">
           <h2 className="text-2xl font-headline font-bold text-[#00386c]">Tu hoja de vida</h2>
           <div className="bg-[#f2f4f6] rounded-xl p-8 relative overflow-hidden">
             <div className="absolute -right-8 -top-8 w-40 h-40 bg-[#006d37]/10 rounded-full blur-2xl" />
             <div className="relative z-10 space-y-6">
-
-              {/* Score real */}
               <div className="flex items-center gap-4">
                 <div className="relative w-16 h-16 flex-shrink-0">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 64 64">
@@ -290,7 +262,6 @@ export default function CandidateDashboardPage() {
                 </div>
               </div>
 
-              {/* Sugerencias reales */}
               {topSuggestions.length > 0 && (
                 <div className="space-y-2">
                   {topSuggestions.map((s, i) => (
@@ -321,7 +292,6 @@ export default function CandidateDashboardPage() {
             </div>
           </div>
 
-          {/* Contratos activos mini-lista */}
           {activeContracts.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-sm font-bold text-[#424750] uppercase tracking-wider">Contratos activos</h3>
@@ -348,7 +318,6 @@ export default function CandidateDashboardPage() {
         </div>
       </section>
 
-      {/* CTA Explorar */}
       <section className="bg-gradient-to-br from-[#00386c] to-[#1a4f8b] rounded-2xl p-10 flex flex-col md:flex-row items-center justify-between gap-6">
         <div>
           <h2 className="text-2xl font-headline font-extrabold text-white">
@@ -363,7 +332,6 @@ export default function CandidateDashboardPage() {
           Explorar vacantes <ArrowRight className="w-4 h-4" />
         </Link>
       </section>
-
     </main>
   );
 }
