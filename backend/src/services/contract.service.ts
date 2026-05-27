@@ -369,9 +369,21 @@ export async function completeContract(userId: string, contractId: string) {
 
   const updated = await prisma.contract.update({
     where: { id: contractId },
-    data: { status: ContractStatus.COMPLETED },
+    data: {
+      status: ContractStatus.COMPLETED,
+      completedAt: new Date(),
+    },
     include: contractInclude,
   });
 
-  return enrichContract(updated);
+  const enriched = enrichContract(updated);
+  const ratings = await prisma.contractRating.findMany({
+    where: { contractId },
+    select: { raterRole: true },
+  });
+
+  return {
+    ...enriched,
+    ratingsPending: ratings.length < 2,
+  };
 }

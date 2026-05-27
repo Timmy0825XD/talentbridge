@@ -8,6 +8,11 @@ import applicationRoutes from './routes/application.routes';
 import keywordRoutes from './routes/keyword.routes';
 import notificationRoutes from './routes/notification.routes';
 import contractRoutes from './routes/contract.routes';
+import candidateRoutes from './routes/candidate.routes';
+import dashboardRoutes from './routes/dashboard.routes';
+import taxRoutes from './routes/tax.routes';
+import adminRoutes from './routes/admin.routes';
+import institutionRoutes from './routes/institution.routes';
 import { notFoundHandler } from './middlewares/not-found.middleware';
 import { globalErrorHandler } from './middlewares/global-error.middleware';
 
@@ -36,6 +41,11 @@ app.use('/api/applications', applicationRoutes);
 app.use('/api/keywords', keywordRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/contracts', contractRoutes);
+app.use('/api/candidates', candidateRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/tax', taxRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/institution', institutionRoutes);
 
 app.use(notFoundHandler);
 app.use(globalErrorHandler);

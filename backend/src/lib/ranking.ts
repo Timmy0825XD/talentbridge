@@ -130,7 +130,6 @@ function scoreCertsAndLanguages(certifications: any, languages: any): number {
 
 // ─── CRITERIO 5: Reputación (10%) ─────────────────────────────────────────────
 function scoreReputation(reputationScore?: number): number {
-  // Neutro para candidatos nuevos — se activa en Sprint 4
   if (!reputationScore || reputationScore === 0) return 50;
   return Math.round(((reputationScore - 1) / 4) * 100);
 }

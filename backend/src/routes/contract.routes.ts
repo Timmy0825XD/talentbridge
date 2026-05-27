@@ -11,6 +11,8 @@ import {
 } from '../middlewares/upload.middleware';
 import * as contractController from '../controllers/contract.controller';
 import * as deliverableController from '../controllers/deliverable.controller';
+import * as ratingController from '../controllers/rating.controller';
+import * as reportController from '../controllers/report.controller';
 
 const router = Router();
 
@@ -49,6 +51,12 @@ router.post(
 router.get('/:id', contractController.getContractById);
 
 router.get(
+  '/:id/report',
+  authorize('COMPANY'),
+  reportController.downloadContractReport
+);
+
+router.get(
   '/:id/deliverables',
   authorize('COMPANY', 'STUDENT', 'GRADUATE'),
   deliverableController.getDeliverables
@@ -84,6 +92,20 @@ router.patch(
   '/:id/complete',
   authorize('COMPANY'),
   contractController.completeContract
+);
+
+router.get('/:id/ratings', ratingController.getContractRatings);
+
+router.post(
+  '/:id/ratings/company',
+  authorize('COMPANY'),
+  ratingController.rateCandidate
+);
+
+router.post(
+  '/:id/ratings/candidate',
+  authorize('STUDENT', 'GRADUATE'),
+  ratingController.rateCompany
 );
 
 router.post(
