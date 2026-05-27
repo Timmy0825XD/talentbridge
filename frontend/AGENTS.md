@@ -31,17 +31,15 @@ comunica con ella a través de un cliente Axios centralizado.
 
 ### Advertencia crítica sobre Tailwind v4
 
-Este proyecto usa **Tailwind CSS v4** que tiene cambios importantes respecto a v3:
 - **No existe `tailwind.config.ts`** — los colores y tokens se definen en `globals.css` con `@theme`
 - Se importa con `@import "tailwindcss"` en vez de las directivas `@tailwind base/components/utilities`
-- No usar `tailwind.config.js/ts` — reportar al Scrum Master si alguien lo crea
+- No crear `tailwind.config.js/ts` bajo ninguna circunstancia
 
 ---
 
 ## Sistema operativo del equipo
 
 Los tres integrantes trabajan en **Windows** con **Git Bash** como terminal.
-Todos los comandos y rutas deben ser compatibles con Windows.
 
 ---
 
@@ -56,8 +54,8 @@ frontend/
 │   │   └── contracts/
 │   │       └── DeliverablesPanel.tsx         # Panel entregables empresa/candidato (Sprint 3)
 │   ├── app/
-│   │   ├── layout.tsx                        # Layout raíz — fuentes, metadata, AuthProvider
-│   │   ├── page.tsx                          # Landing page público
+│   │   ├── layout.tsx
+│   │   ├── page.tsx                          # Landing
 │   │   ├── auth/
 │   │   │   ├── login/page.tsx
 │   │   │   ├── register/page.tsx
@@ -65,24 +63,23 @@ frontend/
 │   │   │   ├── forgot-password/page.tsx
 │   │   │   └── reset-password/page.tsx
 │   │   ├── dashboard/
-│   │   │   ├── layout.tsx                    # Header compartido con nav dinámico por rol
+│   │   │   ├── layout.tsx                    # Header + nav dinámico + protección de ruta
 │   │   │   ├── candidate/
-│   │   │   │   ├── page.tsx                  # Dashboard candidato (datos mock — Sprint 4)
-│   │   │   │   ├── explorar/page.tsx         # Explorar empleos — master/detail + filtros + score real
-│   │   │   │   ├── postulaciones/page.tsx    # Postulaciones candidato — tabs activas/historial (Sprint 3)
+│   │   │   │   ├── page.tsx                  # Dashboard candidato — API real (Sprint 3)
+│   │   │   │   ├── explorar/page.tsx         # Explorar empleos — score real
+│   │   │   │   ├── postulaciones/page.tsx    # Postulaciones — tabs activas/historial (Sprint 3)
 │   │   │   │   └── contratos/
 │   │   │   │       ├── page.tsx              # Lista contratos candidato
-│   │   │   │       └── [id]/page.tsx         # Detalle — confirmar, guard PDF, pagos, entregables
+│   │   │   │       └── [id]/page.tsx         # Detalle — confirmar, PDF, pagos, entregables
 │   │   │   └── company/
 │   │   │       ├── page.tsx                  # Dashboard empresa — API real
 │   │   │       ├── vacantes/
 │   │   │       │   ├── page.tsx
-│   │   │       │   ├── _components/
-│   │   │       │   │   └── JobForm.tsx
+│   │   │       │   ├── _components/JobForm.tsx
 │   │   │       │   └── [id]/postulantes/page.tsx
 │   │   │       ├── contratos/
-│   │   │       │   ├── page.tsx              # Lista contratos empresa — filtros, stats
-│   │   │       │   ├── [id]/page.tsx         # Detalle — PDF, pagos, entregables, completar, cancelar
+│   │   │       │   ├── page.tsx              # Lista contratos empresa
+│   │   │       │   ├── [id]/page.tsx         # Detalle — PDF, pagos, entregables, campos enriquecidos, completar, cancelar
 │   │   │       │   └── _components/
 │   │   │       │       └── CreateContractForm.tsx
 │   │   │       └── talento/page.tsx          # Pendiente Sprint 3
@@ -92,27 +89,19 @@ frontend/
 │   ├── context/
 │   │   └── auth-context.tsx
 │   └── lib/
-│       └── api.ts                            # Cliente Axios centralizado con interceptores
-├── .env.local
-├── .env.example
-├── next.config.ts
-├── postcss.config.mjs
-└── package.json
+│       └── api.ts
 ```
 
 ### Reglas de arquitectura
 
-- **Todas las páginas** van dentro de `src/app/` siguiendo el App Router de Next.js
-- **Rutas de candidato** van dentro de `dashboard/candidate/` — nunca en `dashboard/` directamente
-- **Rutas de empresa** van dentro de `dashboard/company/` — nunca en `dashboard/` directamente
-- **El layout del dashboard** (`dashboard/layout.tsx`) maneja el header y la protección de ruta
-- **Componentes de cliente** (`useState`, `useEffect`, hooks) deben tener `"use client"` al inicio
-- **El cliente Axios** (`src/lib/api.ts`) es el único punto de comunicación con el backend
-- **El contexto de auth** (`src/context/auth-context.tsx`) es la única fuente de verdad de la sesión
-- **Nunca acceder a `localStorage` directamente** — usar el contexto de auth
-- **Tipos compartidos** en `src/types/api.ts` — nunca redefinir interfaces del backend en cada página
-- **Componentes reutilizables** en `src/components/` — no duplicar lógica entre páginas
-- **Componentes internos de una página** van en `_components/` al mismo nivel que `page.tsx`
+- **`src/types/api.ts`** — fuente de verdad para tipos del backend, nunca redefinir interfaces localmente
+- **`src/components/`** — componentes reutilizables entre rutas distintas (ej. `DeliverablesPanel`)
+- **`_components/`** — componentes internos de una sola página, al mismo nivel que `page.tsx`
+- **Rutas de candidato** en `dashboard/candidate/` — nunca en `dashboard/` directamente
+- **Rutas de empresa** en `dashboard/company/` — nunca en `dashboard/` directamente
+- **`"use client"`** en todo componente con hooks o eventos del browser
+- **`api`** de `@/src/lib/api` — nunca `fetch` directo
+- **`useAuth()`** — nunca `localStorage` directo
 
 ---
 
@@ -120,34 +109,39 @@ frontend/
 
 | Variable | Descripción |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | URL base de la API del backend (ej: `http://localhost:3001/api`) |
+| `NEXT_PUBLIC_API_URL` | URL base del backend (ej: `http://localhost:3001/api`) |
 
 ---
 
 ## Cliente Axios — src/lib/api.ts
 
-**Interceptor de request:** lee `tb_token` de localStorage y lo agrega como `Authorization: Bearer TOKEN`.
-
-**Interceptor de response:** si el backend responde `401` y la ruta NO es `/auth/` → limpia localStorage y redirige a `/`.
+- **Request:** agrega `Authorization: Bearer {tb_token}` automáticamente
+- **Response:** si `401` y ruta no es `/auth/` → limpia localStorage y redirige a `/`
 
 ```typescript
 import api from "@/src/lib/api";
-const res = await api.get("/profile/candidate");
+const res = await api.get("/contracts");
 ```
 
 ---
 
 ## Tipos compartidos — src/types/api.ts
 
-Fuente de verdad para todos los tipos del backend. Importar siempre desde aquí:
+Importar siempre desde aquí, nunca redefinir:
 
 ```typescript
-import { ProfileScoreResponse, Contract, PaymentScheme, ApplicationWithJob, Deliverable } from "@/src/types/api";
+import {
+  ProfileScoreResponse, Contract, PaymentScheme,
+  ApplicationWithJob, Deliverable, DeliverableStatus
+} from "@/src/types/api";
 ```
 
-**Enums:** `UserRole`, `JobStatus`, `JobType`, `WorkMode`, `ApplicationStatus`, `ContractStatus`, `PaymentStatus`, `PaymentScheme`, `DeliverableStatus`
+**Enums:** `UserRole`, `JobStatus`, `JobType`, `WorkMode`, `ApplicationStatus`,
+`ContractStatus`, `PaymentStatus`, `PaymentScheme`, `DeliverableStatus`
 
-**Interfaces:** `LoginResponse`, `RegisterResponse`, `ProfileScoreResponse`, `JobListItem`, `JobsListResponse`, `ApplicationWithJob`, `ApplyResponse`, `Payment`, `Deliverable`, `Contract`
+**Interfaces:** `LoginResponse`, `RegisterResponse`, `ProfileScoreResponse`,
+`JobListItem`, `JobsListResponse`, `ApplicationWithJob`, `ApplyResponse`,
+`Payment`, `Deliverable`, `Contract`
 
 **Payloads:** `CreateContractPayload`, `CreatePaymentPayload`, `ReviewDeliverablePayload`
 
@@ -155,27 +149,49 @@ import { ProfileScoreResponse, Contract, PaymentScheme, ApplicationWithJob, Deli
 
 ## DeliverablesPanel — src/components/contracts/DeliverablesPanel.tsx
 
-Componente compartido que gestiona los entregables/hitos de un contrato. Se comporta distinto según `role`:
+Componente compartido para gestión de entregables/hitos. Usado en detalle
+contrato empresa y candidato.
 
 ```tsx
 <DeliverablesPanel
   contractId={contractId}
-  contractStatus={contract.status}   // controla si las acciones están habilitadas
+  contractStatus={contract.status}   // acciones solo habilitadas si ACTIVE
   role="COMPANY"                     // "COMPANY" | "CANDIDATE"
 />
 ```
 
-**Empresa (`role="COMPANY"`):**
-- Lista entregables con estado expandible
-- Crear nuevo hito (`POST /contracts/:id/deliverables`)
-- Aprobar o rechazar con feedback (`PATCH /contracts/deliverables/:id/review`)
+| Role | Puede hacer |
+|---|---|
+| `COMPANY` | Crear hitos, aprobar/rechazar con feedback |
+| `CANDIDATE` | Enviar archivo + notas, reenviar si rechazado |
 
-**Candidato (`role="CANDIDATE"`):**
-- Lista entregables con estado expandible
-- Enviar archivo + notas (`POST /contracts/deliverables/:id/submit`)
-- Reenviar si fue rechazado
+Endpoints que consume internamente:
+- `GET /contracts/:id/deliverables`
+- `POST /contracts/:id/deliverables` (empresa)
+- `POST /contracts/deliverables/:id/submit` (candidato)
+- `PATCH /contracts/deliverables/:id/review` (empresa)
 
-Las acciones solo están habilitadas si `contractStatus === "ACTIVE"`.
+---
+
+## Dashboard candidato — datos reales (Sprint 3)
+
+`dashboard/candidate/page.tsx` consume en paralelo con `Promise.allSettled`:
+- `GET /ranking/me` → score real + sugerencias
+- `GET /applications/me` → postulaciones activas
+- `GET /contracts` → contratos activos y pendientes
+
+Muestra: score animado, postulaciones recientes con % match y estado,
+mini-lista contratos activos, alerta si hay contratos pendientes de confirmar,
+CTA a explorar.
+
+---
+
+## Detalle contrato empresa — campos enriquecidos (Sprint 3)
+
+`dashboard/company/contratos/[id]/page.tsx` muestra adicionalmente:
+- `paymentScheme` como badge traducido (Pago único / Por hitos / Periódico)
+- `paidAmount` y `remainingAmount` del backend (no recalculados)
+- `confirmedAt` y `cancelledAt` cuando existen
 
 ---
 
@@ -183,29 +199,33 @@ Las acciones solo están habilitadas si `contractStatus === "ACTIVE"`.
 
 ```typescript
 const { user, login, logout, isLoading } = useAuth();
-// user.userId, user.role, user.token
+// user.userId | user.role | user.token
 ```
 
 Sesión en localStorage: `tb_token`, `tb_role`, `tb_userId`
 
-Redirección por rol en `login()`: `STUDENT/GRADUATE → /dashboard/candidate`, `COMPANY → /dashboard/company`
+Redirección por rol: `STUDENT/GRADUATE → /dashboard/candidate`, `COMPANY → /dashboard/company`
 
 ---
 
 ## Sistema de diseño — Colores
 
-| Token | Valor hex | Uso |
-|---|---|---|
-| `#00386c` | Azul | Candidato — títulos, botones, nav |
-| `#006d37` | Verde | Empresa — acentos, botones |
-| `#f7f9fb` | Gris claro | Fondo general |
-| `#191c1e` | Negro suave | Texto principal |
-| `#ba1a1a` | Rojo | Errores |
+| Hex | Uso |
+|---|---|
+| `#00386c` | Azul — candidato, títulos, botones primarios |
+| `#006d37` | Verde — empresa, acciones positivas |
+| `#f7f9fb` | Fondo general |
+| `#191c1e` | Texto principal |
+| `#424750` | Texto secundario |
+| `#737781` | Texto terciario, placeholders |
+| `#ba1a1a` | Error |
+| `#ffdad6` | Fondo error |
+| `#6bfe9c` | Verde claro — éxito, badges |
 
-**Usar siempre como colores inline** — Tailwind v4 no expone tokens `@theme` como clases utilitarias:
+**Siempre inline** — Tailwind v4 no expone tokens `@theme` como clases:
 ```tsx
-className="bg-[#00386c] text-white"  // ✅
-className="bg-primary"               // ❌
+className="bg-[#00386c]"  // ✅
+className="bg-primary"    // ❌
 ```
 
 ---
@@ -223,7 +243,7 @@ useEffect(() => { if (user) loadData(); }, [user]);
 async function loadData() {
   setLoading(true);
   try {
-    const res = await api.get('/mi-endpoint');
+    const res = await api.get('/endpoint');
     setData(res.data);
   } catch {
     setError('Mensaje en español.');
@@ -231,6 +251,15 @@ async function loadData() {
     setLoading(false);
   }
 }
+```
+
+### Peticiones paralelas (preferir sobre secuenciales)
+```typescript
+const [resA, resB] = await Promise.allSettled([
+  api.get('/endpoint-a'),
+  api.get('/endpoint-b'),
+]);
+if (resA.status === 'fulfilled') setDataA(resA.value.data);
 ```
 
 ### Manejo de errores Axios
@@ -244,13 +273,13 @@ async function loadData() {
 ### Subida de archivos
 ```typescript
 const fd = new FormData();
-fd.append("file", file);   // nombre exacto según tabla de campos multipart
+fd.append("file", file);   // nombre exacto según tabla multipart
 await api.post("/contracts/:id/file", fd, {
   headers: { "Content-Type": "multipart/form-data" }
 });
 ```
 
-### Inputs — estilo estándar del proyecto
+### Inputs y labels — estilo estándar
 ```typescript
 const inp = "w-full bg-[#f2f4f6] border-0 border-b-2 border-transparent focus:border-[#006d37] focus:ring-0 rounded-lg px-4 py-3 text-sm text-[#191c1e] placeholder:text-[#737781] outline-none transition-all";
 const lbl = "block text-xs font-semibold uppercase tracking-wider text-[#424750] mb-2";
@@ -260,7 +289,7 @@ const lbl = "block text-xs font-semibold uppercase tracking-wider text-[#424750]
 
 ## Campos multipart — nombres exactos
 
-| Acción | Campo FormData | Tipos | Límite |
+| Acción | Campo | Tipos | Límite |
 |---|---|---|---|
 | CV candidato | `cv` | PDF | 5MB |
 | Foto candidato | `photo` | JPG/PNG/WebP | 2MB |
@@ -269,13 +298,11 @@ const lbl = "block text-xs font-semibold uppercase tracking-wider text-[#424750]
 | Comprobante pago | `receipt` | PDF/imagen | 10MB |
 | Entregable | `file` | PDF/imagen | 10MB |
 
-**Nota:** La UI valida foto/logo a 3MB pero el backend limita a 2MB — pendiente corregir en Sprint 3.
+**Nota:** UI valida foto/logo a 3MB pero backend limita a 2MB — pendiente corregir.
 
 ---
 
-## Endpoints del backend consumidos
-
-Base URL: `NEXT_PUBLIC_API_URL` (ej. `http://localhost:3001/api`)
+## Endpoints consumidos
 
 | Método | Ruta | Usado en | Estado |
 |---|---|---|---|
@@ -286,12 +313,12 @@ Base URL: `NEXT_PUBLIC_API_URL` (ej. `http://localhost:3001/api`)
 | POST | `/auth/forgot-password` | `/auth/forgot-password` | ✅ |
 | POST | `/auth/reset-password` | `/auth/reset-password` | ✅ |
 | GET | `/profile/candidate` | perfil, dashboard, explorar | ✅ |
-| PUT | `/profile/candidate` | `/profile/candidate` | ✅ |
-| POST | `/profile/candidate/cv` | `/profile/candidate` | ✅ |
-| POST | `/profile/candidate/photo` | `/profile/candidate` | ✅ |
-| GET | `/profile/company` | `/profile/company` | ✅ |
-| PUT | `/profile/company` | `/profile/company` | ✅ |
-| GET | `/keywords` | `/profile/candidate` | ✅ |
+| PUT | `/profile/candidate` | perfil candidato | ✅ |
+| POST | `/profile/candidate/cv` | perfil candidato | ✅ |
+| POST | `/profile/candidate/photo` | perfil candidato | ✅ |
+| GET | `/profile/company` | perfil empresa | ✅ |
+| PUT | `/profile/company` | perfil empresa | ✅ |
+| GET | `/keywords` | perfil candidato | ✅ |
 | GET | `/jobs` | explorar | ✅ |
 | GET | `/jobs/company/mine` | dashboard empresa, vacantes | ✅ |
 | POST | `/jobs` | vacantes | ✅ |
@@ -301,9 +328,9 @@ Base URL: `NEXT_PUBLIC_API_URL` (ej. `http://localhost:3001/api`)
 | GET | `/jobs/:id/applicants` | postulantes, dashboard empresa | ✅ |
 | POST | `/jobs/:id/apply` | explorar | ✅ |
 | PATCH | `/applications/:id/status` | postulantes | ✅ |
-| GET | `/applications/me` | explorar, postulaciones candidato | ✅ |
-| GET | `/ranking/me` | explorar | ✅ |
-| GET | `/contracts` | contratos empresa y candidato | ✅ |
+| GET | `/applications/me` | explorar, postulaciones, dashboard candidato | ✅ |
+| GET | `/ranking/me` | explorar, dashboard candidato | ✅ |
+| GET | `/contracts` | contratos empresa/candidato, dashboard candidato | ✅ |
 | GET | `/contracts/:id` | detalle contrato empresa y candidato | ✅ |
 | POST | `/contracts` | CreateContractForm | ✅ |
 | POST | `/contracts/:id/file` | detalle contrato empresa | ✅ |
@@ -323,14 +350,14 @@ Base URL: `NEXT_PUBLIC_API_URL` (ej. `http://localhost:3001/api`)
 
 | Ruta | Archivo | Estado |
 |---|---|---|
-| `/` | `app/page.tsx` | ✅ Completo |
+| `/` | `app/page.tsx` | ✅ |
 | `/auth/login` | `app/auth/login/page.tsx` | ✅ |
 | `/auth/register` | `app/auth/register/page.tsx` | ✅ |
 | `/auth/verify-otp` | `app/auth/verify-otp/page.tsx` | ✅ |
 | `/auth/forgot-password` | `app/auth/forgot-password/page.tsx` | ✅ |
 | `/auth/reset-password` | `app/auth/reset-password/page.tsx` | ✅ |
-| `/dashboard/candidate` | `app/dashboard/candidate/page.tsx` | ⚠️ Datos mock — Sprint 4 |
-| `/dashboard/candidate/explorar` | `...explorar/page.tsx` | ✅ API real, score real |
+| `/dashboard/candidate` | `app/dashboard/candidate/page.tsx` | ✅ API real — Sprint 3 |
+| `/dashboard/candidate/explorar` | `...explorar/page.tsx` | ✅ score real |
 | `/dashboard/candidate/postulaciones` | `...postulaciones/page.tsx` | ✅ Sprint 3 |
 | `/dashboard/candidate/contratos` | `...contratos/page.tsx` | ✅ |
 | `/dashboard/candidate/contratos/[id]` | `...contratos/[id]/page.tsx` | ✅ confirmar, PDF, pagos, entregables |
@@ -338,7 +365,7 @@ Base URL: `NEXT_PUBLIC_API_URL` (ej. `http://localhost:3001/api`)
 | `/dashboard/company/vacantes` | `...vacantes/page.tsx` | ✅ CRUD completo |
 | `/dashboard/company/vacantes/[id]/postulantes` | `...postulantes/page.tsx` | ✅ |
 | `/dashboard/company/contratos` | `...contratos/page.tsx` | ✅ |
-| `/dashboard/company/contratos/[id]` | `...contratos/[id]/page.tsx` | ✅ PDF, pagos, entregables, completar, cancelar |
+| `/dashboard/company/contratos/[id]` | `...contratos/[id]/page.tsx` | ✅ campos enriquecidos, entregables, cancelar |
 | `/profile/candidate` | `app/profile/candidate/page.tsx` | ✅ |
 | `/profile/company` | `app/profile/company/page.tsx` | ✅ |
 
@@ -346,25 +373,26 @@ Base URL: `NEXT_PUBLIC_API_URL` (ej. `http://localhost:3001/api`)
 
 ## Pendiente Sprint 3
 
-- `/dashboard/company/talento` — buscar talento (coordinar endpoint con backend)
-- Dashboard candidato con datos reales (Sprint 4)
+- `/dashboard/company/talento` — buscar talento (coordinar endpoint con Josheph)
 - Toggle notificaciones en perfil (`PATCH /notifications/preferences`)
 - Nav activo con `pathname.startsWith` en layout dashboard
-- Corrección límite upload foto/logo a 2MB (actualmente 3MB en UI)
+- Corrección límite upload foto/logo a 2MB en UI (backend ya valida 2MB)
 
 ---
 
 ## Notas para agentes de IA
 
 - **No usar `fetch`** — siempre `api` de `@/src/lib/api`
-- **No usar `localStorage` directamente** — usar `useAuth()`
-- **No crear `tailwind.config.ts`** — tokens en `globals.css` con `@theme`
-- **No usar Pages Router** — exclusivamente App Router
-- **Siempre `"use client"`** en componentes con hooks o eventos
+- **No usar `localStorage`** — usar `useAuth()`
+- **No crear `tailwind.config.ts`**
+- **No usar Pages Router**
+- **Siempre `"use client"`** en componentes con hooks
 - **Tipos desde `@/src/types/api`** — no redefinir interfaces del backend
-- **Mensajes de error al usuario en español** — mostrar `err.response?.data?.error`
+- **Mensajes al usuario en español** — `err.response?.data?.error`
 - **`candidateId` en contratos = `CandidateProfile.id`**, no `User.id`
-- **Campo multipart PDF contrato = `file`**, comprobante = `receipt`, entregable = `file`
-- **Acciones en `DeliverablesPanel` solo cuando `contractStatus === "ACTIVE"`**
+- **Campo multipart PDF contrato = `file`**, comprobante = `receipt`
+- **`DeliverablesPanel` acciones solo cuando `contractStatus === "ACTIVE"`**
+- **`paidAmount` / `remainingAmount`** vienen del backend — no recalcular en frontend
+- **Dashboard candidato** usa `Promise.allSettled` — fallo de un endpoint no rompe la página
 - Al agregar página: actualizar tabla de páginas implementadas
 - Al consumir endpoint nuevo: agregarlo a la tabla de endpoints
