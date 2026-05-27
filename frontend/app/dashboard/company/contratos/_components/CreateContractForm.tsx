@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import api from "@/src/lib/api";
-import { X, Save, Loader2, CheckCircle2 } from "lucide-react";
+import { PaymentScheme } from "@/src/types/api";
+import { X, Save, Loader2, CheckCircle2, Plus, Trash2 } from "lucide-react";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -11,6 +12,12 @@ interface Application {
   status?: string;
   candidate: { id: string; fullName: string | null };
   job: { id: string; title: string };
+}
+
+interface DeliverableItem {
+  title: string;
+  description: string;
+  dueDate: string;
 }
 
 interface CreateContractFormProps {
@@ -30,56 +37,87 @@ export default function CreateContractForm({
   const [error, setError]   = useState("");
 
   const [form, setForm] = useState({
-    title:        "",
-    description:  "",
-    deliverables: "",
-    // FIX: el backend espera jobId y candidateId (no candidateProfileId)
-    // Estos se llenan automáticamente al seleccionar la postulación
-    jobId:        "",
-    candidateId:  "",
-    totalAmount:  "",
-    paymentScheme:"",
-    startDate:    "",
-    endDate:      "",
+    title:         "",
+    description:   "",
+    deliverables:  "",
+    jobId:         "",
+    candidateId:   "",
+    totalAmount:   "",
+    paymentScheme: "" as PaymentScheme | "",
+    startDate:     "",
+    endDate:       "",
   });
+
+  // Hitos opcionales
+  const [items, setItems] = useState<DeliverableItem[]>([]);
 
   const inp = "w-full bg-[#f2f4f6] border-0 border-b-2 border-transparent focus:border-[#006d37] focus:ring-0 rounded-lg px-4 py-3 text-sm text-[#191c1e] placeholder:text-[#737781] outline-none transition-all";
   const lbl = "block text-xs font-semibold uppercase tracking-wider text-[#424750] mb-2";
 
-  // Cuando el usuario elige una postulación, extrae jobId y candidateId
   function handleApplicationSelect(applicationId: string) {
     const app = applications.find(a => a.id === applicationId);
     if (app) {
-      setForm(p => ({
-        ...p,
-        jobId:       app.job.id,
-        candidateId: app.candidate.id, // ← el backend necesita el id del CandidateProfile
-      }));
+      setForm(p => ({ ...p, jobId: app.job.id, candidateId: app.candidate.id }));
     } else {
       setForm(p => ({ ...p, jobId: "", candidateId: "" }));
     }
   }
 
+  function addItem() {
+    setItems(prev => [...prev, { title: "", description: "", dueDate: "" }]);
+  }
+
+  function updateItem(index: number, field: keyof DeliverableItem, value: string) {
+    setItems(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+  }
+
+  function removeItem(index: number) {
+    setItems(prev => prev.filter((_, i) => i !== index));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
     if (!form.jobId || !form.candidateId) {
       setError("Debes seleccionar una postulación para vincular el contrato.");
       return;
     }
-    setSaving(true); setError("");
+
+    // FIX P0: validar fechas obligatorias
+    if (!form.startDate || !form.endDate) {
+      setError("Las fechas de inicio y finalización son obligatorias.");
+      return;
+    }
+    if (form.endDate <= form.startDate) {
+      setError("La fecha de finalización debe ser posterior a la de inicio.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
     try {
-      // FIX: enviamos candidateId (no candidateProfileId)
-      await api.post("/contracts", {
+      const payload: Record<string, unknown> = {
         jobId:        form.jobId,
         candidateId:  form.candidateId,
         title:        form.title,
-        description:  form.description  || undefined,
-        deliverables: form.deliverables || undefined,
-        totalAmount: form.totalAmount ? Number(form.totalAmount) : 0,
-        paymentScheme:form.paymentScheme|| undefined,
-        startDate:    form.startDate    || undefined,
-        endDate:      form.endDate      || undefined,
-      });
+        startDate:    form.startDate,
+        endDate:      form.endDate,
+        totalAmount:  form.totalAmount ? Number(form.totalAmount) : 0,
+      };
+      if (form.description)   payload.description   = form.description;
+      if (form.deliverables)  payload.deliverables  = form.deliverables;
+      if (form.paymentScheme) payload.paymentScheme = form.paymentScheme;
+      if (items.length > 0) {
+        payload.items = items
+          .filter(it => it.title.trim())
+          .map(it => ({
+            title:       it.title,
+            description: it.description || undefined,
+            dueDate:     it.dueDate     || undefined,
+          }));
+      }
+
+      await api.post("/contracts", payload);
       onSuccess();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
@@ -145,7 +183,6 @@ export default function CreateContractForm({
                 ))}
               </select>
 
-              {/* Confirmación visual cuando ya hay candidato seleccionado */}
               {form.candidateId && (
                 <p className="text-xs text-[#006d37] font-semibold mt-2 flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
@@ -170,7 +207,7 @@ export default function CreateContractForm({
             <label className={lbl}>Título del contrato *</label>
             <input type="text" required value={form.title}
               onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
-              placeholder="e.j. Desarrollo de landing page — Q3 2025"
+              placeholder="ej. Desarrollo de landing page — Q3 2025"
               className={inp} />
           </div>
 
@@ -183,15 +220,15 @@ export default function CreateContractForm({
           </div>
 
           <div>
-            <label className={lbl}>Entregables</label>
+            <label className={lbl}>Entregables (resumen)</label>
             <textarea rows={3} value={form.deliverables}
               onChange={e => setForm(p => ({ ...p, deliverables: e.target.value }))}
-              placeholder="e.j. API REST documentada, 5 componentes React, informe final..."
+              placeholder="ej. API REST documentada, 5 componentes React, informe final..."
               className={`${inp} resize-none`} />
           </div>
         </div>
 
-        {/* Sección 3 — Condiciones económicas */}
+        {/* Sección 3 — Condiciones económicas y fechas */}
         <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6 space-y-5">
           <h2 className="text-xs font-black uppercase tracking-widest text-[#424750] pb-3 border-b border-[#f2f4f6]">
             Condiciones económicas y fechas
@@ -202,31 +239,86 @@ export default function CreateContractForm({
               <label className={lbl}>Monto total (COP)</label>
               <input type="number" min={1} value={form.totalAmount}
                 onChange={e => setForm(p => ({ ...p, totalAmount: e.target.value }))}
-                placeholder="e.j. 2000000" className={inp} />
+                placeholder="ej. 2000000" className={inp} />
             </div>
 
+            {/* FIX P0: select en vez de input texto */}
             <div>
               <label className={lbl}>Esquema de pago</label>
-              <input type="text" value={form.paymentScheme}
-                onChange={e => setForm(p => ({ ...p, paymentScheme: e.target.value }))}
-                placeholder="e.j. 50% inicio, 50% al entregar"
-                className={inp} />
+              <select
+                value={form.paymentScheme}
+                onChange={e => setForm(p => ({ ...p, paymentScheme: e.target.value as PaymentScheme | "" }))}
+                className={`${inp} cursor-pointer`}
+              >
+                <option value="">— Selecciona esquema —</option>
+                <option value="SINGLE">Pago único</option>
+                <option value="MILESTONES">Por hitos</option>
+                <option value="PERIODIC">Periódico</option>
+              </select>
             </div>
 
+            {/* FIX P0: fechas con required */}
             <div>
-              <label className={lbl}>Fecha de inicio</label>
-              <input type="date" value={form.startDate}
+              <label className={lbl}>Fecha de inicio *</label>
+              <input type="date" required value={form.startDate}
                 onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))}
                 className={inp} />
             </div>
 
             <div>
-              <label className={lbl}>Fecha de finalización</label>
-              <input type="date" value={form.endDate}
+              <label className={lbl}>Fecha de finalización *</label>
+              <input type="date" required value={form.endDate}
                 onChange={e => setForm(p => ({ ...p, endDate: e.target.value }))}
                 className={inp} />
             </div>
           </div>
+        </div>
+
+        {/* Sección 4 — Hitos opcionales */}
+        <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6 space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-[#f2f4f6]">
+            <h2 className="text-xs font-black uppercase tracking-widest text-[#424750]">
+              Hitos de entregables <span className="text-[#737781] font-normal normal-case">(opcional)</span>
+            </h2>
+            <button type="button" onClick={addItem}
+              className="flex items-center gap-1.5 text-xs font-bold text-[#006d37] hover:text-[#004d25] transition-colors">
+              <Plus className="w-3.5 h-3.5" /> Agregar hito
+            </button>
+          </div>
+
+          {items.length === 0 ? (
+            <p className="text-xs text-[#737781] text-center py-3">
+              Sin hitos aún. Los puedes agregar después desde el detalle del contrato.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {items.map((item, index) => (
+                <div key={index} className="bg-[#f7f9fb] rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#424750] uppercase tracking-wider">
+                      Hito {index + 1}
+                    </span>
+                    <button type="button" onClick={() => removeItem(index)}
+                      className="text-[#ba1a1a] hover:text-[#93000a] transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <input type="text" placeholder="Título del hito *" value={item.title}
+                    onChange={e => updateItem(index, "title", e.target.value)}
+                    className={inp} />
+                  <input type="text" placeholder="Descripción (opcional)" value={item.description}
+                    onChange={e => updateItem(index, "description", e.target.value)}
+                    className={inp} />
+                  <div>
+                    <label className="block text-xs text-[#737781] mb-1">Fecha límite (opcional)</label>
+                    <input type="date" value={item.dueDate}
+                      onChange={e => updateItem(index, "dueDate", e.target.value)}
+                      className={inp} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Acciones */}

@@ -90,7 +90,8 @@ export default function CandidateDashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && user?.role === "COMPANY") { router.replace("/dashboard/company") } }, [user, isLoading, router]);
+    if (!isLoading && user?.role === "COMPANY") { router.replace("/dashboard/company"); }
+  }, [user, isLoading, router]);
 
   if (isLoading || !user) {
     return (
@@ -158,7 +159,7 @@ export default function CandidateDashboardPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-headline font-bold text-[#00386c]"> Postulaciones activas </h2>
             <Link
-              href="/dashboard/postulaciones"
+              href="/dashboard/candidate/postulaciones"
               className="text-[#00386c] text-sm font-bold flex items-center gap-1 hover:gap-2 transition-all"
             >
               Ver todas <ArrowRight className="w-4 h-4" />
