@@ -5,30 +5,35 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import api from "@/src/lib/api";
-import { ArrowLeft, Save, Upload, X, FileText, User, GraduationCap, Briefcase, Wrench, Plus, Globe, Award, FolderGit2, Camera, Loader2, ExternalLink, ChevronRight} from "lucide-react";
+import {
+  ArrowLeft, Save, Upload, X, FileText, User, GraduationCap,
+  Briefcase, Wrench, Plus, Globe, Award, FolderGit2, Camera,
+  Loader2, ExternalLink, ChevronRight, Bell, BellOff,
+} from "lucide-react";
 
-interface Keyword { id: string; name: string; type: string; }
+interface Keyword      { id: string; name: string; type: string; }
 interface Certification { name: string; issuer: string; year: string; }
-interface Project      { name: string; description: string; url: string; }
-interface Language     { language: string; level: string; }
+interface Project       { name: string; description: string; url: string; }
+interface Language      { language: string; level: string; }
 
 const EMPTY_FORM = {
-  fullName:       "",
-  phone:          "",
-  summary:        "",
-  career:         "",
-  institution:    "",
-  semester:       "",
-  graduationYear: "",
-  workMode:       "remote" as "remote" | "onsite" | "hybrid",
-  salaryExpected: "",
-  skills:         [] as string[],
-  softSkills:     [] as string[],
-  languages:      [] as Language[],
-  certifications: [] as Certification[],
-  projects:       [] as Project[],
-  cvUrl:          "",
-  photoUrl:       "",
+  fullName:            "",
+  phone:               "",
+  summary:             "",
+  career:              "",
+  institution:         "",
+  semester:            "",
+  graduationYear:      "",
+  workMode:            "remote" as "remote" | "onsite" | "hybrid",
+  salaryExpected:      "",
+  skills:              [] as string[],
+  softSkills:          [] as string[],
+  languages:           [] as Language[],
+  certifications:      [] as Certification[],
+  projects:            [] as Project[],
+  cvUrl:               "",
+  photoUrl:            "",
+  notificationsEnabled: true,
 };
 
 const LANGUAGE_LEVELS = ["Básico", "Intermedio", "Avanzado", "Nativo"];
@@ -42,6 +47,7 @@ const NAV_SECTIONS = [
   { id: "certs",    label: "Certificaciones",       icon: Award },
   { id: "projects", label: "Proyectos",             icon: FolderGit2 },
   { id: "cv",       label: "Hoja de vida",          icon: FileText },
+  { id: "notifs",   label: "Notificaciones",        icon: Bell },
 ];
 
 function SkillInput({ value, onChange, onAdd, placeholder, suggestions }: {
@@ -68,7 +74,12 @@ function SkillInput({ value, onChange, onAdd, placeholder, suggestions }: {
         <input type="text" value={value}
           onChange={e => { onChange(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
-          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); if (value.trim()) { onAdd(value.trim()); setOpen(false); } } }}
+          onKeyDown={e => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (value.trim()) { onAdd(value.trim()); setOpen(false); }
+            }
+          }}
           placeholder={placeholder}
           className="flex-1 bg-[#f2f4f6] border-0 border-b-2 border-transparent focus:border-[#006d37] focus:ring-0 rounded-xl px-4 py-3 text-sm text-[#191c1e] placeholder:text-[#b0b4bc] outline-none transition-all" />
         <button type="button"
@@ -109,19 +120,22 @@ export default function CandidateProfilePage() {
   const fileInputRef  = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm]                   = useState(EMPTY_FORM);
-  const [skillInput, setSkillInput]       = useState("");
-  const [softInput, setSoftInput]         = useState("");
-  const [saving, setSaving]               = useState(false);
-  const [uploading, setUploading]         = useState(false);
+  const [form, setForm]                     = useState(EMPTY_FORM);
+  const [skillInput, setSkillInput]         = useState("");
+  const [softInput, setSoftInput]           = useState("");
+  const [saving, setSaving]                 = useState(false);
+  const [uploading, setUploading]           = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
-  const [saveError, setSaveError]         = useState("");
-  const [saveSuccess, setSaveSuccess]     = useState("");
-  const [cvError, setCvError]             = useState("");
-  const [cvSuccess, setCvSuccess]         = useState("");
-  const [photoError, setPhotoError]       = useState("");
-  const [photoSuccess, setPhotoSuccess]   = useState("");
-  const [keywords, setKeywords]           = useState<Keyword[]>([]);
+  const [saveError, setSaveError]           = useState("");
+  const [saveSuccess, setSaveSuccess]       = useState("");
+  const [cvError, setCvError]               = useState("");
+  const [cvSuccess, setCvSuccess]           = useState("");
+  const [photoError, setPhotoError]         = useState("");
+  const [photoSuccess, setPhotoSuccess]     = useState("");
+  const [keywords, setKeywords]             = useState<Keyword[]>([]);
+  // Toggle notificaciones
+  const [togglingNotifs, setTogglingNotifs] = useState(false);
+  const [notifsMsg, setNotifsMsg]           = useState("");
 
   useEffect(() => {
     if (!isLoading && !user) router.replace("/auth/login");
@@ -153,8 +167,9 @@ export default function CandidateProfilePage() {
             projects: (d.projects ?? []).map((p: Project) => ({
               name: p.name ?? "", description: p.description ?? "", url: p.url ?? "",
             })),
-            cvUrl:    d.cvUrl    ?? "",
-            photoUrl: d.photoUrl ?? "",
+            cvUrl:               d.cvUrl               ?? "",
+            photoUrl:            d.photoUrl            ?? "",
+            notificationsEnabled: d.notificationsEnabled ?? true,
           });
         }
         if (kwRes.status === "fulfilled") setKeywords(kwRes.value.data ?? []);
@@ -171,17 +186,17 @@ export default function CandidateProfilePage() {
   function removeSkill(tag: string, field: "skills" | "softSkills") {
     set(field, form[field].filter(t => t !== tag));
   }
-  function addLanguage()    { set("languages", [...form.languages, { language: "", level: "Básico" }]); }
+  function addLanguage() { set("languages", [...form.languages, { language: "", level: "Básico" }]); }
   function updateLanguage(i: number, f: keyof Language, v: string) {
     set("languages", form.languages.map((l, idx) => idx === i ? { ...l, [f]: v } : l));
   }
   function removeLanguage(i: number) { set("languages", form.languages.filter((_, idx) => idx !== i)); }
-  function addCert()        { set("certifications", [...form.certifications, { name: "", issuer: "", year: "" }]); }
+  function addCert() { set("certifications", [...form.certifications, { name: "", issuer: "", year: "" }]); }
   function updateCert(i: number, f: keyof Certification, v: string) {
     set("certifications", form.certifications.map((c, idx) => idx === i ? { ...c, [f]: v } : c));
   }
   function removeCert(i: number) { set("certifications", form.certifications.filter((_, idx) => idx !== i)); }
-  function addProject()     { set("projects", [...form.projects, { name: "", description: "", url: "" }]); }
+  function addProject() { set("projects", [...form.projects, { name: "", description: "", url: "" }]); }
   function updateProject(i: number, f: keyof Project, v: string) {
     set("projects", form.projects.map((p, idx) => idx === i ? { ...p, [f]: v } : p));
   }
@@ -191,16 +206,22 @@ export default function CandidateProfilePage() {
     e.preventDefault();
     setSaving(true); setSaveError(""); setSaveSuccess("");
     const payload: Record<string, unknown> = {
-      fullName: form.fullName, phone: form.phone || undefined,
-      summary: form.summary || undefined, career: form.career || undefined,
-      institution: form.institution || undefined, workMode: form.workMode,
+      fullName:      form.fullName,
+      phone:         form.phone         || undefined,
+      summary:       form.summary       || undefined,
+      career:        form.career        || undefined,
+      institution:   form.institution   || undefined,
+      workMode:      form.workMode,
       salaryExpected: form.salaryExpected ? Number(form.salaryExpected) : undefined,
-      skills: form.skills, softSkills: form.softSkills,
-      languages: form.languages.filter(l => l.language.trim()),
-      certifications: form.certifications.filter(c => c.name.trim()).map(c => ({ ...c, year: c.year ? Number(c.year) : undefined })),
+      skills:        form.skills,
+      softSkills:    form.softSkills,
+      languages:     form.languages.filter(l => l.language.trim()),
+      certifications: form.certifications.filter(c => c.name.trim()).map(c => ({
+        ...c, year: c.year ? Number(c.year) : undefined,
+      })),
       projects: form.projects.filter(p => p.name.trim()),
     };
-    if (user?.role === "STUDENT" && form.semester) payload.semester = Number(form.semester);
+    if (user?.role === "STUDENT"  && form.semester)       payload.semester       = Number(form.semester);
     if (user?.role === "GRADUATE" && form.graduationYear) payload.graduationYear = Number(form.graduationYear);
     try {
       await api.put("/profile/candidate", payload);
@@ -215,14 +236,15 @@ export default function CandidateProfilePage() {
   async function handleCvUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
     setCvError(""); setCvSuccess("");
-    if (file.type !== "application/pdf") { setCvError("Solo se permiten archivos PDF."); return; }
-    if (file.size > 5 * 1024 * 1024)    { setCvError("El archivo no puede superar 5MB."); return; }
+    if (file.type !== "application/pdf")   { setCvError("Solo se permiten archivos PDF."); return; }
+    if (file.size > 5 * 1024 * 1024)      { setCvError("El archivo no puede superar 5MB."); return; }
     setUploading(true);
     const fd = new FormData(); fd.append("cv", file);
     try {
       const res = await api.post("/profile/candidate/cv", fd, { headers: { "Content-Type": "multipart/form-data" } });
       set("cvUrl", res.data.cvUrl ?? "");
-      setCvSuccess("CV subido exitosamente."); setTimeout(() => setCvSuccess(""), 4000);
+      setCvSuccess("CV subido exitosamente.");
+      setTimeout(() => setCvSuccess(""), 4000);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
@@ -233,19 +255,38 @@ export default function CandidateProfilePage() {
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
     setPhotoError(""); setPhotoSuccess("");
-    if (!["image/jpeg","image/png","image/webp"].includes(file.type)) { setPhotoError("Solo JPG, PNG o WebP."); return; }
-    if (file.size > 3 * 1024 * 1024) { setPhotoError("La imagen no puede superar 3MB."); return; }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setPhotoError("Solo JPG, PNG o WebP."); return;
+    }
+    // FIX P3: límite corregido a 2MB para coincidir con backend Multer
+    if (file.size > 2 * 1024 * 1024) { setPhotoError("La imagen no puede superar 2MB."); return; }
     setPhotoUploading(true);
     const fd = new FormData(); fd.append("photo", file);
     try {
       const res = await api.post("/profile/candidate/photo", fd, { headers: { "Content-Type": "multipart/form-data" } });
       set("photoUrl", res.data.photoUrl ?? "");
-      setPhotoSuccess("Foto actualizada."); setTimeout(() => setPhotoSuccess(""), 4000);
+      setPhotoSuccess("Foto actualizada.");
+      setTimeout(() => setPhotoSuccess(""), 4000);
       if (photoInputRef.current) photoInputRef.current.value = "";
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
       setPhotoError(e.response?.data?.error ?? "Error al subir la foto.");
     } finally { setPhotoUploading(false); }
+  }
+
+  // FIX P3: toggle notificaciones vía endpoint dedicado
+  async function handleToggleNotifications() {
+    const newValue = !form.notificationsEnabled;
+    setTogglingNotifs(true); setNotifsMsg("");
+    try {
+      await api.patch("/notifications/preferences", { enabled: newValue });
+      set("notificationsEnabled", newValue);
+      setNotifsMsg(newValue ? "Notificaciones activadas." : "Notificaciones desactivadas.");
+      setTimeout(() => setNotifsMsg(""), 4000);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string } } };
+      setNotifsMsg(e.response?.data?.error ?? "Error al actualizar preferencias.");
+    } finally { setTogglingNotifs(false); }
   }
 
   if (isLoading || !user) {
@@ -261,7 +302,7 @@ export default function CandidateProfilePage() {
   const techKeywords = keywords.filter(k => k.type === "TECHNICAL");
   const softKeywords = keywords.filter(k => k.type === "SOFT");
 
-  const totalFields = 8;
+  const totalFields  = 8;
   const filledFields = [
     form.fullName, form.summary, form.career, form.institution,
     form.skills.length > 0, form.cvUrl, form.photoUrl,
@@ -271,6 +312,7 @@ export default function CandidateProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#f7f9fb]">
+      {/* Hero banner */}
       <div className="relative overflow-hidden bg-gradient-to-br from-[#00386c] to-[#1a4f8b]">
         <div className="absolute top-0 right-0 w-1/3 h-full opacity-10 pointer-events-none">
           <svg className="w-full h-full" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
@@ -328,7 +370,7 @@ export default function CandidateProfilePage() {
                   {photoUploading ? "Subiendo..." : "Cambiar foto"}
                 </button>
               </div>
-              {photoError && <p className="mt-3 text-[#ffdad6] text-xs font-semibold">{photoError}</p>}
+              {photoError   && <p className="mt-3 text-[#ffdad6] text-xs font-semibold">{photoError}</p>}
               {photoSuccess && <p className="mt-3 text-[#6bfe9c] text-xs font-semibold">{photoSuccess}</p>}
             </div>
 
@@ -356,6 +398,7 @@ export default function CandidateProfilePage() {
       </div>
 
       <div className="max-w-screen-xl mx-auto px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-10">
+        {/* Sidebar */}
         <aside className="lg:col-span-3 space-y-4 lg:sticky lg:top-6 self-start">
           <nav className="bg-white rounded-2xl border border-[#e6e8ea] overflow-hidden shadow-sm">
             <p className="px-5 pt-5 pb-3 text-[10px] font-black uppercase tracking-widest text-[#b0b4bc]">Secciones</p>
@@ -390,6 +433,7 @@ export default function CandidateProfilePage() {
           </div>
         </aside>
 
+        {/* Contenido principal */}
         <div className="lg:col-span-9 space-y-6">
 
           {saveError && (
@@ -404,6 +448,8 @@ export default function CandidateProfilePage() {
           )}
 
           <form id="hero" onSubmit={handleSave} className="space-y-6">
+
+            {/* Información básica */}
             <div className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
               <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-[#00386c] flex items-center justify-center">
@@ -437,6 +483,7 @@ export default function CandidateProfilePage() {
               </div>
             </div>
 
+            {/* Información académica */}
             <div id="academic" className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
               <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-[#006d37] flex items-center justify-center">
@@ -479,6 +526,7 @@ export default function CandidateProfilePage() {
               </div>
             </div>
 
+            {/* Preferencias laborales */}
             <div id="work" className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
               <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-[#00386c] flex items-center justify-center">
@@ -509,6 +557,7 @@ export default function CandidateProfilePage() {
               </div>
             </div>
 
+            {/* Habilidades */}
             <div id="skills" className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
               <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-[#006d37] flex items-center justify-center">
@@ -563,6 +612,7 @@ export default function CandidateProfilePage() {
               </div>
             </div>
 
+            {/* Idiomas */}
             <div id="langs" className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
               <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -618,6 +668,7 @@ export default function CandidateProfilePage() {
               </div>
             </div>
 
+            {/* Certificaciones */}
             <div id="certs" className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
               <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -679,6 +730,7 @@ export default function CandidateProfilePage() {
               </div>
             </div>
 
+            {/* Proyectos */}
             <div id="projects" className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
               <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -744,6 +796,7 @@ export default function CandidateProfilePage() {
               </div>
             </div>
 
+            {/* Botón guardar */}
             <div className="flex justify-end pt-2">
               <button type="submit" disabled={saving}
                 className="bg-gradient-to-br from-[#00386c] to-[#1a4f8b] text-white px-12 py-4 rounded-full font-black text-sm uppercase tracking-widest shadow-xl shadow-[#00386c]/20 hover:shadow-[#00386c]/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-3">
@@ -755,6 +808,7 @@ export default function CandidateProfilePage() {
             </div>
           </form>
 
+          {/* Hoja de vida */}
           <div id="cv" className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
             <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-[#006d37] flex items-center justify-center">
@@ -766,9 +820,8 @@ export default function CandidateProfilePage() {
               </div>
             </div>
             <div className="p-8">
-              {cvError && <div className="mb-4 bg-[#ffdad6] text-[#93000a] text-sm font-semibold px-5 py-3.5 rounded-2xl">{cvError}</div>}
+              {cvError   && <div className="mb-4 bg-[#ffdad6] text-[#93000a] text-sm font-semibold px-5 py-3.5 rounded-2xl">{cvError}</div>}
               {cvSuccess && <div className="mb-4 bg-[#6bfe9c]/20 text-[#005228] text-sm font-semibold px-5 py-3.5 rounded-2xl">✓ {cvSuccess}</div>}
-
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
                   className="flex items-center gap-2 bg-gradient-to-br from-[#006d37] to-[#00743a] text-white font-bold text-sm px-7 py-3.5 rounded-full shadow-lg shadow-[#006d37]/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50">
@@ -784,6 +837,76 @@ export default function CandidateProfilePage() {
               </div>
               <input ref={fileInputRef} type="file" accept=".pdf"
                 onChange={handleCvUpload} disabled={uploading} className="hidden" />
+            </div>
+          </div>
+
+          {/* FIX P3: Sección notificaciones */}
+          <div id="notifs" className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
+            <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[#00386c] flex items-center justify-center">
+                <Bell className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h2 className="font-black text-[#191c1e] text-base font-headline">Notificaciones</h2>
+                <p className="text-xs text-[#737781]">Recibe alertas por Telegram cuando haya vacantes nuevas</p>
+              </div>
+            </div>
+            <div className="p-8">
+              {notifsMsg && (
+                <div className={`mb-5 px-5 py-3.5 rounded-2xl text-sm font-semibold ${
+                  notifsMsg.toLowerCase().includes("error")
+                    ? "bg-[#ffdad6] text-[#93000a]"
+                    : "bg-[#6bfe9c]/20 text-[#005228]"
+                }`}>
+                  {notifsMsg}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between p-5 bg-[#f7f9fb] rounded-2xl">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                    form.notificationsEnabled ? "bg-[#6bfe9c]/20" : "bg-[#f2f4f6]"
+                  }`}>
+                    {form.notificationsEnabled
+                      ? <Bell className="w-5 h-5 text-[#006d37]" />
+                      : <BellOff className="w-5 h-5 text-[#737781]" />}
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm text-[#191c1e]">
+                      Notificaciones por Telegram
+                    </p>
+                    <p className="text-xs text-[#737781] mt-0.5">
+                      {form.notificationsEnabled
+                        ? "Activadas — recibirás alertas de nuevas vacantes"
+                        : "Desactivadas — no recibirás alertas"}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleToggleNotifications}
+                  disabled={togglingNotifs}
+                  className={`relative w-14 h-7 rounded-full transition-all duration-300 disabled:opacity-60 focus:outline-none ${
+                    form.notificationsEnabled ? "bg-[#006d37]" : "bg-[#c2c6d1]"
+                  }`}
+                  aria-label={form.notificationsEnabled ? "Desactivar notificaciones" : "Activar notificaciones"}
+                >
+                  <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${
+                    form.notificationsEnabled ? "left-7" : "left-0.5"
+                  }`} />
+                  {togglingNotifs && (
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <Loader2 className="w-3.5 h-3.5 text-white animate-spin" />
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              <p className="text-xs text-[#737781] mt-4 leading-relaxed">
+                Para recibir notificaciones debes vincular tu cuenta de Telegram con el bot de TalentBridge.
+                Activa las notificaciones y luego inicia una conversación con el bot.
+              </p>
             </div>
           </div>
 
