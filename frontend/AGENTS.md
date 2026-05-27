@@ -31,8 +31,8 @@ comunica con ella a través de un cliente Axios centralizado.
 
 ### Advertencia crítica sobre Tailwind v4
 
-- **No existe `tailwind.config.ts`** — los colores y tokens se definen en `globals.css` con `@theme`
-- Se importa con `@import "tailwindcss"` en vez de las directivas `@tailwind base/components/utilities`
+- **No existe `tailwind.config.ts`** — colores y tokens en `globals.css` con `@theme`
+- Se importa con `@import "tailwindcss"` en vez de `@tailwind base/components/utilities`
 - No crear `tailwind.config.js/ts` bajo ninguna circunstancia
 
 ---
@@ -63,10 +63,10 @@ frontend/
 │   │   │   ├── forgot-password/page.tsx
 │   │   │   └── reset-password/page.tsx
 │   │   ├── dashboard/
-│   │   │   ├── layout.tsx                    # Header + nav dinámico + protección de ruta
+│   │   │   ├── layout.tsx                    # Header + nav activo con pathname.startsWith (Sprint 3)
 │   │   │   ├── candidate/
 │   │   │   │   ├── page.tsx                  # Dashboard candidato — API real (Sprint 3)
-│   │   │   │   ├── explorar/page.tsx         # Explorar empleos — score real
+│   │   │   │   ├── explorar/page.tsx         # Explorar — score real
 │   │   │   │   ├── postulaciones/page.tsx    # Postulaciones — tabs activas/historial (Sprint 3)
 │   │   │   │   └── contratos/
 │   │   │   │       ├── page.tsx              # Lista contratos candidato
@@ -78,13 +78,12 @@ frontend/
 │   │   │       │   ├── _components/JobForm.tsx
 │   │   │       │   └── [id]/postulantes/page.tsx
 │   │   │       ├── contratos/
-│   │   │       │   ├── page.tsx              # Lista contratos empresa
-│   │   │       │   ├── [id]/page.tsx         # Detalle — PDF, pagos, entregables, campos enriquecidos, completar, cancelar
-│   │   │       │   └── _components/
-│   │   │       │       └── CreateContractForm.tsx
-│   │   │       └── talento/page.tsx          # Pendiente Sprint 3
+│   │   │       │   ├── page.tsx
+│   │   │       │   ├── [id]/page.tsx         # Detalle — campos enriquecidos, entregables, cancelar
+│   │   │       │   └── _components/CreateContractForm.tsx
+│   │   │       └── talento/page.tsx          # ⚠️ PENDIENTE — ver sección "Buscar talento"
 │   │   └── profile/
-│   │       ├── candidate/page.tsx
+│   │       ├── candidate/page.tsx            # Perfil — toggle notificaciones, foto 2MB (Sprint 3)
 │   │       └── company/page.tsx
 │   ├── context/
 │   │   └── auth-context.tsx
@@ -94,11 +93,11 @@ frontend/
 
 ### Reglas de arquitectura
 
-- **`src/types/api.ts`** — fuente de verdad para tipos del backend, nunca redefinir interfaces localmente
-- **`src/components/`** — componentes reutilizables entre rutas distintas (ej. `DeliverablesPanel`)
-- **`_components/`** — componentes internos de una sola página, al mismo nivel que `page.tsx`
-- **Rutas de candidato** en `dashboard/candidate/` — nunca en `dashboard/` directamente
-- **Rutas de empresa** en `dashboard/company/` — nunca en `dashboard/` directamente
+- **`src/types/api.ts`** — fuente de verdad para tipos del backend, nunca redefinir localmente
+- **`src/components/`** — componentes reutilizables entre rutas distintas
+- **`_components/`** — componentes internos de una sola página
+- **Rutas candidato** en `dashboard/candidate/` — nunca en `dashboard/` directamente
+- **Rutas empresa** en `dashboard/company/` — nunca en `dashboard/` directamente
 - **`"use client"`** en todo componente con hooks o eventos del browser
 - **`api`** de `@/src/lib/api` — nunca `fetch` directo
 - **`useAuth()`** — nunca `localStorage` directo
@@ -147,15 +146,29 @@ import {
 
 ---
 
-## DeliverablesPanel — src/components/contracts/DeliverablesPanel.tsx
+## Nav activo — dashboard/layout.tsx (Sprint 3)
 
-Componente compartido para gestión de entregables/hitos. Usado en detalle
-contrato empresa y candidato.
+La función `isNavActive` resuelve correctamente subrutas:
+
+```typescript
+function isNavActive(pathname: string, href: string): boolean {
+  // Exacto para dashboards raíz — evita que todo quede activo
+  if (href === "/dashboard/candidate" || href === "/dashboard/company") {
+    return pathname === href;
+  }
+  // startsWith para subrutas: /contratos resalta en /contratos/[id]
+  return pathname === href || pathname.startsWith(href + "/");
+}
+```
+
+---
+
+## DeliverablesPanel — src/components/contracts/DeliverablesPanel.tsx
 
 ```tsx
 <DeliverablesPanel
   contractId={contractId}
-  contractStatus={contract.status}   // acciones solo habilitadas si ACTIVE
+  contractStatus={contract.status}   // acciones solo si ACTIVE
   role="COMPANY"                     // "COMPANY" | "CANDIDATE"
 />
 ```
@@ -165,33 +178,51 @@ contrato empresa y candidato.
 | `COMPANY` | Crear hitos, aprobar/rechazar con feedback |
 | `CANDIDATE` | Enviar archivo + notas, reenviar si rechazado |
 
-Endpoints que consume internamente:
-- `GET /contracts/:id/deliverables`
-- `POST /contracts/:id/deliverables` (empresa)
-- `POST /contracts/deliverables/:id/submit` (candidato)
-- `PATCH /contracts/deliverables/:id/review` (empresa)
+---
+
+## Notificaciones — perfil candidato (Sprint 3)
+
+Toggle en `profile/candidate/page.tsx` que llama `PATCH /notifications/preferences`:
+
+```typescript
+await api.patch("/notifications/preferences", { enabled: newValue });
+```
+
+- Carga `notificationsEnabled` desde `GET /profile/candidate`
+- Switch animado con estado visual y feedback de éxito/error
+- Sección "Notificaciones" agregada al nav lateral del perfil
 
 ---
 
-## Dashboard candidato — datos reales (Sprint 3)
+## Campos multipart — nombres exactos
 
-`dashboard/candidate/page.tsx` consume en paralelo con `Promise.allSettled`:
-- `GET /ranking/me` → score real + sugerencias
-- `GET /applications/me` → postulaciones activas
-- `GET /contracts` → contratos activos y pendientes
-
-Muestra: score animado, postulaciones recientes con % match y estado,
-mini-lista contratos activos, alerta si hay contratos pendientes de confirmar,
-CTA a explorar.
+| Acción | Campo | Tipos | Límite |
+|---|---|---|---|
+| CV candidato | `cv` | PDF | 5MB |
+| Foto candidato | `photo` | JPG/PNG/WebP | **2MB** (corregido Sprint 3) |
+| Logo empresa | `logo` | JPG/PNG/WebP | 2MB |
+| PDF contrato | `file` | PDF | 10MB |
+| Comprobante pago | `receipt` | PDF/imagen | 10MB |
+| Entregable | `file` | PDF/imagen | 10MB |
 
 ---
 
-## Detalle contrato empresa — campos enriquecidos (Sprint 3)
+## Buscar talento — ⚠️ PENDIENTE (Sprint 4)
 
-`dashboard/company/contratos/[id]/page.tsx` muestra adicionalmente:
-- `paymentScheme` como badge traducido (Pago único / Por hitos / Periódico)
-- `paidAmount` y `remainingAmount` del backend (no recalculados)
-- `confirmedAt` y `cancelledAt` cuando existen
+**Ruta:** `/dashboard/company/talento/page.tsx`
+
+Esta página está **pendiente de implementación** porque el backend aún no expone
+los endpoints necesarios para búsqueda/listado global de candidatos.
+
+**Endpoints requeridos (pendiente Josheph):**
+- `GET /candidates/search?skills=&area=` — búsqueda de candidatos por filtros
+
+**MVP alternativo acordado (Opción A del plan):**
+Mientras no existan los endpoints, implementar listado de candidatos únicos
+agregados de todas las vacantes propias usando `GET /jobs/:id/applicants`.
+No implementar hasta confirmar con Josheph qué opción se construirá en Sprint 4.
+
+**No implementar esta página sin coordinación con el backend.**
 
 ---
 
@@ -202,7 +233,7 @@ const { user, login, logout, isLoading } = useAuth();
 // user.userId | user.role | user.token
 ```
 
-Sesión en localStorage: `tb_token`, `tb_role`, `tb_userId`
+Sesión: `tb_token`, `tb_role`, `tb_userId` en localStorage.
 
 Redirección por rol: `STUDENT/GRADUATE → /dashboard/candidate`, `COMPANY → /dashboard/company`
 
@@ -253,7 +284,7 @@ async function loadData() {
 }
 ```
 
-### Peticiones paralelas (preferir sobre secuenciales)
+### Peticiones paralelas
 ```typescript
 const [resA, resB] = await Promise.allSettled([
   api.get('/endpoint-a'),
@@ -270,35 +301,11 @@ if (resA.status === 'fulfilled') setDataA(resA.value.data);
 }
 ```
 
-### Subida de archivos
-```typescript
-const fd = new FormData();
-fd.append("file", file);   // nombre exacto según tabla multipart
-await api.post("/contracts/:id/file", fd, {
-  headers: { "Content-Type": "multipart/form-data" }
-});
-```
-
 ### Inputs y labels — estilo estándar
 ```typescript
 const inp = "w-full bg-[#f2f4f6] border-0 border-b-2 border-transparent focus:border-[#006d37] focus:ring-0 rounded-lg px-4 py-3 text-sm text-[#191c1e] placeholder:text-[#737781] outline-none transition-all";
 const lbl = "block text-xs font-semibold uppercase tracking-wider text-[#424750] mb-2";
 ```
-
----
-
-## Campos multipart — nombres exactos
-
-| Acción | Campo | Tipos | Límite |
-|---|---|---|---|
-| CV candidato | `cv` | PDF | 5MB |
-| Foto candidato | `photo` | JPG/PNG/WebP | 2MB |
-| Logo empresa | `logo` | JPG/PNG/WebP | 2MB |
-| PDF contrato | `file` | PDF | 10MB |
-| Comprobante pago | `receipt` | PDF/imagen | 10MB |
-| Entregable | `file` | PDF/imagen | 10MB |
-
-**Nota:** UI valida foto/logo a 3MB pero backend limita a 2MB — pendiente corregir.
 
 ---
 
@@ -315,7 +322,7 @@ const lbl = "block text-xs font-semibold uppercase tracking-wider text-[#424750]
 | GET | `/profile/candidate` | perfil, dashboard, explorar | ✅ |
 | PUT | `/profile/candidate` | perfil candidato | ✅ |
 | POST | `/profile/candidate/cv` | perfil candidato | ✅ |
-| POST | `/profile/candidate/photo` | perfil candidato | ✅ |
+| POST | `/profile/candidate/photo` | perfil candidato (2MB) | ✅ |
 | GET | `/profile/company` | perfil empresa | ✅ |
 | PUT | `/profile/company` | perfil empresa | ✅ |
 | GET | `/keywords` | perfil candidato | ✅ |
@@ -343,6 +350,8 @@ const lbl = "block text-xs font-semibold uppercase tracking-wider text-[#424750]
 | POST | `/contracts/:id/deliverables` | DeliverablesPanel (empresa) | ✅ |
 | POST | `/contracts/deliverables/:id/submit` | DeliverablesPanel (candidato) | ✅ |
 | PATCH | `/contracts/deliverables/:id/review` | DeliverablesPanel (empresa) | ✅ |
+| PATCH | `/notifications/preferences` | perfil candidato | ✅ |
+| GET | `/candidates/search` | `/dashboard/company/talento` | ⏳ Pendiente backend |
 
 ---
 
@@ -366,17 +375,19 @@ const lbl = "block text-xs font-semibold uppercase tracking-wider text-[#424750]
 | `/dashboard/company/vacantes/[id]/postulantes` | `...postulantes/page.tsx` | ✅ |
 | `/dashboard/company/contratos` | `...contratos/page.tsx` | ✅ |
 | `/dashboard/company/contratos/[id]` | `...contratos/[id]/page.tsx` | ✅ campos enriquecidos, entregables, cancelar |
-| `/profile/candidate` | `app/profile/candidate/page.tsx` | ✅ |
+| `/dashboard/company/talento` | `...talento/page.tsx` | ⏳ Pendiente endpoint backend |
+| `/profile/candidate` | `app/profile/candidate/page.tsx` | ✅ notificaciones, foto 2MB — Sprint 3 |
 | `/profile/company` | `app/profile/company/page.tsx` | ✅ |
 
 ---
 
-## Pendiente Sprint 3
+## Pendiente Sprint 4
 
-- `/dashboard/company/talento` — buscar talento (coordinar endpoint con Josheph)
-- Toggle notificaciones en perfil (`PATCH /notifications/preferences`)
-- Nav activo con `pathname.startsWith` en layout dashboard
-- Corrección límite upload foto/logo a 2MB en UI (backend ya valida 2MB)
+- `/dashboard/company/talento` — requiere `GET /candidates/search` del backend (Josheph)
+- Dashboard candidato con datos completos de historial académico (bajo prioridad)
+- Calificaciones mutuas tras completar contrato
+- Panel admin/institution
+- Reportes PDF
 
 ---
 
@@ -391,8 +402,10 @@ const lbl = "block text-xs font-semibold uppercase tracking-wider text-[#424750]
 - **Mensajes al usuario en español** — `err.response?.data?.error`
 - **`candidateId` en contratos = `CandidateProfile.id`**, no `User.id`
 - **Campo multipart PDF contrato = `file`**, comprobante = `receipt`
+- **Foto/logo = máx 2MB** — backend Multer rechaza mayor
 - **`DeliverablesPanel` acciones solo cuando `contractStatus === "ACTIVE"`**
-- **`paidAmount` / `remainingAmount`** vienen del backend — no recalcular en frontend
-- **Dashboard candidato** usa `Promise.allSettled` — fallo de un endpoint no rompe la página
+- **`paidAmount` / `remainingAmount`** vienen del backend — no recalcular
+- **Nav activo** usa `isNavActive()` en layout — no modificar a `pathname ===` simple
+- **`/dashboard/company/talento`** — NO implementar hasta que Josheph exponga el endpoint
 - Al agregar página: actualizar tabla de páginas implementadas
 - Al consumir endpoint nuevo: agregarlo a la tabla de endpoints
