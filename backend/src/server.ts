@@ -1,7 +1,6 @@
-import dotenv from 'dotenv';
-import app from './app';
+require('dotenv').config();   // ← require no se hoist, se ejecuta en orden
 
-dotenv.config();
+import app from './app';
 
 const PORT = process.env.PORT || 3001;
 
