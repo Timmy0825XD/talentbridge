@@ -29,11 +29,18 @@ interface Contract {
   startDate: string | null;
   endDate: string | null;
   totalAmount: number | null;
+  paymentScheme: string | null;
   contractFileUrl: string | null;
+  confirmedAt: string | null;
+  cancelledAt: string | null;
   createdAt: string;
   candidate: { fullName: string | null; user: { email: string } } | null;
   job: { id: string; title: string } | null;
   payments: Payment[];
+  paidAmount?: number;
+  pendingAmount?: number;
+  remainingAmount?: number;
+  _count?: { payments: number; deliverableItems: number };
 }
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
@@ -291,6 +298,47 @@ export default function ContratoEmpresaDetallePage() {
               </div>
             </div>
           </div>
+          {/* Campos enriquecidos — esquema de pago, montos, fechas */}
+          <div className="mt-5 pt-5 border-t border-[#f2f4f6] grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {contract.paymentScheme && (
+              <div>
+                <p className="text-xs text-[#737781] font-semibold uppercase tracking-wider mb-1">Esquema de pago</p>
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#a6c8ff]/20 text-[#00386c]">
+                  {contract.paymentScheme === "SINGLE" ? "Pago único"
+                    : contract.paymentScheme === "MILESTONES" ? "Por hitos"
+                    : "Periódico"}
+                </span>
+              </div>
+            )}
+            {contract.paidAmount !== undefined && (
+              <div>
+                <p className="text-xs text-[#737781] font-semibold uppercase tracking-wider mb-1">Pagado</p>
+                <p className="font-bold text-[#006d37]">${contract.paidAmount.toLocaleString("es-CO")} COP</p>
+              </div>
+            )}
+            {contract.remainingAmount !== undefined && (
+              <div>
+                <p className="text-xs text-[#737781] font-semibold uppercase tracking-wider mb-1">Pendiente</p>
+                <p className="font-bold text-[#191c1e]">${contract.remainingAmount.toLocaleString("es-CO")} COP</p>
+              </div>
+            )}
+          </div>
+          {(contract.confirmedAt || contract.cancelledAt) && (
+            <div className="mt-4 flex flex-wrap gap-4">
+              {contract.confirmedAt && (
+                <p className="text-xs text-[#737781]">
+                  Confirmado el{" "}
+                  <span className="font-semibold text-[#005228]">{new Date(contract.confirmedAt).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}</span>
+                </p>
+              )}
+              {contract.cancelledAt && (
+                <p className="text-xs text-[#737781]">
+                  Cancelado el{" "}
+                  <span className="font-semibold text-[#93000a]">{new Date(contract.cancelledAt).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}</span>
+                </p>
+              )}
+            </div>
+          )}
           {contract.description && (
             <div className="mt-5 pt-5 border-t border-[#f2f4f6]">
               <p className="text-xs text-[#737781] font-semibold uppercase tracking-wider mb-2">Descripción</p>
