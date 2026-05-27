@@ -17,6 +17,7 @@ export async function getCandidatesToNotify(jobId: string) {
     where: {
       notificationsEnabled: true,
       telegramChatId: { not: null },
+      score: { totalScore: { gte: 50 } },
     },
     include: {
       score: { select: { totalScore: true } },
@@ -24,10 +25,7 @@ export async function getCandidatesToNotify(jobId: string) {
     },
   });
 
-  // Filtrar por score mínimo de 50
-  const eligible = candidates.filter(c =>
-    (c.score?.totalScore ?? 0) >= 50
-  );
+  const eligible = candidates;
 
   return {
     job,

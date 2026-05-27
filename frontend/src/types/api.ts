@@ -148,7 +148,7 @@ export interface Contract {
   };
   company?: { companyName: string | null; logoUrl?: string | null };
   job?:     { id: string; title: string };
-  payments:          Payment[];
+  payments?:         Payment[];
   deliverableItems?: Deliverable[];
   _count?: { payments: number; deliverableItems: number };
   // Enriquecido por backend

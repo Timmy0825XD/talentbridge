@@ -3,7 +3,15 @@
 import { useAuth } from "@/src/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import api from "@/src/lib/api";
+import {
+  useCandidateProfile,
+  useJobsList,
+  useMyApplications,
+  useMyRanking,
+  queryKeys,
+} from "@/src/hooks/queries";
 import { ProfileScoreResponse } from "@/src/types/api";
 import { Search, CheckCircle2, MapPin, Clock, Briefcase, AlertCircle, Loader2, SlidersHorizontal } from "lucide-react";
 
@@ -67,13 +75,11 @@ const QUICK_FILTERS = [
 export default function ExplorarPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const enabled = !!user && user.role !== "COMPANY";
 
-  const [jobs, setJobs]         = useState<Job[]>([]);
-  const [myScore, setMyScore]   = useState<ProfileScoreResponse | null>(null);
-  const [mySkills, setMySkills] = useState<string[]>([]);
-
+  const [jobParams, setJobParams] = useState<Record<string, string> | undefined>(undefined);
   const [selected, setSelected]         = useState<Job | null>(null);
-  const [loading, setLoading]           = useState(true);
   const [applyingId, setApplyingId]     = useState<string | null>(null);
   const [appliedIds, setAppliedIds]     = useState<Set<string>>(new Set());
   const [error, setError]               = useState("");
@@ -86,6 +92,17 @@ export default function ExplorarPage() {
   const [filterBudgetMax, setFilterBudgetMax] = useState('');
   const [showFilters, setShowFilters]     = useState(false);
 
+  const { data: jobsRaw = [], isLoading: jobsLoading, isFetching: jobsFetching, isError: jobsError } =
+    useJobsList(jobParams, enabled);
+  const { data: profile, isLoading: profileLoading } = useCandidateProfile(enabled);
+  const { data: myApps = [], isLoading: appsLoading } = useMyApplications(enabled);
+  const { data: myScore = null } = useMyRanking(enabled);
+
+  const jobs = jobsRaw as Job[];
+  const mySkills: string[] = (profile?.skills as string[] | undefined) ?? [];
+
+  const initialLoading = jobsLoading && profileLoading && appsLoading;
+
   useEffect(() => {
     if (!isLoading && user?.role === "COMPANY") {
       router.replace("/dashboard/company");
@@ -93,71 +110,43 @@ export default function ExplorarPage() {
   }, [user, isLoading, router]);
 
   useEffect(() => {
-    if (user) loadAll();
-  }, [user]);
-
-  async function loadAll() {
-    setLoading(true);
-    setError("");
-    try {
-      const [jobsRes, profileRes, myAppsRes] = await Promise.allSettled([
-        api.get("/jobs"),
-        api.get("/profile/candidate"),
-        api.get("/applications/me"),
-      ]);
-
-      if (jobsRes.status === "fulfilled") {
-        const list: Job[] = jobsRes.value.data.jobs ?? jobsRes.value.data;
-        setJobs(list);
-        if (list.length > 0) setSelected(list[0]);
-      }
-
-      if (profileRes.status === "fulfilled") {
-        setMySkills(profileRes.value.data.skills ?? []);
-      }
-
-      if (myAppsRes.status === "fulfilled") {
-        const ids = (myAppsRes.value.data as { jobId: string }[]).map(a => a.jobId);
-        setAppliedIds(new Set(ids));
-      }
-
-      // FIX P0: scoreRes.data directo, NO scoreRes.data.score
-      try {
-        const scoreRes = await api.get<ProfileScoreResponse>("/ranking/me");
-        setMyScore(scoreRes.data ?? null);
-      } catch { /* score es no-bloqueante */ }
-
-    } catch {
-      setError("No se pudieron cargar las vacantes. Intenta recargar.");
-    } finally {
-      setLoading(false);
+    if (myApps.length > 0) {
+      setAppliedIds(new Set(myApps.map(a => a.jobId)));
     }
+  }, [myApps]);
+
+  useEffect(() => {
+    if (jobs.length > 0 && !selected) {
+      setSelected(jobs[0]);
+    } else if (jobs.length > 0 && selected && !jobs.find(j => j.id === selected.id)) {
+      setSelected(jobs[0]);
+    } else if (jobs.length === 0) {
+      setSelected(null);
+    }
+  }, [jobs, selected]);
+
+  useEffect(() => {
+    if (jobsError) setError("No se pudieron cargar las vacantes. Intenta recargar.");
+    else setError("");
+  }, [jobsError]);
+
+  function buildParams(filterOverride?: string): Record<string, string> {
+    const activeFilter = filterOverride !== undefined ? filterOverride : quickFilter;
+    const params: Record<string, string> = {};
+    if (search)          params.search    = search;
+    if (filterArea)      params.area      = filterArea;
+    if (filterBudgetMin) params.budgetMin = filterBudgetMin;
+    if (filterBudgetMax) params.budgetMax = filterBudgetMax;
+    if (activeFilter) {
+      if (['REMOTE', 'ONSITE', 'HYBRID'].includes(activeFilter)) params.workMode = activeFilter;
+      else params.type = activeFilter;
+    }
+    return params;
   }
 
-  async function handleSearch(filterOverride?: string) {
-    setLoading(true);
-    setError('');
-    const activeFilter = filterOverride !== undefined ? filterOverride : quickFilter;
-
-    try {
-      const params: Record<string, string> = {};
-      if (search)         params.search    = search;
-      if (filterArea)     params.area      = filterArea;
-      if (filterBudgetMin) params.budgetMin = filterBudgetMin;
-      if (filterBudgetMax) params.budgetMax = filterBudgetMax;
-      if (activeFilter) {
-        if (['REMOTE', 'ONSITE', 'HYBRID'].includes(activeFilter)) params.workMode = activeFilter;
-        else params.type = activeFilter;
-      }
-      const res = await api.get('/jobs', { params });
-      const list: Job[] = res.data.jobs ?? res.data;
-      setJobs(list);
-      setSelected(list.length > 0 ? list[0] : null);
-    } catch {
-      setError('Error al buscar. Intenta de nuevo.');
-    } finally {
-      setLoading(false);
-    }
+  function handleSearch(filterOverride?: string) {
+    const params = buildParams(filterOverride);
+    setJobParams(Object.keys(params).length > 0 ? params : undefined);
   }
 
   async function handleApply(jobId: string) {
@@ -166,6 +155,7 @@ export default function ExplorarPage() {
     try {
       await api.post(`/jobs/${jobId}/apply`);
       setAppliedIds(prev => new Set([...prev, jobId]));
+      queryClient.invalidateQueries({ queryKey: queryKeys.applications.me });
       setApplyMsg("¡Te postulaste exitosamente!");
       setTimeout(() => setApplyMsg(""), 4000);
     } catch (err: unknown) {
@@ -183,12 +173,21 @@ export default function ExplorarPage() {
     setFilterBudgetMin('');
     setFilterBudgetMax('');
     setSearch('');
-    loadAll();
+    setJobParams(undefined);
+    queryClient.invalidateQueries({ queryKey: queryKeys.jobs.list(undefined) });
   }
 
   const hasActiveFilters = !!(quickFilter || filterArea || filterBudgetMin || filterBudgetMax || search);
 
-  if (isLoading || loading) {
+  if (isLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f7f9fb]">
+        <span className="w-8 h-8 border-2 border-[#00386c]/20 border-t-[#00386c] rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (initialLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f7f9fb]">
         <span className="w-8 h-8 border-2 border-[#00386c]/20 border-t-[#00386c] rounded-full animate-spin" />
@@ -201,7 +200,7 @@ export default function ExplorarPage() {
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#f7f9fb] text-center px-8">
         <AlertCircle className="w-10 h-10 text-[#ba1a1a]" />
         <p className="text-[#93000a] font-semibold">{error}</p>
-        <button onClick={loadAll}
+        <button onClick={() => queryClient.invalidateQueries({ queryKey: ['jobs'] })}
           className="px-6 py-2 bg-[#00386c] text-white rounded-full text-sm font-bold hover:opacity-90 transition">
           Reintentar
         </button>
@@ -327,14 +326,17 @@ export default function ExplorarPage() {
         <aside className="w-full md:w-[400px] flex flex-col gap-4 overflow-y-auto pr-2">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-xs font-bold text-[#737781] uppercase tracking-widest"> Ofertas laborales </h2>
-            <span className="text-xs font-semibold text-[#00386c]"> {jobs.length} resultado{jobs.length !== 1 ? "s" : ""} </span>
+            <span className="text-xs font-semibold text-[#00386c] flex items-center gap-2">
+              {jobsFetching && <Loader2 className="w-3 h-3 animate-spin" />}
+              {jobs.length} resultado{jobs.length !== 1 ? "s" : ""}
+            </span>
           </div>
 
           {jobs.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <Briefcase className="w-10 h-10 text-[#c2c6d1] mb-3" />
               <p className="text-sm text-[#737781] font-medium"> No se encontraron vacantes con ese criterio. </p>
-              <button onClick={loadAll} className="mt-4 text-xs text-[#00386c] font-bold hover:underline"> Ver todas las vacantes</button>
+              <button onClick={clearFilters} className="mt-4 text-xs text-[#00386c] font-bold hover:underline"> Ver todas las vacantes</button>
             </div>
           )}
 

@@ -2,9 +2,9 @@
 
 import { useAuth } from "@/src/context/auth-context";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
-import api from "@/src/lib/api";
+import { useCompanyJobs, useJobApplicantsBatch } from "@/src/hooks/queries";
 import { Briefcase, Users, ArrowRight, ChevronRight, Building2, CircleDot, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface Job {
@@ -26,12 +26,6 @@ interface TopCandidate {
   profileScore: { totalScore: number };
 }
 
-interface DashboardData {
-  jobs: Job[];
-  topCandidates: TopCandidate[];
-}
-
-
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins  = Math.floor(diff / 60000);
@@ -46,66 +40,59 @@ function timeAgo(iso: string): string {
 export default function CompanyDashboardPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const enabled = !!user && user.role === "COMPANY";
 
-  const [data, setData]         = useState<DashboardData | null>(null);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState("");
+  const { data: jobs = [], isLoading: jobsLoading, isError } = useCompanyJobs(enabled);
+  const typedJobs = jobs as Job[];
+  const activeJobsForApplicants = typedJobs.filter(j => j.status === "ACTIVE").slice(0, 3);
+  const applicantQueries = useJobApplicantsBatch(
+    activeJobsForApplicants.map(j => j.id),
+    enabled && activeJobsForApplicants.length > 0
+  );
+
+  const topCandidates = useMemo(() => {
+    const seen = new Set<string>();
+    const candidates: TopCandidate[] = [];
+    applicantQueries.forEach(q => {
+      if (!q.data) return;
+      for (const applicant of q.data as Array<{
+        candidate?: { id: string; fullName: string | null; career?: string; skills?: string[] };
+        scoreAtApply?: number | null;
+      }>) {
+        const cid = applicant.candidate?.id;
+        if (cid && !seen.has(cid)) {
+          seen.add(cid);
+          candidates.push({
+            id:           cid,
+            fullName:     applicant.candidate?.fullName ?? null,
+            headline:     applicant.candidate?.career ?? null,
+            skills:       applicant.candidate?.skills ?? [],
+            profileScore: { totalScore: applicant.scoreAtApply ?? 0 },
+          });
+        }
+      }
+    });
+    return candidates
+      .sort((a, b) => (b.profileScore?.totalScore ?? 0) - (a.profileScore?.totalScore ?? 0))
+      .slice(0, 3);
+  }, [applicantQueries]);
+
+  const loading = jobsLoading || applicantQueries.some(q => q.isLoading);
+  const error = isError ? "No se pudo cargar el dashboard. Intenta recargar la página." : "";
 
   useEffect(() => {
     if (!isLoading && user && user.role !== "COMPANY") { router.replace("/dashboard/candidate") }
   }, [user, isLoading, router]);
 
-  useEffect(() => { if (user) loadDashboard() }, [user]);
-
-  async function loadDashboard() {
-    setLoading(true);
-    setError("");
-    try {
-      const jobsRes = await api.get<Job[]>("/jobs/company/mine");
-      const jobs = jobsRes.data;
-
-      const activeJobs = jobs.filter(j => j.status === "ACTIVE").slice(0, 3);
-
-      let topCandidates: TopCandidate[] = [];
-
-      if (activeJobs.length > 0) {
-        const results = await Promise.allSettled(
-          activeJobs.map(j => api.get(`/jobs/${j.id}/applicants`))
-        );
-
-        const seen = new Set<string>();
-        for (const r of results) {
-          if (r.status === "fulfilled") {
-            for (const applicant of r.value.data) {
-              const cid = applicant.candidate?.id;
-              if (cid && !seen.has(cid)) {
-                seen.add(cid);
-                topCandidates.push({
-                  id:           cid,
-                  fullName:     applicant.candidate.fullName,
-                  headline: applicant.candidate.career ?? null,
-                  skills:       applicant.candidate.skills ?? [],
-                  profileScore: {totalScore: applicant.scoreAtApply ?? 0},
-                });
-              }
-            }
-          }
-        }
-
-        topCandidates = topCandidates
-          .sort((a, b) => (b.profileScore?.totalScore ?? 0) - (a.profileScore?.totalScore ?? 0))
-          .slice(0, 3);
-      }
-
-      setData({ jobs, topCandidates });
-    } catch {
-      setError("No se pudo cargar el dashboard. Intenta recargar la página.");
-    } finally {
-      setLoading(false);
-    }
+  if (isLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f7f9fb]">
+        <span className="w-8 h-8 border-2 border-[#006d37]/20 border-t-[#006d37] rounded-full animate-spin" />
+      </div>
+    );
   }
 
-  if (isLoading || loading) {
+  if (loading && typedJobs.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f7f9fb]">
         <span className="w-8 h-8 border-2 border-[#006d37]/20 border-t-[#006d37] rounded-full animate-spin" />
@@ -119,7 +106,7 @@ export default function CompanyDashboardPage() {
         <AlertCircle className="w-10 h-10 text-[#ba1a1a]" />
         <p className="text-[#93000a] font-semibold">{error}</p>
         <button
-          onClick={loadDashboard}
+          onClick={() => window.location.reload()}
           className="px-6 py-2 bg-[#006d37] text-white rounded-full text-sm font-bold hover:opacity-90 transition"
         >
           Reintentar
@@ -128,12 +115,10 @@ export default function CompanyDashboardPage() {
     );
   }
 
-  const jobs = data?.jobs ?? [];
-  const topCandidates = data?.topCandidates ?? [];
-  const activeJobs = jobs.filter(j => j.status === "ACTIVE");
-  const selectingJobs = jobs.filter(j => j.status === "SELECTING");
-  const totalApplicants = jobs.reduce((sum, j) => sum + j._count.applications, 0);
-  const recentJobs = [...jobs]
+  const activeJobs = typedJobs.filter(j => j.status === "ACTIVE");
+  const selectingJobs = typedJobs.filter(j => j.status === "SELECTING");
+  const totalApplicants = typedJobs.reduce((sum, j) => sum + j._count.applications, 0);
+  const recentJobs = [...typedJobs]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 3);
 

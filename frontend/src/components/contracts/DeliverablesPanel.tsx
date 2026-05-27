@@ -13,8 +13,9 @@ import {
 
 interface DeliverablesPanelProps {
   contractId: string;
-  contractStatus: string;   // PENDING_CANDIDATE | ACTIVE | COMPLETED | CANCELLED
+  contractStatus: string;
   role: "COMPANY" | "CANDIDATE";
+  initialDeliverables?: Deliverable[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -296,9 +297,14 @@ function DeliverableRow({ item, role, contractActive, onAction }: DeliverableRow
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function DeliverablesPanel({ contractId, contractStatus, role }: DeliverablesPanelProps) {
-  const [deliverables, setDeliverables] = useState<Deliverable[]>([]);
-  const [loading, setLoading]           = useState(true);
+export default function DeliverablesPanel({
+  contractId,
+  contractStatus,
+  role,
+  initialDeliverables,
+}: DeliverablesPanelProps) {
+  const [deliverables, setDeliverables] = useState<Deliverable[]>(initialDeliverables ?? []);
+  const [loading, setLoading]           = useState(!initialDeliverables);
   const [error, setError]               = useState("");
 
   // Crear hito (solo empresa)
@@ -312,8 +318,13 @@ export default function DeliverablesPanel({ contractId, contractStatus, role }: 
   const lbl = "block text-xs font-semibold uppercase tracking-wider text-[#424750] mb-2";
 
   useEffect(() => {
+    if (initialDeliverables) {
+      setDeliverables(initialDeliverables);
+      setLoading(false);
+      return;
+    }
     loadDeliverables();
-  }, [contractId]);
+  }, [contractId, initialDeliverables]);
 
   async function loadDeliverables() {
     setLoading(true); setError("");

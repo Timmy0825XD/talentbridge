@@ -4,8 +4,8 @@ import { useAuth } from "@/src/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import api from "@/src/lib/api";
-import { ApplicationWithJob, ApplicationStatus } from "@/src/types/api";
+import { useMyApplications } from "@/src/hooks/queries";
+import { ApplicationStatus } from "@/src/types/api";
 import {
   Briefcase, Building2, MapPin, Clock, CheckCircle2,
   XCircle, AlertCircle, Send, ChevronRight, Star,
@@ -62,32 +62,19 @@ export default function PostulacionesPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
 
-  const [applications, setApplications] = useState<ApplicationWithJob[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState("");
-  const [tab, setTab]                   = useState<"active" | "historic">("active");
+  const enabled = !!user && user.role !== "COMPANY";
+  const { data: applications = [], isLoading: loading, isError, refetch } = useMyApplications(enabled);
+  const error = isError ? "No se pudieron cargar las postulaciones." : "";
 
   useEffect(() => {
     if (!isLoading && user?.role === "COMPANY") router.replace("/dashboard/company");
   }, [user, isLoading, router]);
 
-  useEffect(() => {
-    if (user) loadApplications();
-  }, [user]);
-
   async function loadApplications() {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await api.get<ApplicationWithJob[]>("/applications/me");
-      setApplications(res.data);
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      setError(e.response?.data?.error ?? "No se pudieron cargar las postulaciones.");
-    } finally {
-      setLoading(false);
-    }
+    await refetch();
   }
+
+  const [tab, setTab] = useState<"active" | "historic">("active");
 
   const active   = applications.filter(a => ACTIVE_STATUSES.includes(a.status));
   const historic = applications.filter(a => HISTORIC_STATUSES.includes(a.status));

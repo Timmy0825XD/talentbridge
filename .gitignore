@@ -69,3 +69,5 @@ desktop.ini
 # ===========================
 coverage/
 .nyc_output/
+docs/
+.cursor/

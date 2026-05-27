@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import api from '@/src/lib/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCompanyJobs, queryKeys } from '@/src/hooks/queries';
 import { Plus, Users, TrendingUp, Clock, MoreVertical, CircleDot, CheckCircle2, XCircle, PauseCircle, ArrowUpRight, Edit2 } from 'lucide-react';
 import JobForm from './_components/JobForm';
 
@@ -67,8 +69,10 @@ export default function VacantesPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
 
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loadingJobs, setLoadingJobs] = useState(true);
+  const queryClient = useQueryClient();
+  const enabled = !!user && user.role === 'COMPANY';
+  const { data: jobsRaw = [], isLoading: loadingJobs, refetch } = useCompanyJobs(enabled);
+  const jobs = jobsRaw as Job[];
   const [showForm, setShowForm] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [success, setSuccess] = useState('');
@@ -79,23 +83,14 @@ export default function VacantesPage() {
     if (!isLoading && user?.role !== 'COMPANY') router.replace('/dashboard/candidate');
   }, [user, isLoading, router]);
 
-  useEffect(() => {
-    if (user) loadJobs();
-  }, [user]);
-
   async function loadJobs() {
-    try {
-      const res = await api.get('/jobs/company/mine');
-      setJobs(res.data);
-    } finally {
-      setLoadingJobs(false);
-    }
+    await refetch();
   }
 
   async function handleStatusChange(jobId: string, status: string) {
     try {
       await api.patch(`/jobs/${jobId}/status`, { status });
-      loadJobs();
+      queryClient.invalidateQueries({ queryKey: queryKeys.jobs.companyMine });
     } catch {}
     setOpenMenuId(null);
   }
@@ -105,7 +100,7 @@ export default function VacantesPage() {
     setEditingJob(null);
     setSuccess(msg);
     setTimeout(() => setSuccess(''), 4000);
-    loadJobs();
+    queryClient.invalidateQueries({ queryKey: queryKeys.jobs.companyMine });
   }
 
   function handleCancel() {

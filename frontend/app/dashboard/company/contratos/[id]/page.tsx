@@ -37,6 +37,7 @@ interface Contract {
   candidate: { fullName: string | null; user: { email: string } } | null;
   job: { id: string; title: string } | null;
   payments: Payment[];
+  deliverableItems?: import("@/src/types/api").Deliverable[];
   paidAmount?: number;
   pendingAmount?: number;
   remainingAmount?: number;
@@ -511,6 +512,7 @@ export default function ContratoEmpresaDetallePage() {
             contractId={contractId}
             contractStatus={contract.status}
             role="COMPANY"
+            initialDeliverables={contract.deliverableItems}
           />
         </div>
 

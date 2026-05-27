@@ -777,6 +777,35 @@ Para endpoints con body: definir schema **Zod** en `lib/validators/` (contratos 
 
 ---
 
+## Política de performance (obligatoria)
+
+Evidencia DevTools en [`docs/performance/`](../docs/performance/README.md). Todo PR de perf debe documentar fila antes/después.
+
+### Reglas backend
+
+- Optimizar queries **sin cambiar** rutas HTTP ni JSON de respuesta
+- Preferir `aggregate`, `Promise.all`, filtros SQL vs filtrado en memoria
+- Índices en columnas de filtro frecuente — ver `prisma/schema.prisma` (migración `perf_add_indexes`)
+- **Gemini:** cliente singleton en `lib/gemini.ts` — **no** mover apply a background sin acuerdo de producto
+- Toda query lenta → revisar índice antes de cambiar shape de respuesta
+
+### Índices añadidos (perf)
+
+| Modelo | Índices |
+|---|---|
+| Job | `companyId`, `status` |
+| Application | `jobId`, `candidateId` |
+| Contract | `companyId`, `candidateId`, `status` |
+| CandidateProfile | `[notificationsEnabled, telegramChatId]` |
+| ProfileScore | `totalScore` |
+| OtpCode | `[userId, used, expiresAt]` |
+
+### Política de no ruptura de API
+
+Compartida con frontend: mismas rutas, mismos campos JSON; optimizaciones internas solamente.
+
+---
+
 ## Deuda técnica conocida
 
 Registrar aquí evita que agentes “arreglen” cosas sin contexto del sprint.
@@ -789,6 +818,8 @@ Registrar aquí evita que agentes “arreglen” cosas sin contexto del sprint.
 | UI Sprint 4 en frontend | Media | Oscar consumirá endpoints nuevos |
 | WhatsApp vía n8n | Baja | Telegram operativo |
 | JWT_EXPIRES_IN / OTP env vars no cableadas | Baja | Hardcoded en jwt.ts / auth.service |
+| Payloads slim en listados / Gemini async apply | Baja | Requiere cambio de interfaz — fuera de alcance perf segura |
+| N+1 frontend en contratos (resuelto) | — | Lazy load applicants + React Query |
 
 ---
 
@@ -810,3 +841,4 @@ Registrar aquí evita que agentes “arreglen” cosas sin contexto del sprint.
 - Al cerrar sprint: actualizar *Estado del proyecto* y *Deuda técnica*
 - **Gemini:** no bloquear flujos críticos si la API falla — degradar con valores neutros
 - **Webhooks n8n:** fallo silencioso en `triggerNotificationWebhook` — no revertir creación de vacante
+- **Performance:** seguir [`docs/performance/`](../docs/performance/README.md) — optimizar queries sin cambiar JSON de respuesta

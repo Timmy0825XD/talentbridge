@@ -4,7 +4,8 @@ import { useAuth } from "@/src/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import api from "@/src/lib/api";
+import { useContracts } from "@/src/hooks/queries";
+import { ContractsListSkeleton } from "@/src/components/contracts/ContractsListSkeleton";
 import {
   FileText, Clock, CheckCircle2, XCircle, AlertCircle,
   ChevronRight, Briefcase, Building2, Calendar,
@@ -70,31 +71,17 @@ export default function ContratosPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
 
-  const [contracts, setContracts] = useState<Contract[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState("");
-  const [filter, setFilter]       = useState("ALL");
+  const enabled = !!user && user.role !== "COMPANY";
+  const { data: contracts = [], isLoading: loading, isError, refetch } = useContracts(enabled);
+  const error = isError ? "No se pudieron cargar los contratos." : "";
+  const [filter, setFilter] = useState("ALL");
 
-  // Protección de ruta
   useEffect(() => {
     if (!isLoading && user?.role === "COMPANY") router.replace("/dashboard/company/contratos");
   }, [user, isLoading, router]);
 
-  useEffect(() => {
-    if (user) loadContracts();
-  }, [user]);
-
   async function loadContracts() {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await api.get("/contracts");
-      setContracts(res.data);
-    } catch {
-      setError("No se pudieron cargar los contratos.");
-    } finally {
-      setLoading(false);
-    }
+    await refetch();
   }
 
   const filtered = filter === "ALL"
@@ -103,16 +90,17 @@ export default function ContratosPage() {
 
   // Cuántos contratos pendientes de firma hay
   const pendingCount = contracts.filter(c => c.status === "PENDING_CANDIDATE").length;
+  const listLoading = loading && contracts.length === 0;
 
-  if (isLoading || loading) {
+  if (isLoading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f7f9fb]">
+      <div className="min-h-[50vh] flex items-center justify-center bg-[#f7f9fb]">
         <span className="w-8 h-8 border-2 border-[#00386c]/20 border-t-[#00386c] rounded-full animate-spin" />
       </div>
     );
   }
 
-  if (error) {
+  if (error && contracts.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#f7f9fb] text-center px-8">
         <AlertCircle className="w-10 h-10 text-[#ba1a1a]" />
@@ -176,8 +164,10 @@ export default function ContratosPage() {
         })}
       </div>
 
-      {/* Lista vacía */}
-      {filtered.length === 0 ? (
+      {/* Lista */}
+      {listLoading ? (
+        <ContractsListSkeleton />
+      ) : filtered.length === 0 ? (
         <div className="bg-white rounded-2xl border-2 border-dashed border-[#c2c6d1] p-16 text-center">
           <FileText className="w-12 h-12 text-[#c2c6d1] mx-auto mb-4" />
           <h3 className="font-bold text-lg text-[#191c1e] font-headline mb-1">

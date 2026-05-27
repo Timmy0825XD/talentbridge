@@ -44,6 +44,7 @@ model OtpCode {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, used, expiresAt])
   @@map("otp_codes")
 }
 
@@ -93,6 +94,7 @@ model CandidateProfile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([career])
+  @@index([notificationsEnabled, telegramChatId])
   @@map("candidate_profiles")
 }
 
@@ -169,6 +171,8 @@ model Job {
   rankConfig   JobRankConfig?
   contracts Contract[]
 
+  @@index([companyId])
+  @@index([status])
   @@map("jobs")
 }
 
@@ -188,6 +192,8 @@ model Application {
   contract  Contract?
 
   @@unique([jobId, candidateId])
+  @@index([jobId])
+  @@index([candidateId])
   @@map("applications")
 }
 
@@ -222,6 +228,7 @@ model ProfileScore {
 
   candidate CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 
+  @@index([totalScore])
   @@map("profile_scores")
 }
 
@@ -301,6 +308,9 @@ model Contract {
   deliverableItems Deliverable[]
   ratings     ContractRating[]
 
+  @@index([companyId])
+  @@index([candidateId])
+  @@index([status])
   @@map("contracts")
 }
 
