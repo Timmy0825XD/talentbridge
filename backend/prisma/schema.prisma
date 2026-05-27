@@ -27,8 +27,9 @@ model User {
 
   otpCodes         OtpCode[]
   resetTokens      ResetToken[]
-  candidateProfile CandidateProfile?
-  companyProfile   CompanyProfile?
+  candidateProfile   CandidateProfile?
+  companyProfile     CompanyProfile?
+  institutionProfile InstitutionProfile?
 
   @@map("users")
 }
@@ -81,6 +82,8 @@ model CandidateProfile {
   notificationsEnabled Boolean  @default(true)
   notificationChannel  String   @default("telegram")
   telegramChatId       String?
+  reputationAvg        Float    @default(0)
+  ratingCount          Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   applications   Application[]
@@ -89,6 +92,7 @@ model CandidateProfile {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([career])
   @@map("candidate_profiles")
 }
 
@@ -105,6 +109,8 @@ model CompanyProfile {
   contactEmail  String?
   contactPhone  String?
   city          String?
+  reputationAvg Float    @default(0)
+  ratingCount   Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   jobs          Job[]
@@ -261,6 +267,11 @@ enum DeliverableStatus {
   REJECTED
 }
 
+enum RatingRaterRole {
+  COMPANY
+  CANDIDATE
+}
+
 model Contract {
   id              String         @id @default(uuid())
   jobId           String
@@ -278,6 +289,7 @@ model Contract {
   status          ContractStatus @default(PENDING_CANDIDATE)
   confirmedAt     DateTime?
   cancelledAt     DateTime?
+  completedAt     DateTime?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -287,8 +299,59 @@ model Contract {
   application Application?     @relation(fields: [applicationId], references: [id], onDelete: SetNull)
   payments    Payment[]
   deliverableItems Deliverable[]
+  ratings     ContractRating[]
 
   @@map("contracts")
+}
+
+model ContractRating {
+  id                   String          @id @default(uuid())
+  contractId           String
+  raterRole            RatingRaterRole
+  quality              Int?
+  deadlines            Int?
+  communication        Int?
+  attitude             Int?
+  paymentPunctuality   Int?
+  instructionClarity   Int?
+  workEnvironment      Int?
+  overallScore         Float
+  comment              String?
+  createdAt            DateTime        @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, raterRole])
+  @@map("contract_ratings")
+}
+
+model GlobalRankConfig {
+  id               String @id @default("global")
+  skillsWeight     Float  @default(0.20)
+  experienceWeight Float  @default(0.20)
+  educationWeight  Float  @default(0.20)
+  certsWeight      Float  @default(0.10)
+  reputationWeight Float  @default(0.10)
+  languagesWeight  Float  @default(0.05)
+  completionWeight Float  @default(0.20)
+  updatedAt        DateTime @updatedAt
+
+  @@map("global_rank_config")
+}
+
+model InstitutionProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  institutionName String
+  contactEmail    String?
+  contactPhone    String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("institution_profiles")
 }
 
 model Deliverable {

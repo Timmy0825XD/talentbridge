@@ -162,7 +162,23 @@ async function main() {
     });
   }
 
+  await prisma.globalRankConfig.upsert({
+    where: { id: 'global' },
+    update: {},
+    create: {
+      id: 'global',
+      skillsWeight: 0.20,
+      experienceWeight: 0.20,
+      educationWeight: 0.20,
+      certsWeight: 0.10,
+      reputationWeight: 0.10,
+      languagesWeight: 0.05,
+      completionWeight: 0.20,
+    },
+  });
+
   console.log(`✅ ${keywords.length} keywords insertadas correctamente.`);
+  console.log('✅ GlobalRankConfig inicializado.');
 }
 
 main()

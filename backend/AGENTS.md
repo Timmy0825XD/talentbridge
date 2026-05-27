@@ -65,6 +65,7 @@ flujos de automatización de **n8n** (webhooks, Telegram, WhatsApp planificado).
 | zod | 4.x | Instalado — **validación en controllers pendiente de adopción sistemática** |
 | uuid | 13.x | Tokens de reset |
 | pdf-parse | 1.1.x | Usar `require('pdf-parse/lib/pdf-parse.js')` — NO import default |
+| pdfkit | 0.x | Generación de reportes PDF (Sprint 4) |
 | @google/generative-ai | 0.24.x | Gemini — modelo `gemini-2.5-flash` |
 | axios | 1.x | Webhook hacia n8n |
 
@@ -306,6 +307,7 @@ Ver plantilla completa en `backend/.env.example`.
 | `SUPABASE_ANON_KEY` | Clave anon de Supabase Storage |
 | `GEMINI_API_KEY` | API de Google Gemini |
 | `N8N_WEBHOOK_URL` | Webhook que n8n expone al publicar vacante |
+| `N8N_WEBHOOK_SECRET` | Header `x-webhook-secret` para `/notifications/*` |
 | `TELEGRAM_BOT_TOKEN` | Bot de Telegram (flujo n8n) |
 | `SMTP_*` | Mailtrap en desarrollo |
 | `SMTP_FROM` | Remitente |
@@ -326,21 +328,24 @@ Ver plantilla completa en `backend/.env.example`.
 | Vacantes CRUD + filtros | 2 | Empresa publica/edita/estados |
 | Postulaciones + score híbrido | 2 | 40% perfil + 60% Gemini → `Application` |
 | Keywords API | 2 | `GET /keywords` |
-| Notificaciones (parcial) | 3 | Webhook n8n, Telegram chatId, preferencias |
+| Notificaciones (parcial) | 3 | Webhook n8n, Telegram chatId, preferencias; secret en header si `N8N_WEBHOOK_SECRET` |
 | Contratos, pagos y entregables | 3 | API REST completa, validación Zod, reglas RF-19/21/22 |
+| Calificaciones mutuas + reputación | 4 | `ContractRating`, recálculo en perfil/empresa y ranking |
+| Búsqueda de candidatos | 4 | `GET /candidates/search` paginado (COMPANY) |
+| Dashboards agregados | 4 | `GET /dashboard/company`, `/dashboard/candidate` |
+| Reporte PDF de contrato | 4 | `GET /contracts/:id/report` (pdfkit) |
+| Simulador tributario | 4 | `GET /tax/benefits`, `POST /tax/simulate` |
+| Panel ADMIN | 4 | Métricas, usuarios, moderación, pesos globales, CRUD instituciones |
+| Panel INSTITUTION | 4 | `GET /institution/dashboard` |
 
 ### Pendiente
 
 | Área | Sprint | Detalle |
 |---|---|---|
 | UI entregables en frontend | 3 | Oscar — consumir endpoints de deliverables |
-| Endurecer seguridad webhooks | 3 | Secret compartido en `/notifications/*` |
-| Validación Zod en otros módulos | 3+ | Adoptado en contratos; pendiente auth, jobs, etc. |
+| Validación Zod en otros módulos | 3+ | Adoptado en contratos/ratings/admin; pendiente auth, jobs |
 | Tests automatizados | 3+ | Unit + integración mínima |
 | WhatsApp vía n8n | 3 | Canal alternativo a Telegram |
-| Calificaciones mutuas | 4 | |
-| Panel ADMIN / INSTITUTION | 4 | Roles ya en schema |
-| Reportes PDF | 4 | |
 
 ---
 
@@ -361,6 +366,7 @@ enum ContractStatus { PENDING_CANDIDATE ACTIVE COMPLETED CANCELLED }
 enum PaymentStatus { PENDING CONFIRMED }
 enum PaymentScheme { SINGLE MILESTONES PERIODIC }
 enum DeliverableStatus { PENDING SUBMITTED APPROVED REJECTED }
+enum RatingRaterRole { COMPANY CANDIDATE }
 ```
 
 ### Modelos — resumen
@@ -369,16 +375,19 @@ enum DeliverableStatus { PENDING SUBMITTED APPROVED REJECTED }
 |---|---|
 | **User** | Cuenta central; `isVerified`, `isActive`, `role` |
 | **OtpCode** / **ResetToken** | Verificación y recuperación |
-| **CandidateProfile** | Perfil 1:1; skills[], JSON projects/certs/languages; `cvUrl`, `photoUrl`; notificaciones (`telegramChatId`, `notificationsEnabled`) |
-| **CompanyProfile** | Perfil empresa 1:1; relación con `Job[]` |
+| **CandidateProfile** | Perfil 1:1; skills[], JSON; `reputationAvg`, `ratingCount`; notificaciones Telegram |
+| **CompanyProfile** | Perfil empresa 1:1; `reputationAvg`, `ratingCount` |
+| **InstitutionProfile** | Perfil institución 1:1; `institutionName`, `isActive` |
 | **Job** | Vacante; `skills[]`, presupuesto, `JobRankConfig?` |
-| **Application** | Postulación única por par job+candidato; `scoreAtApply`, `aiReasons[]`, `aiGaps[]`; relación opcional con `Contract` |
+| **Application** | Postulación única por par job+candidato; `scoreAtApply`, IA insights |
 | **JobRankConfig** | Pesos por vacante (deben sumar ~1.0) |
+| **GlobalRankConfig** | Pesos globales singleton (`id: global`) — base del ranking de perfil |
 | **ProfileScore** | Puntaje global del candidato (recalculable) |
 | **Keyword** | Catálogo + crecimiento automático desde CV |
-| **Contract** | Acuerdo formal; `applicationId?`, `paymentScheme` enum, `contractFileUrl`, ciclo de estados |
-| **Payment** | Pago asociado a contrato; `sequence`, `dueDate?`, comprobante |
-| **Deliverable** | Entregable/hito rastreable; submit + review por candidato/empresa |
+| **Contract** | Acuerdo formal; `completedAt`; ciclo de estados |
+| **ContractRating** | Calificación mutua por contrato completado (1 por parte) |
+| **Payment** | Pago asociado a contrato; comprobante |
+| **Deliverable** | Entregable/hito rastreable |
 
 ### Migraciones relevantes
 
@@ -390,6 +399,8 @@ enum DeliverableStatus { PENDING SUBMITTED APPROVED REJECTED }
 | `add_ai_insights_to_application` | `aiReasons`, `aiGaps` |
 | `sprint3_notifications_contracts_payments` | Contratos, pagos, campos Telegram |
 | `refactor_contracts_deliverables` | PaymentScheme enum, Deliverable, applicationId, reglas |
+| `sprint4_ratings_dashboards_admin` | ContractRating, GlobalRankConfig, InstitutionProfile, reputación |
+| `add_candidate_reputation_fields` | `reputationAvg`, `ratingCount` en candidatos |
 
 ### Reglas de datos
 
@@ -397,7 +408,9 @@ enum DeliverableStatus { PENDING SUBMITTED APPROVED REJECTED }
 - `scoreAtApply` se congela al postular — no se recalcula si el perfil cambia después
 - Keywords nuevas desde CV: `isActive: true` por defecto
 - Contrato: requiere postulación `SELECTED`; candidato confirma solo si hay `contractFileUrl`
-- Cierre de contrato: todos los entregables `APPROVED` (si existen) + pagos confirmados ≥ `totalAmount`
+- Cierre de contrato: todos los entregables `APPROVED` (si existen) + pagos confirmados ≥ `totalAmount`; setea `completedAt`
+- Calificaciones: solo contratos `COMPLETED`; una calificación por parte (`COMPANY` califica candidato, `CANDIDATE` califica empresa)
+- Registro público: solo roles `STUDENT`, `GRADUATE`, `COMPANY` — ADMIN/INSTITUTION vía panel admin
 
 ---
 
@@ -425,7 +438,7 @@ Authorization: Bearer <JWT>
 
 | Método | Ruta | Body | Auth |
 |---|---|---|---|
-| POST | `/auth/register` | `email, password, role` | No |
+| POST | `/auth/register` | `email, password, role` | No — solo STUDENT, GRADUATE, COMPANY |
 | POST | `/auth/verify-otp` | `userId, code` | No |
 | POST | `/auth/resend-otp` | `userId` | No |
 | POST | `/auth/login` | `email, password` | No |
@@ -488,11 +501,54 @@ Authorization: Bearer <JWT>
 
 | Método | Ruta | Auth | Consumidor |
 |---|---|---|---|
-| GET | `/notifications/jobs/:id/candidates` | **Sin JWT** (pendiente: secret) | n8n |
-| POST | `/notifications/telegram/register` | **Sin JWT** (pendiente: hardening) | Bot Telegram |
+| GET | `/notifications/jobs/:id/candidates` | Header `x-webhook-secret` si `N8N_WEBHOOK_SECRET` | n8n |
+| POST | `/notifications/telegram/register` | Header `x-webhook-secret` si `N8N_WEBHOOK_SECRET` | Bot Telegram |
 | PATCH | `/notifications/preferences` | JWT candidato | Frontend perfil |
 
 Body `POST /telegram/register`: `{ userId, chatId }`
+
+### Candidatos — `/api/candidates`
+
+| Método | Ruta | Roles | Query |
+|---|---|---|---|
+| GET | `/candidates/search` | COMPANY | `skills`, `career`, `workMode`, `minScore`, `search`, `page`, `limit` |
+
+### Dashboards — `/api/dashboard`
+
+| Método | Ruta | Roles |
+|---|---|---|
+| GET | `/dashboard/company` | COMPANY |
+| GET | `/dashboard/candidate` | STUDENT, GRADUATE |
+
+### Tributario — `/api/tax`
+
+| Método | Ruta | Roles |
+|---|---|---|
+| GET | `/tax/benefits` | COMPANY |
+| POST | `/tax/simulate` | COMPANY — body `{ monthlySalary, hireAge? }` |
+
+### Admin — `/api/admin`
+
+| Método | Ruta | Roles |
+|---|---|---|
+| GET | `/admin/metrics` | ADMIN |
+| GET | `/admin/users` | ADMIN |
+| PATCH | `/admin/users/:id/status` | ADMIN — `{ isActive }` |
+| DELETE | `/admin/users/:id` | ADMIN — soft delete |
+| GET | `/admin/jobs` | ADMIN |
+| PATCH | `/admin/jobs/:id/moderate` | ADMIN — `{ status }` |
+| GET | `/admin/ranking-weights` | ADMIN |
+| PUT | `/admin/ranking-weights` | ADMIN |
+| GET | `/admin/institutions` | ADMIN |
+| POST | `/admin/institutions` | ADMIN |
+| PATCH | `/admin/institutions/:id` | ADMIN |
+| POST | `/admin/admins` | ADMIN |
+
+### Institución — `/api/institution`
+
+| Método | Ruta | Roles |
+|---|---|---|
+| GET | `/institution/dashboard` | INSTITUTION |
 
 ### Contratos, pagos y entregables — `/api/contracts`
 
@@ -504,7 +560,11 @@ Body `POST /telegram/register`: `{ userId, chatId }`
 | POST | `/contracts/:id/file` | COMPANY | campo **`file`** (PDF), bucket `contracts` |
 | PATCH | `/contracts/:id/confirm` | STUDENT, GRADUATE | Requiere PDF subido por empresa |
 | PATCH | `/contracts/:id/cancel` | COMPANY | Solo PENDING_CANDIDATE o ACTIVE |
-| PATCH | `/contracts/:id/complete` | COMPANY | Valida entregables y pagos |
+| PATCH | `/contracts/:id/complete` | COMPANY | Valida entregables y pagos; setea `completedAt` |
+| GET | `/contracts/:id/report` | COMPANY | PDF descargable (solo COMPLETED) |
+| GET | `/contracts/:id/ratings` | Partes del contrato | Estado + flags `canRate*` |
+| POST | `/contracts/:id/ratings/company` | COMPANY | Califica candidato (1–5 por dimensión) |
+| POST | `/contracts/:id/ratings/candidate` | STUDENT, GRADUATE | Califica empresa |
 | POST | `/contracts/:id/payments` | COMPANY | Valida monto vs total pendiente |
 | POST | `/contracts/payments/:id/receipt` | COMPANY | campo `receipt`, confirma pago |
 | GET | `/contracts/:id/deliverables` | COMPANY, STUDENT, GRADUATE | Lista entregables |
@@ -544,7 +604,7 @@ Body `POST /telegram/register`: `{ userId, chatId }`
 
 | Contexto | Dónde | Pesos |
 |---|---|---|
-| **Perfil global** | `ProfileScore` vía `ranking.service` | `DEFAULT_WEIGHTS` en `lib/ranking.ts` |
+| **Perfil global** | `ProfileScore` vía `ranking.service` | `GlobalRankConfig` (fallback `DEFAULT_WEIGHTS`) |
 | **Al postular** | `Application.scoreAtApply` | `JobRankConfig` de la vacante o defaults del job service |
 
 `DEFAULT_WEIGHTS` (perfil global en código):
@@ -655,7 +715,14 @@ src/
 │   ├── notification.service.ts
 │   ├── keyword.service.ts
 │   ├── contract.service.ts
-│   └── deliverable.service.ts
+│   ├── deliverable.service.ts
+│   ├── rating.service.ts
+│   ├── candidate.service.ts
+│   ├── dashboard.service.ts
+│   ├── report.service.ts
+│   ├── tax.service.ts
+│   ├── admin.service.ts
+│   └── institution.service.ts
 │
 ├── controllers/           → asyncHandler + error-maps (sin Prisma directo)
 │   └── ... (todos los dominios + keyword.controller.ts)
@@ -716,12 +783,11 @@ Registrar aquí evita que agentes “arreglen” cosas sin contexto del sprint.
 
 | Item | Prioridad | Notas |
 |---|---|---|
-| `/notifications/*` sin API key / secret | Alta | Endpoints públicos sensibles |
-| `POST /telegram/register` sin validar identidad | Alta | Cualquiera puede vincular chatId a un userId |
-| Zod solo en módulo contratos | Media | Extender a auth, jobs, profile |
-| Tests inexistentes | Media | Priorizar auth, apply, contracts |
-| Roles ADMIN / INSTITUTION sin API | Sprint 4 | Solo en schema |
-| UI entregables en frontend | Sprint 3 | Oscar — endpoints listos |
+| `/notifications/*` sin secret en dev | Baja | Si `N8N_WEBHOOK_SECRET` vacío, permite acceso (solo desarrollo) |
+| Zod parcial en auth/jobs | Media | Ratings, admin, contratos ya usan Zod |
+| Tests inexistentes | Media | Priorizar auth, apply, contracts, ratings |
+| UI Sprint 4 en frontend | Media | Oscar consumirá endpoints nuevos |
+| WhatsApp vía n8n | Baja | Telegram operativo |
 | JWT_EXPIRES_IN / OTP env vars no cableadas | Baja | Hardcoded en jwt.ts / auth.service |
 
 ---

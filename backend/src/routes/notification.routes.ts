@@ -1,18 +1,19 @@
 import { Router } from 'express';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
+import { verifyWebhookSecret } from '../middlewares/webhook-secret.middleware';
 import * as notificationController from '../controllers/notification.controller';
 
 const router = Router();
 
-// Usado por n8n — no requiere JWT del usuario sino un secret compartido
 router.get(
   '/jobs/:id/candidates',
+  verifyWebhookSecret,
   notificationController.getCandidatesToNotify
 );
 
-// Usado por el bot de Telegram — no requiere JWT
 router.post(
   '/telegram/register',
+  verifyWebhookSecret,
   notificationController.registerTelegram
 );
 

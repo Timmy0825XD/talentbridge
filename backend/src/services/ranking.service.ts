@@ -1,5 +1,6 @@
+import { getGlobalRankingWeights } from '../lib/global-rank-config';
 import { prisma } from '../lib/prisma';
-import { calculateScore, DEFAULT_WEIGHTS, RankingWeights } from '../lib/ranking';
+import { calculateScore } from '../lib/ranking';
 
 export async function computeAndSaveScore(userId: string): Promise<void> {
   const profile = await prisma.candidateProfile.findUnique({
@@ -8,6 +9,8 @@ export async function computeAndSaveScore(userId: string): Promise<void> {
   });
 
   if (!profile) return;
+
+  const weights = await getGlobalRankingWeights();
 
   const breakdown = calculateScore({
     skills:         profile.skills,
@@ -26,7 +29,8 @@ export async function computeAndSaveScore(userId: string): Promise<void> {
     photoUrl:       profile.photoUrl,
     workMode:       profile.workMode,
     salaryExpected: profile.salaryExpected,
-  });
+    reputationScore: profile.ratingCount > 0 ? profile.reputationAvg : undefined,
+  }, weights);
 
   await prisma.profileScore.upsert({
     where: { candidateId: profile.id },
@@ -82,6 +86,8 @@ export async function getScoreByUserId(userId: string) {
     },
     calculatedAt: profile.score.calculatedAt,
     suggestions:  generateSuggestions(profile.score, profile),
+    reputationAvg: profile.ratingCount > 0 ? profile.reputationAvg : null,
+    ratingCount: profile.ratingCount,
   };
 }
 

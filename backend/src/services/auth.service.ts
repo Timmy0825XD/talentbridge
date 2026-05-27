@@ -15,8 +15,11 @@ function generateOtp(): string {
 export async function registerUser(
   email: string,
   password: string,
-  role: Role
+  role:   Role
 ) {
+  const allowedRoles: Role[] = [Role.STUDENT, Role.GRADUATE, Role.COMPANY];
+  if (!allowedRoles.includes(role)) throw new Error('ROLE_NOT_ALLOWED');
+
   // Verificar si el correo ya existe
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw new Error('EMAIL_TAKEN');
