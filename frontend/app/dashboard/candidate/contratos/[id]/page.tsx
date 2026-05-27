@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import api from "@/src/lib/api";
+import DeliverablesPanel from "@/src/components/contracts/DeliverablesPanel";
 import {
   ArrowLeft, FileText, Clock, CheckCircle2, XCircle,
   Building2, Briefcase, Calendar, DollarSign, AlertCircle,
@@ -326,6 +327,15 @@ export default function ContratoDetallePage() {
               </p>
             </div>
           )}
+        </div>
+
+        {/* Entregables */}
+        <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">
+          <DeliverablesPanel
+            contractId={contractId}
+            contractStatus={contract.status}
+            role="CANDIDATE"
+          />
         </div>
 
         {/* Pagos */}
