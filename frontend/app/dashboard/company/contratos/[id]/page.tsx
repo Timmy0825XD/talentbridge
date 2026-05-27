@@ -11,8 +11,6 @@ import {
   Loader2, ExternalLink, Upload, Plus, X,
 } from "lucide-react";
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
-
 interface Payment {
   id: string;
   amount: number;
@@ -29,15 +27,13 @@ interface Contract {
   description: string | null;
   startDate: string | null;
   endDate: string | null;
-  totalAmount: number | null;      // ← era "amount"
-  contractFileUrl: string | null;  // ← era "fileUrl"
+  totalAmount: number | null;
+  contractFileUrl: string | null;
   createdAt: string;
   candidate: { fullName: string | null; user: { email: string } } | null;
   job: { id: string; title: string } | null;
   payments: Payment[];
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
   PENDING_CANDIDATE: { label: "Esperando al candidato", color: "text-[#7c5c00]", bg: "bg-[#fff3cd]" },
@@ -51,35 +47,27 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
 }
 
-// ─── Componente ───────────────────────────────────────────────────────────────
-
 export default function ContratoEmpresaDetallePage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const params = useParams();
   const contractId = params.id as string;
 
-  const [contract, setContract]       = useState<Contract | null>(null);
-  const [loading, setLoading]         = useState(true);
-  const [error, setError]             = useState("");
-
-  // Upload PDF del contrato
+  const [contract, setContract]           = useState<Contract | null>(null);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
-  const [fileMsg, setFileMsg]         = useState("");
-
-  // Marcar como completado
-  const [completing, setCompleting]   = useState(false);
-  const [completeMsg, setCompleteMsg] = useState("");
-
-  // Registrar pago
-  const [showPayForm, setShowPayForm] = useState(false);
-  const [payForm, setPayForm] = useState({ amount: "", description: "" });
-  const [savingPay, setSavingPay]     = useState(false);
-  const [payMsg, setPayMsg]           = useState("");
-
-  // Subir comprobante
+  const [fileMsg, setFileMsg]             = useState("");
+  const [completing, setCompleting]       = useState(false);
+  const [completeMsg, setCompleteMsg]     = useState("");
+  const [cancelling, setCancelling]       = useState(false);
+  const [cancelMsg, setCancelMsg]         = useState("");
+  const [showPayForm, setShowPayForm]     = useState(false);
+  const [payForm, setPayForm]             = useState({ amount: "", description: "" });
+  const [savingPay, setSavingPay]         = useState(false);
+  const [payMsg, setPayMsg]               = useState("");
   const [uploadingReceipt, setUploadingReceipt] = useState<string | null>(null);
-  const [receiptMsg, setReceiptMsg]   = useState("");
+  const [receiptMsg, setReceiptMsg]       = useState("");
 
   useEffect(() => {
     if (!isLoading && user?.role !== "COMPANY") router.replace("/dashboard/candidate");
@@ -101,7 +89,6 @@ export default function ContratoEmpresaDetallePage() {
     }
   }
 
-  // Subir PDF del contrato
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
     if (file.type !== "application/pdf") { setFileMsg("Solo se permiten archivos PDF."); return; }
@@ -122,7 +109,6 @@ export default function ContratoEmpresaDetallePage() {
     }
   }
 
-  // Marcar contrato como completado
   async function handleComplete() {
     setCompleting(true); setCompleteMsg("");
     try {
@@ -138,7 +124,22 @@ export default function ContratoEmpresaDetallePage() {
     }
   }
 
-  // Registrar un pago
+  async function handleCancel() {
+    if (!confirm("¿Estás seguro de que quieres cancelar este contrato? Esta acción no se puede deshacer.")) return;
+    setCancelling(true); setCancelMsg("");
+    try {
+      await api.patch(`/contracts/${contractId}/cancel`);
+      setCancelMsg("Contrato cancelado.");
+      setTimeout(() => setCancelMsg(""), 4000);
+      await loadContract();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string } } };
+      setCancelMsg(e.response?.data?.error ?? "Error al cancelar el contrato.");
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   async function handleAddPayment(e: React.FormEvent) {
     e.preventDefault();
     if (!payForm.amount) return;
@@ -161,7 +162,6 @@ export default function ContratoEmpresaDetallePage() {
     }
   }
 
-  // Subir comprobante de pago
   async function handleReceiptUpload(paymentId: string, e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
     setUploadingReceipt(paymentId); setReceiptMsg("");
@@ -205,6 +205,7 @@ export default function ContratoEmpresaDetallePage() {
 
   const meta      = STATUS_META[contract.status] ?? STATUS_META.CANCELLED;
   const isActive  = contract.status === "ACTIVE";
+  const canCancel = contract.status === "PENDING_CANDIDATE" || contract.status === "ACTIVE";
   const totalPaid = contract.payments
     .filter(p => p.status === "CONFIRMED")
     .reduce((sum, p) => sum + p.amount, 0);
@@ -220,12 +221,11 @@ export default function ContratoEmpresaDetallePage() {
         <ArrowLeft className="w-4 h-4" /> Volver a contratos
       </Link>
 
-      {/* Estado + título */}
       <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold mb-4 ${meta.bg} ${meta.color}`}>
-        {contract.status === "ACTIVE"    && <CheckCircle2 className="w-4 h-4" />}
+        {contract.status === "ACTIVE"            && <CheckCircle2 className="w-4 h-4" />}
         {contract.status === "PENDING_CANDIDATE" && <Clock className="w-4 h-4" />}
-        {contract.status === "COMPLETED" && <CheckCircle2 className="w-4 h-4" />}
-        {contract.status === "CANCELLED" && <XCircle className="w-4 h-4" />}
+        {contract.status === "COMPLETED"         && <CheckCircle2 className="w-4 h-4" />}
+        {contract.status === "CANCELLED"         && <XCircle className="w-4 h-4" />}
         {meta.label}
       </div>
 
@@ -235,10 +235,10 @@ export default function ContratoEmpresaDetallePage() {
       <p className="text-sm text-[#737781] mb-8">Creado el {formatDate(contract.createdAt)}</p>
 
       {/* Mensajes globales */}
-      {[completeMsg, payMsg, fileMsg, receiptMsg].map((msg, i) =>
+      {[completeMsg, cancelMsg, payMsg, fileMsg, receiptMsg].map((msg, i) =>
         msg ? (
           <div key={i} className={`mb-4 px-5 py-3.5 rounded-2xl text-sm font-semibold ${
-            msg.includes("Error") || msg.includes("Solo")
+            msg.toLowerCase().includes("error") || msg.includes("Solo")
               ? "bg-[#ffdad6] text-[#93000a]"
               : "bg-[#6bfe9c]/20 text-[#005228]"
           }`}>{msg}</div>
@@ -247,24 +247,20 @@ export default function ContratoEmpresaDetallePage() {
 
       <div className="space-y-5">
 
-        {/* Información del contrato */}
+        {/* Detalles */}
         <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">
           <h2 className="text-xs font-black uppercase tracking-widest text-[#424750] mb-5">Detalles</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-
             {contract.candidate && (
               <div className="flex items-start gap-3">
                 <Users className="w-4 h-4 text-[#737781] mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-xs text-[#737781] font-semibold uppercase tracking-wider">Candidato</p>
-                  <p className="font-bold text-[#191c1e] mt-0.5">
-                    {contract.candidate.fullName ?? "—"}
-                  </p>
+                  <p className="font-bold text-[#191c1e] mt-0.5">{contract.candidate.fullName ?? "—"}</p>
                   <p className="text-xs text-[#737781]">{contract.candidate.user.email}</p>
                 </div>
               </div>
             )}
-
             {contract.job && (
               <div className="flex items-start gap-3">
                 <Briefcase className="w-4 h-4 text-[#737781] mt-0.5 flex-shrink-0" />
@@ -274,7 +270,6 @@ export default function ContratoEmpresaDetallePage() {
                 </div>
               </div>
             )}
-
             <div className="flex items-start gap-3">
               <DollarSign className="w-4 h-4 text-[#737781] mt-0.5 flex-shrink-0" />
               <div>
@@ -284,7 +279,6 @@ export default function ContratoEmpresaDetallePage() {
                 </p>
               </div>
             </div>
-
             <div className="flex items-start gap-3">
               <Calendar className="w-4 h-4 text-[#737781] mt-0.5 flex-shrink-0" />
               <div>
@@ -296,23 +290,19 @@ export default function ContratoEmpresaDetallePage() {
               </div>
             </div>
           </div>
-
           {contract.description && (
             <div className="mt-5 pt-5 border-t border-[#f2f4f6]">
               <p className="text-xs text-[#737781] font-semibold uppercase tracking-wider mb-2">Descripción</p>
-              <p className="text-sm text-[#424750] leading-relaxed whitespace-pre-line">
-                {contract.description}
-              </p>
+              <p className="text-sm text-[#424750] leading-relaxed whitespace-pre-line">{contract.description}</p>
             </div>
           )}
         </div>
 
-        {/* Documento PDF del contrato */}
+        {/* Documento PDF */}
         <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">
           <h2 className="text-xs font-black uppercase tracking-widest text-[#424750] mb-4">
             Documento del contrato
           </h2>
-
           {contract.contractFileUrl ? (
             <div className="flex items-center justify-between p-4 bg-[#f7f9fb] rounded-xl">
               <a href={contract.contractFileUrl} target="_blank" rel="noopener noreferrer"
@@ -321,17 +311,13 @@ export default function ContratoEmpresaDetallePage() {
                   <FileText className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="font-bold text-sm text-[#191c1e] group-hover:text-[#006d37]">
-                    Contrato PDF
-                  </p>
+                  <p className="font-bold text-sm text-[#191c1e] group-hover:text-[#006d37]">Contrato PDF</p>
                   <p className="text-xs text-[#737781]">Ver documento completo</p>
                 </div>
                 <ExternalLink className="w-4 h-4 text-[#737781] ml-2" />
               </a>
-              {/* Botón para reemplazar */}
               <label className="ml-4 flex items-center gap-1.5 text-xs font-bold text-[#424750] hover:text-[#006d37] cursor-pointer transition-colors">
-                <Upload className="w-3.5 h-3.5" />
-                Reemplazar
+                <Upload className="w-3.5 h-3.5" /> Reemplazar
                 <input type="file" accept=".pdf" className="hidden"
                   onChange={handleFileUpload} disabled={uploadingFile} />
               </label>
@@ -343,9 +329,7 @@ export default function ContratoEmpresaDetallePage() {
                 Sube el PDF del contrato para que el candidato pueda revisarlo.
               </p>
               <label className="inline-flex items-center gap-2 bg-[#006d37] text-white px-6 py-2.5 rounded-full text-sm font-bold cursor-pointer hover:opacity-90 transition-all">
-                {uploadingFile
-                  ? <Loader2 className="w-4 h-4 animate-spin" />
-                  : <Upload className="w-4 h-4" />}
+                {uploadingFile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                 {uploadingFile ? "Subiendo..." : "Subir PDF del contrato"}
                 <input type="file" accept=".pdf" className="hidden"
                   onChange={handleFileUpload} disabled={uploadingFile} />
@@ -361,10 +345,9 @@ export default function ContratoEmpresaDetallePage() {
               <h2 className="text-xs font-black uppercase tracking-widest text-[#424750]">Pagos</h2>
               {contract.totalAmount && (
                 <p className="text-xs text-[#737781] mt-1">
-                  Pagado: <span className="font-bold text-[#006d37]">
-                    ${totalPaid.toLocaleString("es-CO")} COP
-                  </span>{" "}
-                  de ${contract.totalAmount.toLocaleString("es-CO")} COP
+                  Pagado:{" "}
+                  <span className="font-bold text-[#006d37]">${totalPaid.toLocaleString("es-CO")} COP</span>
+                  {" "}de ${contract.totalAmount.toLocaleString("es-CO")} COP
                 </p>
               )}
             </div>
@@ -376,10 +359,8 @@ export default function ContratoEmpresaDetallePage() {
             )}
           </div>
 
-          {/* Formulario de pago */}
           {showPayForm && (
-            <form onSubmit={handleAddPayment}
-              className="bg-[#f7f9fb] rounded-2xl p-5 mb-5 space-y-4">
+            <form onSubmit={handleAddPayment} className="bg-[#f7f9fb] rounded-2xl p-5 mb-5 space-y-4">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-bold text-sm text-[#191c1e]">Nuevo pago</h3>
                 <button type="button" onClick={() => setShowPayForm(false)}
@@ -407,7 +388,7 @@ export default function ContratoEmpresaDetallePage() {
                   Cancelar
                 </button>
                 <button type="submit" disabled={savingPay}
-                  className="flex items-center gap-2 bg-[#006d37] text-white px-6 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-all disabled:opacity-60">
+                  className="flex items-center gap-2 bg-[#006d37] text-white px-6 py-2 rounded-full text-sm font-bold hover:opacity-90 disabled:opacity-60">
                   {savingPay ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
                   {savingPay ? "Guardando..." : "Registrar pago"}
                 </button>
@@ -415,7 +396,6 @@ export default function ContratoEmpresaDetallePage() {
             </form>
           )}
 
-          {/* Lista de pagos */}
           {contract.payments.length === 0 ? (
             <div className="text-center py-8 border-2 border-dashed border-[#e6e8ea] rounded-xl">
               <DollarSign className="w-8 h-8 text-[#c2c6d1] mx-auto mb-2" />
@@ -448,13 +428,10 @@ export default function ContratoEmpresaDetallePage() {
                         </p>
                       </div>
                     </div>
-
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <span className="font-extrabold text-[#191c1e] font-headline">
                         ${payment.amount.toLocaleString("es-CO")}
                       </span>
-
-                      {/* Comprobante: ver si existe o subir */}
                       {payment.receiptUrl ? (
                         <a href={payment.receiptUrl} target="_blank" rel="noopener noreferrer"
                           className="text-xs text-[#006d37] font-bold hover:underline flex items-center gap-1">
@@ -479,7 +456,7 @@ export default function ContratoEmpresaDetallePage() {
           )}
         </div>
 
-        {/* Acción: marcar como completado */}
+        {/* Finalizar contrato */}
         {isActive && (
           <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">
             <h2 className="text-xs font-black uppercase tracking-widest text-[#424750] mb-3">
@@ -491,10 +468,25 @@ export default function ContratoEmpresaDetallePage() {
             </p>
             <button onClick={handleComplete} disabled={completing}
               className="flex items-center gap-2 bg-gradient-to-br from-[#00386c] to-[#1a4f8b] text-white px-8 py-3 rounded-full font-bold text-sm uppercase tracking-wider shadow-lg shadow-[#00386c]/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed">
-              {completing
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <CheckCircle2 className="w-4 h-4" />}
+              {completing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               {completing ? "Procesando..." : "Marcar como completado"}
+            </button>
+          </div>
+        )}
+
+        {/* Cancelar contrato — visible si PENDING_CANDIDATE o ACTIVE */}
+        {canCancel && (
+          <div className="bg-white rounded-2xl border border-[#ffdad6] p-6">
+            <h2 className="text-xs font-black uppercase tracking-widest text-[#93000a] mb-3">
+              Zona de peligro
+            </h2>
+            <p className="text-sm text-[#737781] mb-4">
+              Cancela este contrato si hubo un cambio de planes. El candidato será notificado.
+            </p>
+            <button onClick={handleCancel} disabled={cancelling}
+              className="flex items-center gap-2 bg-[#ffdad6] text-[#93000a] px-6 py-3 rounded-full font-bold text-sm uppercase tracking-wider hover:bg-[#ba1a1a] hover:text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+              {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+              {cancelling ? "Cancelando..." : "Cancelar contrato"}
             </button>
           </div>
         )}

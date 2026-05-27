@@ -17,7 +17,7 @@ interface Payment {
   id: string;
   amount: number;
   description: string | null;
-  status: string;         // PENDING | CONFIRMED
+  status: string;
   receiptUrl: string | null;
   createdAt: string;
 }
@@ -29,8 +29,8 @@ interface Contract {
   description: string | null;
   startDate: string | null;
   endDate: string | null;
-  totalAmount: number | null;      // ← era "amount"
-  contractFileUrl: string | null;  // ← era "fileUrl"
+  totalAmount: number | null;
+  contractFileUrl: string | null;
   createdAt: string;
   job: { id: string; title: string } | null;
   company: { companyName: string | null; city: string | null } | null;
@@ -90,7 +90,6 @@ export default function ContratoDetallePage() {
   const [confirming, setConfirming] = useState(false);
   const [confirmMsg, setConfirmMsg] = useState("");
 
-  // Protección de ruta
   useEffect(() => {
     if (!isLoading && user?.role === "COMPANY") router.replace("/dashboard/company/contratos");
   }, [user, isLoading, router]);
@@ -112,14 +111,15 @@ export default function ContratoDetallePage() {
     }
   }
 
-  // Candidato confirma el contrato
   async function handleConfirm() {
+    // FIX P0: guard — no debería llegar aquí si no hay PDF, pero por si acaso
+    if (!contract?.contractFileUrl) return;
+
     setConfirming(true);
     setConfirmMsg("");
     try {
       await api.patch(`/contracts/${contractId}/confirm`);
       setConfirmMsg("¡Contrato confirmado exitosamente! Ya está activo.");
-      // Recarga para ver el nuevo estado
       await loadContract();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
@@ -150,8 +150,9 @@ export default function ContratoDetallePage() {
     );
   }
 
-  const meta    = STATUS_META[contract.status] ?? STATUS_META.CANCELLED;
+  const meta       = STATUS_META[contract.status] ?? STATUS_META.CANCELLED;
   const isPending  = contract.status === "PENDING_CANDIDATE";
+  const hasPDF     = !!contract.contractFileUrl;
   const totalPaid  = contract.payments
     .filter(p => p.status === "CONFIRMED")
     .reduce((sum, p) => sum + p.amount, 0);
@@ -193,6 +194,14 @@ export default function ContratoDetallePage() {
             </div>
           </div>
 
+          {/* FIX P0: aviso cuando no hay PDF */}
+          {!hasPDF && (
+            <div className="mb-4 bg-[#ffdad6] text-[#93000a] text-sm font-medium px-4 py-3 rounded-xl flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              La empresa aún no ha subido el documento del contrato. No puedes confirmar hasta entonces.
+            </div>
+          )}
+
           {confirmMsg && (
             <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-semibold ${
               confirmMsg.includes("exitosamente")
@@ -203,8 +212,12 @@ export default function ContratoDetallePage() {
             </div>
           )}
 
-          <button onClick={handleConfirm} disabled={confirming}
-            className="flex items-center gap-2 bg-gradient-to-br from-[#006d37] to-[#00743a] text-white px-8 py-3 rounded-full font-bold text-sm uppercase tracking-wider shadow-lg shadow-[#006d37]/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+          {/* FIX P0: disabled si no hay PDF */}
+          <button
+            onClick={handleConfirm}
+            disabled={confirming || !hasPDF}
+            className="flex items-center gap-2 bg-gradient-to-br from-[#006d37] to-[#00743a] text-white px-8 py-3 rounded-full font-bold text-sm uppercase tracking-wider shadow-lg shadow-[#006d37]/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             {confirming
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : <CheckCircle2 className="w-4 h-4" />}
@@ -213,7 +226,7 @@ export default function ContratoDetallePage() {
         </div>
       )}
 
-      {/* Mensaje de confirmación exitosa */}
+      {/* Mensaje confirmación exitosa fuera del bloque pending */}
       {confirmMsg && !isPending && (
         <div className="mb-6 bg-[#6bfe9c]/20 text-[#005228] px-5 py-3.5 rounded-2xl text-sm font-semibold">
           ✓ {confirmMsg}
@@ -285,12 +298,12 @@ export default function ContratoDetallePage() {
         </div>
 
         {/* Archivo del contrato */}
-        {contract.contractFileUrl && (
-          <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">
-            <h2 className="text-sm font-black uppercase tracking-widest text-[#424750] mb-4">
-              Documento del contrato
-            </h2>
-            <a href={contract.contractFileUrl} target="_blank" rel="noopener noreferrer"
+        <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">
+          <h2 className="text-sm font-black uppercase tracking-widest text-[#424750] mb-4">
+            Documento del contrato
+          </h2>
+          {hasPDF ? (
+            <a href={contract.contractFileUrl!} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-3 p-4 bg-[#f7f9fb] rounded-xl hover:bg-[#f2f4f6] transition-colors group">
               <div className="w-10 h-10 bg-[#00386c] rounded-xl flex items-center justify-center flex-shrink-0">
                 <FileText className="w-5 h-5 text-white" />
@@ -303,8 +316,17 @@ export default function ContratoDetallePage() {
               </div>
               <ExternalLink className="w-4 h-4 text-[#737781] group-hover:text-[#00386c] transition-colors" />
             </a>
-          </div>
-        )}
+          ) : (
+            <div className="flex items-center gap-3 p-4 bg-[#f7f9fb] rounded-xl border-2 border-dashed border-[#e6e8ea]">
+              <div className="w-10 h-10 bg-[#e6e8ea] rounded-xl flex items-center justify-center flex-shrink-0">
+                <FileText className="w-5 h-5 text-[#737781]" />
+              </div>
+              <p className="text-sm text-[#737781]">
+                La empresa aún no ha subido el PDF del contrato.
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Pagos */}
         <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">

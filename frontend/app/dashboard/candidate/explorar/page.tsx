@@ -4,6 +4,7 @@ import { useAuth } from "@/src/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import api from "@/src/lib/api";
+import { ProfileScoreResponse } from "@/src/types/api";
 import { Search, CheckCircle2, MapPin, Clock, Briefcase, AlertCircle, Loader2, SlidersHorizontal } from "lucide-react";
 
 interface Job {
@@ -26,12 +27,6 @@ interface Job {
   };
 }
 
-interface MyScore {
-  totalScore: number;
-  breakdown: Record<string, number>;
-}
-
-
 function timeAgo(iso: string): string {
   const diff  = Date.now() - new Date(iso).getTime();
   const mins  = Math.floor(diff / 60000);
@@ -52,8 +47,7 @@ function formatBudget(min: number | null, max: number | null): string {
 const TYPE_LABEL: Record<string, string>     = { FORMAL: "Tiempo completo", FREELANCE: "Freelance" };
 const WORKMODE_LABEL: Record<string, string> = { REMOTE: "Remoto", ONSITE: "Presencial", HYBRID: "Híbrido" };
 
-
-function calcMatch(myScore: MyScore | null, jobSkills: string[], mySkills: string[]): number {
+function calcMatch(myScore: ProfileScoreResponse | null, jobSkills: string[], mySkills: string[]): number {
   if (jobSkills.length === 0) return myScore ? Math.round(myScore.totalScore) : 0;
   if (mySkills.length === 0)  return 0;
   const matched = jobSkills.filter(s =>
@@ -61,7 +55,6 @@ function calcMatch(myScore: MyScore | null, jobSkills: string[], mySkills: strin
   ).length;
   return Math.round((matched / jobSkills.length) * 100);
 }
-
 
 const QUICK_FILTERS = [
   { key: "",         label: "Todos" },
@@ -71,13 +64,12 @@ const QUICK_FILTERS = [
   { key: "ONSITE",  label: "Presencial" },
 ];
 
-
 export default function ExplorarPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
 
   const [jobs, setJobs]         = useState<Job[]>([]);
-  const [myScore, setMyScore]   = useState<MyScore | null>(null);
+  const [myScore, setMyScore]   = useState<ProfileScoreResponse | null>(null);
   const [mySkills, setMySkills] = useState<string[]>([]);
 
   const [selected, setSelected]         = useState<Job | null>(null);
@@ -129,10 +121,11 @@ export default function ExplorarPage() {
         setAppliedIds(new Set(ids));
       }
 
+      // FIX P0: scoreRes.data directo, NO scoreRes.data.score
       try {
-        const scoreRes = await api.get("/ranking/me");
-        setMyScore(scoreRes.data?.score ?? null);
-      } catch { }
+        const scoreRes = await api.get<ProfileScoreResponse>("/ranking/me");
+        setMyScore(scoreRes.data ?? null);
+      } catch { /* score es no-bloqueante */ }
 
     } catch {
       setError("No se pudieron cargar las vacantes. Intenta recargar.");
@@ -407,7 +400,7 @@ export default function ExplorarPage() {
               <p className="text-sm text-[#737781] mt-1">Haz clic en cualquier oferta para ver sus detalles.</p>
             </div>
           ) : (
-            <> 
+            <>
               <div className="relative h-44 bg-gradient-to-r from-[#00386c] to-[#1a4f8b] overflow-hidden">
                 <div className="absolute bottom-0 left-0 p-8 flex items-end gap-6 w-full translate-y-12">
                   <div className="w-24 h-24 rounded-2xl bg-white flex items-center justify-center shadow-xl ring-8 ring-[#f2f4f6]">
@@ -417,7 +410,6 @@ export default function ExplorarPage() {
                   </div>
                 </div>
               </div>
-
 
               <div className="flex-1 overflow-y-auto p-8 pt-16">
                 <div className="flex justify-between items-start mb-8">
@@ -503,7 +495,6 @@ export default function ExplorarPage() {
                       </div>
                     </div>
                   )}
-
 
                   {selected.deliverables && (
                     <div>
