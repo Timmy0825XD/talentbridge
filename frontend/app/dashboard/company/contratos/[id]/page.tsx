@@ -10,7 +10,7 @@ import RatingsPanel from "@/src/components/contracts/RatingsPanel";
 import {
   ArrowLeft, FileText, Clock, CheckCircle2, XCircle,
   Users, Briefcase, Calendar, DollarSign, AlertCircle,
-  Loader2, ExternalLink, Upload, Plus, X,
+  Loader2, ExternalLink, Upload, Plus, X, Download,
 } from "lucide-react";
 
 interface Payment {
@@ -77,6 +77,9 @@ export default function ContratoEmpresaDetallePage() {
   const [payMsg, setPayMsg]               = useState("");
   const [uploadingReceipt, setUploadingReceipt] = useState<string | null>(null);
   const [receiptMsg, setReceiptMsg]       = useState("");
+  // P2: reporte PDF
+  const [downloadingReport, setDownloadingReport] = useState(false);
+  const [reportMsg, setReportMsg]         = useState("");
 
   useEffect(() => {
     if (!isLoading && user?.role !== "COMPANY") router.replace("/dashboard/candidate");
@@ -191,6 +194,25 @@ export default function ContratoEmpresaDetallePage() {
     }
   }
 
+  async function handleDownloadReport() {
+    setDownloadingReport(true); setReportMsg("");
+    try {
+      const res = await api.get(`/contracts/${contractId}/report`, { responseType: "blob" });
+      const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `reporte_contrato_${contractId}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string } } };
+      setReportMsg(e.response?.data?.error ?? "Error al descargar el reporte.");
+      setTimeout(() => setReportMsg(""), 4000);
+    } finally {
+      setDownloadingReport(false);
+    }
+  }
+
   if (isLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f7f9fb]">
@@ -244,7 +266,7 @@ export default function ContratoEmpresaDetallePage() {
       <p className="text-sm text-[#737781] mb-8">Creado el {formatDate(contract.createdAt)}</p>
 
       {/* Mensajes globales */}
-      {[completeMsg, cancelMsg, payMsg, fileMsg, receiptMsg].map((msg, i) =>
+      {[completeMsg, cancelMsg, payMsg, fileMsg, receiptMsg, reportMsg].map((msg, i) =>
         msg ? (
           <div key={i} className={`mb-4 px-5 py-3.5 rounded-2xl text-sm font-semibold ${
             msg.toLowerCase().includes("error") || msg.includes("Solo")
@@ -546,6 +568,25 @@ export default function ContratoEmpresaDetallePage() {
               className="flex items-center gap-2 bg-[#ffdad6] text-[#93000a] px-6 py-3 rounded-full font-bold text-sm uppercase tracking-wider hover:bg-[#ba1a1a] hover:text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed">
               {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
               {cancelling ? "Cancelando..." : "Cancelar contrato"}
+            </button>
+          </div>
+        )}
+
+        {/* Reporte PDF — visible cuando el contrato está completado */}
+        {contract.status === "COMPLETED" && (
+          <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">
+            <h2 className="text-xs font-black uppercase tracking-widest text-[#424750] mb-3">
+              Reporte del proyecto
+            </h2>
+            <p className="text-sm text-[#737781] mb-4">
+              Descarga el reporte completo del contrato con pagos, entregables y calificaciones.
+            </p>
+            <button onClick={handleDownloadReport} disabled={downloadingReport}
+              className="flex items-center gap-2 bg-gradient-to-br from-[#00386c] to-[#1a4f8b] text-white px-6 py-3 rounded-full font-bold text-sm uppercase tracking-wider hover:opacity-90 transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+              {downloadingReport
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Download className="w-4 h-4" />}
+              {downloadingReport ? "Generando..." : "Descargar reporte PDF"}
             </button>
           </div>
         )}

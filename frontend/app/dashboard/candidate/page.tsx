@@ -4,18 +4,14 @@ import { useAuth } from "@/src/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Link from "next/link";
-import {
-  useMyApplications,
-  useMyRanking,
-  useContracts,
-} from "@/src/hooks/queries";
+import { useCandidateDashboard } from "@/src/hooks/queries/use-dashboard";
 import {
   Send, ArrowRight, GraduationCap, FileText, Pencil,
-  Briefcase, CheckCircle2, Clock, AlertCircle, Star,
+  Briefcase, CheckCircle2, Clock, AlertCircle, Star, DollarSign,
 } from "lucide-react";
 
 const roleLabel: Record<string, string> = {
-  STUDENT: "Estudiante",
+  STUDENT:  "Estudiante",
   GRADUATE: "Egresado",
 };
 
@@ -38,11 +34,7 @@ export default function CandidateDashboardPage() {
   const router = useRouter();
   const enabled = !!user && user.role !== "COMPANY";
 
-  const { data: score = null, isLoading: scoreLoading } = useMyRanking(enabled);
-  const { data: applications = [], isLoading: appsLoading } = useMyApplications(enabled);
-  const { data: contracts = [], isLoading: contractsLoading } = useContracts(enabled);
-
-  const loading = scoreLoading || appsLoading || contractsLoading;
+  const { data, isLoading: dashLoading } = useCandidateDashboard(enabled);
 
   useEffect(() => {
     if (!isLoading && user?.role === "COMPANY") router.replace("/dashboard/company");
@@ -56,11 +48,14 @@ export default function CandidateDashboardPage() {
     );
   }
 
-  const activeApps      = applications.filter(a => a.status !== "REJECTED");
-  const activeContracts = contracts.filter(c => c.status === "ACTIVE");
-  const pendingContracts = contracts.filter(c => c.status === "PENDING_CANDIDATE");
-  const scoreValue      = score ? Math.round(score.totalScore) : null;
-  const topSuggestions  = score?.suggestions?.slice(0, 2) ?? [];
+  const loading         = dashLoading && !data;
+  const score           = data?.score ?? null;
+  const metrics         = data?.metrics;
+  const recentApps      = data?.recentApplications ?? [];
+  const activeContracts = data?.activeContracts ?? [];
+
+  const scoreValue     = score ? Math.round(score.totalScore) : null;
+  const topSuggestions = score?.suggestions?.slice(0, 2) ?? [];
 
   const scoreLabel = scoreValue === null ? "—"
     : scoreValue >= 80 ? "Excelente"
@@ -72,22 +67,18 @@ export default function CandidateDashboardPage() {
     {
       icon: <Send className="w-5 h-5 text-[#a6c8ff]" />,
       label: "POSTULACIONES",
-      value: loading ? "—" : String(activeApps.length),
+      value: loading ? "—" : String(metrics?.activeApplications ?? 0),
       sub: "En progreso",
       bg: "bg-gradient-to-br from-[#00386c] to-[#1a4f8b]",
-      textValue: "text-white",
-      textSub: "text-[#a6c8ff]",
-      textLabel: "text-[#a6c8ff]/70",
+      textValue: "text-white", textSub: "text-[#a6c8ff]", textLabel: "text-[#a6c8ff]/70",
     },
     {
       icon: <Briefcase className="w-5 h-5 text-[#006d37]" />,
       label: "CONTRATOS",
-      value: loading ? "—" : String(activeContracts.length),
+      value: loading ? "—" : String(metrics?.activeContracts ?? 0),
       sub: "Activos ahora",
       bg: "bg-white",
-      textValue: "text-[#191c1e]",
-      textSub: "text-[#424750]",
-      textLabel: "text-[#424750]",
+      textValue: "text-[#191c1e]", textSub: "text-[#424750]", textLabel: "text-[#424750]",
     },
     {
       icon: <Star className="w-5 h-5 text-[#00743a]" />,
@@ -95,43 +86,38 @@ export default function CandidateDashboardPage() {
       value: loading ? "—" : scoreValue !== null ? `${scoreValue}%` : "—",
       sub: loading ? "Cargando..." : scoreLabel,
       bg: "bg-[#6bfe9c]",
-      textValue: "text-[#00210c]",
-      textSub: "text-[#005228]",
-      textLabel: "text-[#005228]",
+      textValue: "text-[#00210c]", textSub: "text-[#005228]", textLabel: "text-[#005228]",
     },
   ];
 
   return (
     <main className="pb-20 px-8 pt-8 max-w-screen-2xl mx-auto space-y-12">
+
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-end">
         <div className="lg:col-span-7">
           <h1 className="text-5xl lg:text-6xl font-headline font-extrabold text-[#00386c] tracking-tight leading-tight">
             ¡Bienvenido de nuevo,{" "}
-            <span className="text-[#006d37]">
-              {roleLabel[user.role] ?? user.role}.
-            </span>
+            <span className="text-[#006d37]">{roleLabel[user.role] ?? user.role}.</span>
           </h1>
           <p className="mt-4 text-[#424750] text-lg max-w-lg leading-relaxed">
-            Tu trayectoria profesional se ve sólida. Tienes oportunidades
-            esperándote. ¿Listo para dar el siguiente paso?
+            Tu trayectoria profesional se ve sólida. Tienes oportunidades esperándote.
           </p>
         </div>
 
-        {pendingContracts.length > 0 ? (
+        {(metrics?.pendingContracts ?? 0) > 0 ? (
           <div className="lg:col-span-5 flex justify-end">
             <Link href="/dashboard/candidate/contratos"
               className="bg-[#fff3cd] border border-[#ffc107]/30 rounded-xl p-5 flex items-center gap-4 w-full lg:w-auto hover:shadow-md transition-all">
               <div className="flex -space-x-3">
-                {[...Array(Math.min(pendingContracts.length, 3))].map((_, i) => (
-                  <div key={i}
-                    className="w-10 h-10 rounded-full bg-[#ffc107] border-2 border-[#fff3cd] flex items-center justify-center"
+                {[...Array(Math.min(metrics!.pendingContracts, 3))].map((_, i) => (
+                  <div key={i} className="w-10 h-10 rounded-full bg-[#ffc107] border-2 border-[#fff3cd] flex items-center justify-center"
                     style={{ opacity: 1 - i * 0.2 }}>
                     <Clock className="w-5 h-5 text-[#7c5c00]" />
                   </div>
                 ))}
               </div>
               <span className="text-sm font-semibold text-[#7c5c00]">
-                {pendingContracts.length} contrato{pendingContracts.length > 1 ? "s" : ""} pendiente{pendingContracts.length > 1 ? "s" : ""} de confirmación
+                {metrics?.pendingContracts} contrato{(metrics?.pendingContracts ?? 0) > 1 ? "s" : ""} pendiente{(metrics?.pendingContracts ?? 0) > 1 ? "s" : ""} de confirmación
               </span>
             </Link>
           </div>
@@ -140,15 +126,14 @@ export default function CandidateDashboardPage() {
             <div className="bg-[#f2f4f6] rounded-xl p-5 flex items-center gap-4 w-full lg:w-auto">
               <div className="flex -space-x-3">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i}
-                    className="w-10 h-10 rounded-full bg-[#00386c] border-2 border-[#f2f4f6] flex items-center justify-center"
+                  <div key={i} className="w-10 h-10 rounded-full bg-[#00386c] border-2 border-[#f2f4f6] flex items-center justify-center"
                     style={{ opacity: 1 - i * 0.2 }}>
                     <GraduationCap className="w-5 h-5 text-white" />
                   </div>
                 ))}
               </div>
               <span className="text-sm font-semibold text-[#00386c]">
-                {loading ? "Cargando tu perfil..." : `${activeApps.length} postulacion${activeApps.length !== 1 ? "es" : ""} activa${activeApps.length !== 1 ? "s" : ""}`}
+                {loading ? "Cargando..." : `${metrics?.activeApplications ?? 0} postulacion${(metrics?.activeApplications ?? 0) !== 1 ? "es" : ""} activa${(metrics?.activeApplications ?? 0) !== 1 ? "s" : ""}`}
               </span>
             </div>
           </div>
@@ -170,6 +155,37 @@ export default function CandidateDashboardPage() {
         ))}
       </section>
 
+      {((metrics?.registeredIncome ?? 0) > 0 || (metrics?.avgRatingReceived !== null && metrics?.avgRatingReceived !== undefined)) && (
+        <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {(metrics?.registeredIncome ?? 0) > 0 && (
+            <div className="bg-white rounded-2xl border border-[#e6e8ea] p-5 flex items-center gap-4">
+              <div className="w-10 h-10 bg-[#6bfe9c]/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                <DollarSign className="w-5 h-5 text-[#006d37]" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-[#424750] uppercase tracking-wider">Ingresos registrados</p>
+                <p className="font-extrabold text-[#006d37] text-lg font-headline">
+                  ${(metrics?.registeredIncome ?? 0).toLocaleString("es-CO")} COP
+                </p>
+              </div>
+            </div>
+          )}
+          {metrics?.avgRatingReceived !== null && metrics?.avgRatingReceived !== undefined && (
+            <div className="bg-white rounded-2xl border border-[#e6e8ea] p-5 flex items-center gap-4">
+              <div className="w-10 h-10 bg-[#a6c8ff]/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Star className="w-5 h-5 text-[#00386c]" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-[#424750] uppercase tracking-wider">Reputación recibida</p>
+                <p className="font-extrabold text-[#00386c] text-lg font-headline">
+                  {metrics.avgRatingReceived.toFixed(1)} / 5.0
+                </p>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div className="lg:col-span-8 space-y-6">
           <div className="flex items-center justify-between">
@@ -184,7 +200,7 @@ export default function CandidateDashboardPage() {
             <div className="flex items-center justify-center py-12">
               <span className="w-6 h-6 border-2 border-[#00386c]/20 border-t-[#00386c] rounded-full animate-spin" />
             </div>
-          ) : activeApps.length === 0 ? (
+          ) : recentApps.length === 0 ? (
             <div className="bg-[#f2f4f6] rounded-xl p-10 text-center">
               <Briefcase className="w-8 h-8 text-[#c2c6d1] mx-auto mb-3" />
               <p className="text-sm text-[#737781] font-medium mb-4">Aún no tienes postulaciones activas.</p>
@@ -195,9 +211,8 @@ export default function CandidateDashboardPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {activeApps.slice(0, 3).map(app => (
-                <div key={app.id}
-                  className="bg-[#f2f4f6] rounded-xl p-6 flex flex-col md:flex-row md:items-center gap-6">
+              {recentApps.slice(0, 3).map(app => (
+                <div key={app.id} className="bg-[#f2f4f6] rounded-xl p-6 flex flex-col md:flex-row md:items-center gap-6">
                   <div className="flex-shrink-0 w-14 h-14 bg-white rounded-lg flex items-center justify-center shadow-sm">
                     <span className="text-xl font-black text-[#00386c]">
                       {(app.job.company?.companyName ?? "?")[0].toUpperCase()}
@@ -223,10 +238,10 @@ export default function CandidateDashboardPage() {
                   </div>
                 </div>
               ))}
-              {activeApps.length > 3 && (
+              {recentApps.length > 3 && (
                 <Link href="/dashboard/candidate/postulaciones"
                   className="block text-center text-sm font-bold text-[#00386c] hover:underline py-2">
-                  Ver {activeApps.length - 3} más →
+                  Ver {recentApps.length - 3} más →
                 </Link>
               )}
             </div>
@@ -243,11 +258,9 @@ export default function CandidateDashboardPage() {
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 64 64">
                     <circle cx="32" cy="32" r="28" fill="transparent" stroke="#e6e8ea" strokeWidth="4" />
                     <circle cx="32" cy="32" r="28" fill="transparent"
-                      stroke="#006d37" strokeWidth="4"
-                      strokeDasharray="176"
+                      stroke="#006d37" strokeWidth="4" strokeDasharray="176"
                       strokeDashoffset={176 - (176 * (scoreValue ?? 0)) / 100}
-                      strokeLinecap="round"
-                      style={{ transition: "stroke-dashoffset 0.6s ease" }}
+                      strokeLinecap="round" style={{ transition: "stroke-dashoffset 0.6s ease" }}
                     />
                   </svg>
                   <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-[#006d37]">
@@ -282,9 +295,9 @@ export default function CandidateDashboardPage() {
                   className="w-full py-4 bg-white text-[#00386c] rounded-full font-bold text-sm tracking-widest uppercase hover:bg-[#e0e3e5] transition-colors flex items-center justify-center gap-2">
                   <FileText className="w-4 h-4" />
                   Contratos
-                  {activeContracts.length > 0 && (
+                  {(metrics?.activeContracts ?? 0) > 0 && (
                     <span className="bg-[#006d37] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                      {activeContracts.length}
+                      {metrics?.activeContracts}
                     </span>
                   )}
                 </Link>
@@ -296,16 +309,13 @@ export default function CandidateDashboardPage() {
             <div className="space-y-3">
               <h3 className="text-sm font-bold text-[#424750] uppercase tracking-wider">Contratos activos</h3>
               {activeContracts.slice(0, 2).map(c => (
-                <Link key={c.id}
-                  href={`/dashboard/candidate/contratos/${c.id}`}
+                <Link key={c.id} href={`/dashboard/candidate/contratos/${c.id}`}
                   className="flex items-center gap-3 bg-white rounded-xl p-4 border border-[#e6e8ea] hover:shadow-md transition-all group">
                   <div className="w-8 h-8 bg-[#6bfe9c]/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <CheckCircle2 className="w-4 h-4 text-[#006d37]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-[#191c1e] truncate group-hover:text-[#00386c]">
-                      {c.title}
-                    </p>
+                    <p className="font-semibold text-sm text-[#191c1e] truncate group-hover:text-[#00386c]">{c.title}</p>
                     <p className="text-xs text-[#737781]">
                       {CONTRACT_STATUS_LABEL[c.status]}
                       {c.totalAmount ? ` · $${c.totalAmount.toLocaleString("es-CO")}` : ""}
@@ -321,17 +331,16 @@ export default function CandidateDashboardPage() {
       <section className="bg-gradient-to-br from-[#00386c] to-[#1a4f8b] rounded-2xl p-10 flex flex-col md:flex-row items-center justify-between gap-6">
         <div>
           <h2 className="text-2xl font-headline font-extrabold text-white">
-            {activeApps.length === 0 ? "Empieza a postularte hoy" : "Sigue explorando oportunidades"}
+            {(metrics?.activeApplications ?? 0) === 0 ? "Empieza a postularte hoy" : "Sigue explorando oportunidades"}
           </h2>
-          <p className="text-[#a6c8ff] mt-1 text-sm">
-            Encuentra vacantes que se ajusten a tu perfil y score actual.
-          </p>
+          <p className="text-[#a6c8ff] mt-1 text-sm">Encuentra vacantes que se ajusten a tu perfil.</p>
         </div>
         <Link href="/dashboard/candidate/explorar"
           className="flex items-center gap-2 bg-[#6bfe9c] text-[#00210c] px-8 py-3.5 rounded-full font-headline font-bold tracking-widest uppercase hover:opacity-90 active:scale-95 transition-all text-sm whitespace-nowrap">
           Explorar vacantes <ArrowRight className="w-4 h-4" />
         </Link>
       </section>
+
     </main>
   );
 }
