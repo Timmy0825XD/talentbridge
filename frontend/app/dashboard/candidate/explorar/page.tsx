@@ -94,9 +94,9 @@ export default function ExplorarPage() {
 
   const { data: jobsRaw = [], isLoading: jobsLoading, isFetching: jobsFetching, isError: jobsError } =
     useJobsList(jobParams, enabled);
-  const { data: profile, isLoading: profileLoading } = useCandidateProfile(enabled);
-  const { data: myApps = [], isLoading: appsLoading } = useMyApplications(enabled);
-  const { data: myScore = null } = useMyRanking(enabled);
+  const { data: profile, isLoading: profileLoading } = useCandidateProfile(enabled, user?.userId);
+  const { data: myApps = [], isLoading: appsLoading } = useMyApplications(enabled, user?.userId);
+  const { data: myScore = null } = useMyRanking(enabled, user?.userId);
 
   const jobs = jobsRaw as Job[];
   const mySkills: string[] = (profile?.skills as string[] | undefined) ?? [];

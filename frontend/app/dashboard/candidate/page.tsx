@@ -34,13 +34,21 @@ export default function CandidateDashboardPage() {
   const router = useRouter();
   const enabled = !!user && user.role !== "COMPANY";
 
-  const { data, isLoading: dashLoading } = useCandidateDashboard(enabled);
+  const { data, isLoading: dashLoading } = useCandidateDashboard(enabled, user?.userId);
 
   useEffect(() => {
     if (!isLoading && user?.role === "COMPANY") router.replace("/dashboard/company");
   }, [user, isLoading, router]);
 
   if (isLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f7f9fb]">
+        <span className="w-8 h-8 border-2 border-[#00386c]/20 border-t-[#00386c] rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (dashLoading && !data) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f7f9fb]">
         <span className="w-8 h-8 border-2 border-[#00386c]/20 border-t-[#00386c] rounded-full animate-spin" />

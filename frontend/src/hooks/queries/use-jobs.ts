@@ -14,14 +14,14 @@ export function useJobsList(params?: Record<string, string>, enabled = true) {
   });
 }
 
-export function useCompanyJobs(enabled = true) {
+export function useCompanyJobs(enabled = true, userId?: string) {
   return useQuery({
-    queryKey: queryKeys.jobs.companyMine,
+    queryKey: [...queryKeys.jobs.companyMine, userId],
     queryFn: async () => {
       const res = await api.get('/jobs/company/mine');
       return res.data;
     },
-    enabled,
+    enabled: enabled && !!userId,
   });
 }
 

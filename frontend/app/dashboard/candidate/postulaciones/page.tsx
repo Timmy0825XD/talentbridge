@@ -63,7 +63,7 @@ export default function PostulacionesPage() {
   const router = useRouter();
 
   const enabled = !!user && user.role !== "COMPANY";
-  const { data: applications = [], isLoading: loading, isError, refetch } = useMyApplications(enabled);
+  const { data: applications = [], isLoading: loading, isError, refetch } = useMyApplications(enabled, user?.userId);
   const error = isError ? "No se pudieron cargar las postulaciones." : "";
 
   useEffect(() => {

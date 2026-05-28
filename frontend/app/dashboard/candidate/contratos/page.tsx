@@ -72,7 +72,7 @@ export default function ContratosPage() {
   const router = useRouter();
 
   const enabled = !!user && user.role !== "COMPANY";
-  const { data: contracts = [], isLoading: loading, isError, refetch } = useContracts(enabled);
+  const { data: contracts = [], isLoading: loading, isError, refetch } = useContracts(enabled, user?.userId);
   const error = isError ? "No se pudieron cargar los contratos." : "";
   const [filter, setFilter] = useState("ALL");
 

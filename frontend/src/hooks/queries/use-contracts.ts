@@ -3,14 +3,14 @@ import api from '@/src/lib/api';
 import { Contract } from '@/src/types/api';
 import { queryKeys } from './query-keys';
 
-export function useContracts(enabled = true) {
+export function useContracts(enabled = true, userId?: string) {
   return useQuery({
-    queryKey: queryKeys.contracts.list,
+    queryKey: [...queryKeys.contracts.list, userId],
     queryFn: async () => {
       const res = await api.get<Contract[]>('/contracts');
       return res.data;
     },
-    enabled,
+    enabled: enabled && !!userId,
   });
 }
 

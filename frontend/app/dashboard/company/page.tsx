@@ -26,7 +26,7 @@ export default function CompanyDashboardPage() {
   const enabled = !!user && user.role === "COMPANY";
 
   // P2: una sola petición en vez de jobs + N applicants
-  const { data, isLoading: dashLoading, isError } = useCompanyDashboard(enabled);
+  const { data, isLoading: dashLoading, isError } = useCompanyDashboard(enabled, user?.userId);
 
   useEffect(() => {
     if (!isLoading && user && user.role !== "COMPANY") router.replace("/dashboard/candidate");
