@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import api from "@/src/lib/api";
 import DeliverablesPanel from "@/src/components/contracts/DeliverablesPanel";
+import RatingsPanel from "@/src/components/contracts/RatingsPanel";
 import {
   ArrowLeft, FileText, Clock, CheckCircle2, XCircle,
   Building2, Briefcase, Calendar, DollarSign, AlertCircle,
@@ -36,7 +37,6 @@ interface Contract {
   job: { id: string; title: string } | null;
   company: { companyName: string | null; city: string | null } | null;
   payments: Payment[];
-  deliverableItems?: import("@/src/types/api").Deliverable[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -336,7 +336,6 @@ export default function ContratoDetallePage() {
             contractId={contractId}
             contractStatus={contract.status}
             role="CANDIDATE"
-            initialDeliverables={contract.deliverableItems}
           />
         </div>
 
@@ -405,6 +404,13 @@ export default function ContratoDetallePage() {
             </div>
           )}
         </div>
+        {/* Calificaciones — visible cuando el contrato está completado */}
+        {contract.status === "COMPLETED" && (
+          <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">
+            <RatingsPanel contractId={contractId} role="CANDIDATE" />
+          </div>
+        )}
+
       </div>
     </div>
   );
