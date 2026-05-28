@@ -8,9 +8,30 @@ import { Plus, Save, X, Loader2, AlertCircle, CheckCircle2, Building2 } from "lu
 interface Institution {
   id: string;
   institutionName: string;
+  contactEmail: string | null;
+  contactPhone: string | null;
   isActive: boolean;
   createdAt: string;
+  user: {
+    id: string;
+    email: string;
+    isActive: boolean;
+    isVerified?: boolean;
+  };
 }
+
+interface InstitutionResponse {
+  message: string;
+  institution: Institution;
+}
+
+const EMPTY_FORM = {
+  institutionName: "",
+  email: "",
+  password: "",
+  contactEmail: "",
+  contactPhone: "",
+};
 
 export default function AdminInstitucionesPage() {
   const { user } = useAuth();
@@ -19,7 +40,7 @@ export default function AdminInstitucionesPage() {
   const [error, setError]               = useState("");
   const [msg, setMsg]                   = useState("");
   const [showForm, setShowForm]         = useState(false);
-  const [newName, setNewName]           = useState("");
+  const [form, setForm]                 = useState(EMPTY_FORM);
   const [saving, setSaving]             = useState(false);
   const [editingId, setEditingId]       = useState<string | null>(null);
   const [editName, setEditName]         = useState("");
@@ -38,12 +59,22 @@ export default function AdminInstitucionesPage() {
   }
 
   async function handleCreate() {
-    if (!newName.trim()) return;
+    if (!form.institutionName.trim() || !form.email.trim() || !form.password.trim()) {
+      setMsg("Completa nombre, correo y contraseña."); setTimeout(() => setMsg(""), 3000);
+      return;
+    }
     setSaving(true);
     try {
-      const res = await api.post("/admin/institutions", { institutionName: newName.trim() });
-      setInstitutions(prev => [res.data, ...prev]);
-      setNewName(""); setShowForm(false);
+      const payload = {
+        institutionName: form.institutionName.trim(),
+        email:           form.email.trim(),
+        password:        form.password,
+        contactEmail:    form.contactEmail.trim() || undefined,
+        contactPhone:    form.contactPhone.trim() || undefined,
+      };
+      const res = await api.post<InstitutionResponse>("/admin/institutions", payload);
+      setInstitutions(prev => [res.data.institution, ...prev]);
+      setForm(EMPTY_FORM); setShowForm(false);
       setMsg("Institución creada."); setTimeout(() => setMsg(""), 3000);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
@@ -54,8 +85,8 @@ export default function AdminInstitucionesPage() {
   async function handleEdit(id: string) {
     if (!editName.trim()) return;
     try {
-      await api.patch(`/admin/institutions/${id}`, { institutionName: editName.trim() });
-      setInstitutions(prev => prev.map(i => i.id === id ? { ...i, institutionName: editName.trim() } : i));
+      const res = await api.patch<InstitutionResponse>(`/admin/institutions/${id}`, { institutionName: editName.trim() });
+      setInstitutions(prev => prev.map(i => i.id === id ? res.data.institution : i));
       setEditingId(null);
       setMsg("Institución actualizada."); setTimeout(() => setMsg(""), 3000);
     } catch (err: unknown) {
@@ -84,11 +115,37 @@ export default function AdminInstitucionesPage() {
 
       {showForm && (
         <div className="bg-white rounded-2xl border border-[#e6e8ea] p-5 mb-6 flex gap-3 items-end">
-          <div className="flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1">
+            <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-[#424750] mb-2">Nombre</label>
-            <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
+              <input type="text" value={form.institutionName} onChange={e => setForm(p => ({ ...p, institutionName: e.target.value }))}
               onKeyDown={e => e.key === "Enter" && handleCreate()}
               placeholder="ej. Universidad Popular del Cesar" className={inp} />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#424750] mb-2">Correo de acceso</label>
+              <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                onKeyDown={e => e.key === "Enter" && handleCreate()}
+                placeholder="universidad@talentbridge.co" className={inp} />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#424750] mb-2">Contraseña</label>
+              <input type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                onKeyDown={e => e.key === "Enter" && handleCreate()}
+                placeholder="Mínimo 8 caracteres" className={inp} />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#424750] mb-2">Correo contacto</label>
+              <input type="email" value={form.contactEmail} onChange={e => setForm(p => ({ ...p, contactEmail: e.target.value }))}
+                onKeyDown={e => e.key === "Enter" && handleCreate()}
+                placeholder="contacto@universidad.edu.co" className={inp} />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#424750] mb-2">Teléfono contacto</label>
+              <input type="tel" value={form.contactPhone} onChange={e => setForm(p => ({ ...p, contactPhone: e.target.value }))}
+                onKeyDown={e => e.key === "Enter" && handleCreate()}
+                placeholder="+57 300 000 0000" className={inp} />
+            </div>
           </div>
           <button onClick={handleCreate} disabled={saving}
             className="flex items-center gap-2 bg-[#191c1e] text-white px-5 py-3 rounded-full text-sm font-bold hover:opacity-80 disabled:opacity-50">
@@ -136,8 +193,11 @@ export default function AdminInstitucionesPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-[#191c1e] truncate">{inst.institutionName}</p>
                     <p className="text-xs text-[#737781] flex items-center gap-1 mt-0.5">
-                      <CheckCircle2 className="w-3 h-3 text-[#006d37]" /> Activa
+                      <CheckCircle2 className="w-3 h-3 text-[#006d37]" /> {inst.user.email}
                     </p>
+                    {inst.contactEmail && (
+                      <p className="text-xs text-[#737781] truncate mt-0.5">Contacto: {inst.contactEmail}</p>
+                    )}
                   </div>
                   <button onClick={() => { setEditingId(inst.id); setEditName(inst.institutionName); }}
                     className="text-xs font-bold text-[#424750] hover:text-[#191c1e] px-3 py-1.5 bg-[#f2f4f6] rounded-full transition-colors">
