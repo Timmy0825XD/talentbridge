@@ -49,85 +49,89 @@ frontend/
 │   ├── types/
 │   │   └── api.ts                            # Tipos compartidos — fuente de verdad
 │   ├── providers/
-│   │   └── query-provider.tsx                # QueryClientProvider (React Query)
+│   │   └── query-provider.tsx                # QueryClientProvider
 │   ├── hooks/
-│   │   └── queries/                          # useQuery hooks + query-keys.ts
+│   │   └── queries/
 │   │       ├── query-keys.ts
-│   │       ├── index.ts                      # Exporta todos los hooks
+│   │       ├── index.ts
 │   │       ├── use-applications.ts
-│   │       ├── use-candidates.ts             # GET /candidates/search (Sprint 4)
+│   │       ├── use-candidates.ts             # GET /candidates/search
 │   │       ├── use-contracts.ts
+│   │       ├── use-dashboard.ts              # GET /dashboard/company|candidate
 │   │       ├── use-jobs.ts
 │   │       ├── use-keywords.ts
 │   │       ├── use-profile.ts
 │   │       └── use-ranking.ts
 │   ├── lib/
 │   │   ├── api.ts                            # Axios + timeout 30s
-│   │   └── query-client.ts                   # staleTime 60s, gcTime 5min, retry 1
+│   │   └── query-client.ts                   # staleTime 60s, gcTime 5min
 │   ├── components/
 │   │   └── contracts/
-│   │       ├── DeliverablesPanel.tsx         # Entregables empresa/candidato
-│   │       ├── ContractsListSkeleton.tsx     # Skeleton lista contratos
-│   │       └── RatingsPanel.tsx             # Calificaciones mutuas (Sprint 4)
+│   │       ├── DeliverablesPanel.tsx
+│   │       ├── ContractsListSkeleton.tsx
+│   │       └── RatingsPanel.tsx
+│   ├── context/
+│   │   └── auth-context.tsx                  # Redirects por rol incluyendo ADMIN e INSTITUTION
 │   ├── app/
-│   │   ├── layout.tsx                        # Envuelve con AuthProvider + QueryProvider
+│   │   ├── layout.tsx                        # AuthProvider + QueryProvider
 │   │   ├── page.tsx
 │   │   ├── auth/
-│   │   │   ├── login/page.tsx
-│   │   │   ├── register/page.tsx
-│   │   │   ├── verify-otp/page.tsx
-│   │   │   ├── forgot-password/page.tsx
-│   │   │   └── reset-password/page.tsx
+│   │   │   └── ...
+│   │   ├── admin/                            # ← FUERA de dashboard/ — layout propio
+│   │   │   ├── layout.tsx                    # Guard ADMIN + sidebar oscuro
+│   │   │   ├── page.tsx                      # Métricas
+│   │   │   ├── usuarios/page.tsx
+│   │   │   ├── vacantes/page.tsx
+│   │   │   ├── pesos-ranking/page.tsx
+│   │   │   ├── instituciones/page.tsx
+│   │   │   └── admins/page.tsx
+│   │   ├── institution/                      # ← FUERA de dashboard/ — layout propio
+│   │   │   ├── layout.tsx                    # Guard INSTITUTION + header propio
+│   │   │   └── page.tsx
 │   │   ├── dashboard/
-│   │   │   ├── layout.tsx                    # Header + nav activo con isNavActive()
+│   │   │   ├── layout.tsx                    # Header + nav activo — solo candidato/empresa
 │   │   │   ├── candidate/
-│   │   │   │   ├── page.tsx                  # Dashboard — hooks React Query
-│   │   │   │   ├── explorar/page.tsx         # Explorar — hooks React Query
+│   │   │   │   ├── page.tsx                  # GET /dashboard/candidate
+│   │   │   │   ├── explorar/page.tsx
 │   │   │   │   ├── postulaciones/page.tsx
 │   │   │   │   └── contratos/
 │   │   │   │       ├── page.tsx
 │   │   │   │       └── [id]/page.tsx         # + RatingsPanel si COMPLETED
 │   │   │   └── company/
-│   │   │       ├── page.tsx                  # Dashboard — hooks React Query
-│   │   │       ├── vacantes/
-│   │   │       │   ├── page.tsx
-│   │   │       │   ├── _components/JobForm.tsx
-│   │   │       │   └── [id]/postulantes/page.tsx
+│   │   │       ├── page.tsx                  # GET /dashboard/company
+│   │   │       ├── vacantes/...
 │   │   │       ├── contratos/
-│   │   │       │   ├── page.tsx              # Lista — hooks React Query + skeleton
-│   │   │       │   ├── [id]/page.tsx         # + RatingsPanel si COMPLETED
+│   │   │       │   ├── page.tsx
+│   │   │       │   ├── [id]/page.tsx         # + RatingsPanel + reporte PDF
 │   │   │       │   └── _components/CreateContractForm.tsx
-│   │   │       └── talento/page.tsx          # ✅ Buscar talento (Sprint 4)
+│   │   │       ├── talento/page.tsx          # GET /candidates/search
+│   │   │       └── beneficios-tributarios/page.tsx  # GET /tax/benefits + POST /tax/simulate
 │   │   └── profile/
 │   │       ├── candidate/page.tsx
 │   │       └── company/page.tsx
-│   ├── context/
-│   │   └── auth-context.tsx
 │   └── lib/
 │       └── api.ts
 ```
 
-### Reglas de arquitectura
+### Regla crítica — layouts por rol
 
-- **`src/types/api.ts`** — fuente de verdad para tipos, nunca redefinir localmente
-- **`src/hooks/queries/`** — GET reutilizables entre páginas; `index.ts` exporta todo
-- **`src/components/`** — componentes compartidos entre rutas distintas
-- **`_components/`** — componentes internos de una sola página
-- **`"use client"`** en todo componente con hooks o eventos del browser
-- **`api`** de `@/src/lib/api` — nunca `fetch` directo
-- **`useAuth()`** — nunca `localStorage` directo
+| Rol | Ruta raíz | Layout |
+|---|---|---|
+| STUDENT / GRADUATE | `/dashboard/candidate` | `dashboard/layout.tsx` |
+| COMPANY | `/dashboard/company` | `dashboard/layout.tsx` |
+| ADMIN | `/admin` | `admin/layout.tsx` — sidebar oscuro independiente |
+| INSTITUTION | `/institution` | `institution/layout.tsx` — header propio independiente |
+
+**NUNCA** poner rutas de ADMIN o INSTITUTION dentro de `dashboard/` — heredarían el header de candidato/empresa.
 
 ---
 
-## Política de performance (obligatoria)
-
-### React Query — reglas
+## Política de performance (React Query)
 
 - GET compartido entre 2+ páginas → hook en `src/hooks/queries/`
-- Mutaciones → `useMutation` o `api.*` manual + `queryClient.invalidateQueries`
+- Mutaciones → `api.*` manual + `queryClient.invalidateQueries`
 - **Prohibido** `useEffect + api.get` en páginas ya migradas a hooks
-- Datos solo usados en modales → carga lazy (no al montar la página)
-- Spinner full-page solo si no hay nada que mostrar; si hay header/título → skeleton local
+- Spinner full-page solo si no hay nada que mostrar → skeleton local si hay header
 
 ### Hooks disponibles
 
@@ -140,33 +144,14 @@ frontend/
 | `useJobsList(params?)` | GET `/jobs` |
 | `useJobDetail(id)` | GET `/jobs/:id` |
 | `useJobApplicants(id)` | GET `/jobs/:id/applicants` |
-| `useJobApplicantsBatch(ids)` | GET `/jobs/:id/applicants` (batch) |
+| `useJobApplicantsBatch(ids)` | batch applicants |
 | `useContracts` | GET `/contracts` |
 | `useContractDetail(id)` | GET `/contracts/:id` |
 | `useMyRanking` | GET `/ranking/me` |
 | `useKeywords` | GET `/keywords` (staleTime 5 min) |
-| `useCandidateSearch(params)` | GET `/candidates/search` (Sprint 4) |
-
-### Query keys
-
-```typescript
-queryKeys.applications.me
-queryKeys.contracts.list
-queryKeys.contracts.detail(id)
-queryKeys.jobs.list(params?)
-queryKeys.jobs.companyMine
-queryKeys.jobs.applicants(id)
-queryKeys.ranking.me
-queryKeys.keywords.all
-// candidates no tiene key centralizada — usa ['candidates','search', params]
-```
-
-### Invalidación tras mutaciones
-
-```typescript
-queryClient.invalidateQueries({ queryKey: queryKeys.contracts.list });
-queryClient.invalidateQueries({ queryKey: queryKeys.applications.me });
-```
+| `useCandidateSearch(params)` | GET `/candidates/search` |
+| `useCompanyDashboard` | GET `/dashboard/company` |
+| `useCandidateDashboard` | GET `/dashboard/candidate` |
 
 ---
 
@@ -178,101 +163,85 @@ queryClient.invalidateQueries({ queryKey: queryKeys.applications.me });
 
 ---
 
-## Cliente Axios — src/lib/api.ts
-
-- **Request:** agrega `Authorization: Bearer {tb_token}`
-- **Response:** `401` fuera de `/auth/` → limpia localStorage y redirige a `/`
-- **Timeout:** 30 segundos
-
----
-
-## Tipos compartidos — src/types/api.ts
+## Auth context — redirects por rol
 
 ```typescript
-import {
-  ProfileScoreResponse, Contract, PaymentScheme,
-  ApplicationWithJob, Deliverable, DeliverableStatus
-} from "@/src/types/api";
-```
-
-**Enums:** `UserRole`, `JobStatus`, `JobType`, `WorkMode`, `ApplicationStatus`,
-`ContractStatus`, `PaymentStatus`, `PaymentScheme`, `DeliverableStatus`
-
-**Interfaces:** `LoginResponse`, `RegisterResponse`, `ProfileScoreResponse`,
-`JobListItem`, `JobsListResponse`, `ApplicationWithJob`, `ApplyResponse`,
-`Payment`, `Deliverable`, `Contract`
-
-**Payloads:** `CreateContractPayload`, `CreatePaymentPayload`, `ReviewDeliverablePayload`
-
----
-
-## Nav activo — dashboard/layout.tsx
-
-```typescript
-function isNavActive(pathname: string, href: string): boolean {
-  if (href === "/dashboard/candidate" || href === "/dashboard/company") {
-    return pathname === href;
-  }
-  return pathname === href || pathname.startsWith(href + "/");
-}
+STUDENT / GRADUATE → /dashboard/candidate
+COMPANY            → /dashboard/company
+ADMIN              → /admin
+INSTITUTION        → /institution
+// sin rol conocido → /
 ```
 
 ---
 
-## DeliverablesPanel
+## Componentes compartidos
 
+### DeliverablesPanel
 ```tsx
 <DeliverablesPanel
   contractId={contractId}
   contractStatus={contract.status}   // acciones solo si ACTIVE
   role="COMPANY"                     // "COMPANY" | "CANDIDATE"
-  initialDeliverables={contract.deliverableItems}  // evita refetch
+  initialDeliverables={contract.deliverableItems}
 />
 ```
 
----
-
-## RatingsPanel — Sprint 4
-
-Componente nuevo en `src/components/contracts/RatingsPanel.tsx`.
-Visible solo cuando `contract.status === "COMPLETED"`.
-
+### RatingsPanel
 ```tsx
 <RatingsPanel contractId={contractId} role="COMPANY" />
 <RatingsPanel contractId={contractId} role="CANDIDATE" />
 ```
+Visible solo cuando `contract.status === "COMPLETED"`.
 
-**Empresa califica candidato:** calidad, plazos, comunicación, actitud (1–5).
-**Candidato califica empresa:** puntualidad pagos, claridad instrucciones, ambiente (1–5).
-Muestra calificación recibida de la otra parte si ya existe.
-
-Endpoints que consume:
-- `GET /contracts/:id/ratings` — estado + flags `canRateCandidate`, `canRateCompany`
-- `POST /contracts/:id/ratings/company`
-- `POST /contracts/:id/ratings/candidate`
+Empresa: calidad, plazos, comunicación, actitud (1–5).
+Candidato: puntualidad pagos, claridad instrucciones, ambiente (1–5).
 
 ---
 
-## Buscar Talento — Sprint 4
+## Simulador tributario — empresa
 
-**Ruta:** `/dashboard/company/talento/page.tsx` ✅ implementado
+Ruta: `/dashboard/company/beneficios-tributarios`
+Link en nav empresa como "Beneficios".
 
-Usa `useCandidateSearch(params)` → `GET /candidates/search`.
-Patrón master/detail igual que Explorar. Filtros: texto, skills con autocompletado,
-carrera, modalidad, score mínimo. Paginación. Anillo de score animado.
-Muestra reputación si el candidato tiene calificaciones.
-
-**No incluye** acción de contratar directo — flujo sigue siendo
-vacante → postulación → SELECTED → contrato.
+- `GET /tax/benefits` → marco legal colapsable. Respuesta puede ser array directo o `{ benefits: [] }` — manejar ambos.
+- `POST /tax/simulate` → `{ monthlySalary, hireAge? }` → resultado con ahorro + breakdown + disclaimer.
 
 ---
 
-## Notificaciones — perfil candidato
+## Panel Admin — /admin/*
 
-Toggle en `profile/candidate/page.tsx`:
-```typescript
-await api.patch("/notifications/preferences", { enabled: newValue });
+Layout independiente con sidebar oscuro. Guard: redirige a `/` si no es ADMIN.
+
+| Ruta | Endpoint | Funcionalidad |
+|---|---|---|
+| `/admin` | `GET /admin/metrics` | KPIs: activeUsers, publishedJobs, applications, closedContracts, averageRating |
+| `/admin/usuarios` | `GET /admin/users`, `PATCH .../status`, `DELETE ...` | Tabla paginada, filtros, activar/suspender |
+| `/admin/vacantes` | `GET /admin/jobs`, `PATCH .../moderate` | Moderación |
+| `/admin/pesos-ranking` | `GET/PUT /admin/ranking-weights` | 7 pesos: skills, experience, education, certs, reputation, languages, completion — deben sumar 1.0 |
+| `/admin/instituciones` | `GET/POST/PATCH /admin/institutions` | CRUD |
+| `/admin/admins` | `POST /admin/admins` | Crear cuenta admin |
+
+**Shape real de `/admin/metrics`:**
+```json
+{ "activeUsers": 14, "publishedJobs": 3, "applications": 10, "closedContracts": 1, "averageRating": 3.96 }
 ```
+
+**Shape real de `/admin/ranking-weights`:**
+```json
+{ "id": "global", "skillsWeight": 0.2, "experienceWeight": 0.2, "educationWeight": 0.2,
+  "certsWeight": 0.1, "reputationWeight": 0.1, "languagesWeight": 0.05, "completionWeight": 0.2,
+  "updatedAt": "..." }
+```
+Ignorar `id` y `updatedAt` al iterar — usar lista fija de claves de peso.
+
+---
+
+## Panel Institución — /institution
+
+Layout independiente con header simple. Guard: redirige a `/` si no es INSTITUTION.
+
+- `GET /institution/dashboard` → metrics (estudiantes, egresados, tasa inserción, contratos), topSkills, contractsByArea.
 
 ---
 
@@ -293,48 +262,49 @@ await api.patch("/notifications/preferences", { enabled: newValue });
 
 | Método | Ruta | Usado en | Estado |
 |---|---|---|---|
-| POST | `/auth/register` | `/auth/register` | ✅ |
-| POST | `/auth/verify-otp` | `/auth/verify-otp` | ✅ |
-| POST | `/auth/resend-otp` | `/auth/verify-otp` | ✅ |
-| POST | `/auth/login` | `/auth/login` | ✅ |
-| POST | `/auth/forgot-password` | `/auth/forgot-password` | ✅ |
-| POST | `/auth/reset-password` | `/auth/reset-password` | ✅ |
-| GET | `/profile/candidate` | perfil, dashboard, explorar | ✅ |
-| PUT | `/profile/candidate` | perfil candidato | ✅ |
+| POST | `/auth/*` | auth pages | ✅ |
+| GET/PUT | `/profile/candidate` | perfil candidato | ✅ |
 | POST | `/profile/candidate/cv` | perfil candidato | ✅ |
 | POST | `/profile/candidate/photo` | perfil candidato (2MB) | ✅ |
-| GET | `/profile/company` | perfil empresa | ✅ |
-| PUT | `/profile/company` | perfil empresa | ✅ |
-| GET | `/keywords` | perfil candidato, talento | ✅ |
+| GET/PUT | `/profile/company` | perfil empresa | ✅ |
+| GET | `/keywords` | perfil, talento | ✅ |
 | GET | `/jobs` | explorar | ✅ |
 | GET | `/jobs/company/mine` | dashboard empresa, vacantes | ✅ |
-| POST | `/jobs` | vacantes | ✅ |
-| PUT | `/jobs/:id` | vacantes | ✅ |
-| PATCH | `/jobs/:id/status` | vacantes | ✅ |
-| GET | `/jobs/:id` | postulantes | ✅ |
-| GET | `/jobs/:id/applicants` | postulantes, dashboard empresa | ✅ |
+| POST/PUT/PATCH | `/jobs*` | vacantes | ✅ |
 | POST | `/jobs/:id/apply` | explorar | ✅ |
+| GET | `/jobs/:id/applicants` | postulantes | ✅ |
 | PATCH | `/applications/:id/status` | postulantes | ✅ |
-| GET | `/applications/me` | explorar, postulaciones, dashboard candidato | ✅ |
+| GET | `/applications/me` | postulaciones, explorar | ✅ |
 | GET | `/ranking/me` | explorar, dashboard candidato | ✅ |
-| GET | `/contracts` | contratos empresa/candidato, dashboard candidato | ✅ |
-| GET | `/contracts/:id` | detalle contrato empresa y candidato | ✅ |
+| GET | `/contracts` | contratos empresa/candidato | ✅ |
+| GET | `/contracts/:id` | detalle contrato | ✅ |
 | POST | `/contracts` | CreateContractForm | ✅ |
-| POST | `/contracts/:id/file` | detalle contrato empresa | ✅ |
-| PATCH | `/contracts/:id/confirm` | detalle contrato candidato | ✅ |
-| PATCH | `/contracts/:id/cancel` | detalle contrato empresa | ✅ |
-| PATCH | `/contracts/:id/complete` | detalle contrato empresa | ✅ |
-| POST | `/contracts/:id/payments` | detalle contrato empresa | ✅ |
-| POST | `/contracts/payments/:id/receipt` | detalle contrato empresa | ✅ |
-| GET | `/contracts/:id/deliverables` | DeliverablesPanel | ✅ |
-| POST | `/contracts/:id/deliverables` | DeliverablesPanel (empresa) | ✅ |
-| POST | `/contracts/deliverables/:id/submit` | DeliverablesPanel (candidato) | ✅ |
-| PATCH | `/contracts/deliverables/:id/review` | DeliverablesPanel (empresa) | ✅ |
+| POST | `/contracts/:id/file` | detalle empresa | ✅ |
+| PATCH | `/contracts/:id/confirm` | detalle candidato | ✅ |
+| PATCH | `/contracts/:id/cancel` | detalle empresa | ✅ |
+| PATCH | `/contracts/:id/complete` | detalle empresa | ✅ |
+| GET | `/contracts/:id/report` | detalle empresa (COMPLETED) | ✅ |
 | GET | `/contracts/:id/ratings` | RatingsPanel | ✅ |
-| POST | `/contracts/:id/ratings/company` | RatingsPanel (empresa) | ✅ |
-| POST | `/contracts/:id/ratings/candidate` | RatingsPanel (candidato) | ✅ |
+| POST | `/contracts/:id/ratings/company` | RatingsPanel empresa | ✅ |
+| POST | `/contracts/:id/ratings/candidate` | RatingsPanel candidato | ✅ |
+| POST | `/contracts/:id/payments` | detalle empresa | ✅ |
+| POST | `/contracts/payments/:id/receipt` | detalle empresa | ✅ |
+| GET/POST | `/contracts/:id/deliverables` | DeliverablesPanel | ✅ |
+| POST | `/contracts/deliverables/:id/submit` | DeliverablesPanel candidato | ✅ |
+| PATCH | `/contracts/deliverables/:id/review` | DeliverablesPanel empresa | ✅ |
 | PATCH | `/notifications/preferences` | perfil candidato | ✅ |
-| GET | `/candidates/search` | `/dashboard/company/talento` | ✅ |
+| GET | `/candidates/search` | talento | ✅ |
+| GET | `/dashboard/company` | dashboard empresa | ✅ |
+| GET | `/dashboard/candidate` | dashboard candidato | ✅ |
+| GET | `/tax/benefits` | beneficios tributarios | ✅ |
+| POST | `/tax/simulate` | beneficios tributarios | ✅ |
+| GET | `/admin/metrics` | /admin | ✅ |
+| GET/PATCH/DELETE | `/admin/users*` | /admin/usuarios | ✅ |
+| GET/PATCH | `/admin/jobs*` | /admin/vacantes | ✅ |
+| GET/PUT | `/admin/ranking-weights` | /admin/pesos-ranking | ✅ |
+| GET/POST/PATCH | `/admin/institutions*` | /admin/instituciones | ✅ |
+| POST | `/admin/admins` | /admin/admins | ✅ |
+| GET | `/institution/dashboard` | /institution | ✅ |
 
 ---
 
@@ -344,29 +314,27 @@ await api.patch("/notifications/preferences", { enabled: newValue });
 |---|---|
 | `/` | ✅ |
 | `/auth/*` | ✅ |
-| `/dashboard/candidate` | ✅ hooks React Query |
-| `/dashboard/candidate/explorar` | ✅ hooks React Query |
+| `/dashboard/candidate` | ✅ GET /dashboard/candidate |
+| `/dashboard/candidate/explorar` | ✅ |
 | `/dashboard/candidate/postulaciones` | ✅ |
 | `/dashboard/candidate/contratos` | ✅ |
-| `/dashboard/candidate/contratos/[id]` | ✅ + RatingsPanel Sprint 4 |
-| `/dashboard/company` | ✅ hooks React Query |
+| `/dashboard/candidate/contratos/[id]` | ✅ + RatingsPanel |
+| `/dashboard/company` | ✅ GET /dashboard/company |
 | `/dashboard/company/vacantes` | ✅ |
 | `/dashboard/company/vacantes/[id]/postulantes` | ✅ |
-| `/dashboard/company/contratos` | ✅ hooks React Query + skeleton |
-| `/dashboard/company/contratos/[id]` | ✅ + RatingsPanel Sprint 4 |
-| `/dashboard/company/talento` | ✅ Sprint 4 |
-| `/profile/candidate` | ✅ notificaciones, foto 2MB |
+| `/dashboard/company/contratos` | ✅ |
+| `/dashboard/company/contratos/[id]` | ✅ + RatingsPanel + reporte PDF |
+| `/dashboard/company/talento` | ✅ |
+| `/dashboard/company/beneficios-tributarios` | ✅ Sprint 4 |
+| `/profile/candidate` | ✅ |
 | `/profile/company` | ✅ |
-
----
-
-## Pendiente Sprint 4
-
-- Dashboards agregados con `GET /dashboard/company` y `GET /dashboard/candidate`
-- Reporte PDF contrato (`GET /contracts/:id/report`)
-- Simulador tributario (`GET /tax/benefits`, `POST /tax/simulate`)
-- Panel Admin (`/dashboard/admin/*`)
-- Panel Institución (`/dashboard/institution`)
+| `/admin` | ✅ Sprint 4 |
+| `/admin/usuarios` | ✅ Sprint 4 |
+| `/admin/vacantes` | ✅ Sprint 4 |
+| `/admin/pesos-ranking` | ✅ Sprint 4 |
+| `/admin/instituciones` | ✅ Sprint 4 |
+| `/admin/admins` | ✅ Sprint 4 |
+| `/institution` | ✅ Sprint 4 |
 
 ---
 
@@ -379,12 +347,14 @@ await api.patch("/notifications/preferences", { enabled: newValue });
 - **Siempre `"use client"`** en componentes con hooks
 - **Tipos desde `@/src/types/api`** — no redefinir interfaces del backend
 - **Mensajes al usuario en español** — `err.response?.data?.error`
+- **Admin e Institution FUERA de `dashboard/`** — si se ponen dentro heredan el header de candidato/empresa
+- **`/admin/ranking-weights`** devuelve `id` y `updatedAt` — ignorarlos, usar lista fija de claves
+- **`/tax/benefits`** puede devolver array directo o `{ benefits: [] }` — manejar ambos
 - **`candidateId` en contratos = `CandidateProfile.id`**, no `User.id`
 - **Foto/logo = máx 2MB** — backend Multer rechaza mayor
-- **`DeliverablesPanel`** acciones solo cuando `contractStatus === "ACTIVE"`
 - **`RatingsPanel`** solo cuando `contract.status === "COMPLETED"`
+- **`DeliverablesPanel`** acciones solo cuando `contractStatus === "ACTIVE"`
 - **`paidAmount` / `remainingAmount`** vienen del backend — no recalcular
 - **Nav activo** usa `isNavActive()` — no cambiar a `pathname ===` simple
-- **No copiar datos de React Query a useState** — causa bucles infinitos
 - Al agregar página: actualizar tabla de páginas implementadas
 - Al consumir endpoint nuevo: agregarlo a la tabla de endpoints

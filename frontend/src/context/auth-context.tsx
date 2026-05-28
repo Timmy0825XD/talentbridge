@@ -26,10 +26,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     try {
-      const token = localStorage.getItem("tb_token");
-      const role = localStorage.getItem("tb_role") as UserRole | null;
+      const token  = localStorage.getItem("tb_token");
+      const role   = localStorage.getItem("tb_role") as UserRole | null;
       const userId = localStorage.getItem("tb_userId");
-
       if (token && role && userId) {
         setUser({ token, role, userId });
       }
@@ -48,6 +47,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.push("/dashboard/candidate");
     } else if (data.role === "COMPANY") {
       router.push("/dashboard/company");
+    } else if (data.role === "ADMIN") {
+      router.push("/admin");
+    } else if (data.role === "INSTITUTION") {
+      router.push("/institution");
     } else {
       router.push("/");
     }
