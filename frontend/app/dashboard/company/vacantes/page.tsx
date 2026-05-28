@@ -71,7 +71,7 @@ export default function VacantesPage() {
 
   const queryClient = useQueryClient();
   const enabled = !!user && user.role === 'COMPANY';
-  const { data: jobsRaw = [], isLoading: loadingJobs, refetch } = useCompanyJobs(enabled);
+  const { data: jobsRaw = [], isLoading: loadingJobs, refetch } = useCompanyJobs(enabled, user?.userId);
   const jobs = jobsRaw as Job[];
   const [showForm, setShowForm] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);

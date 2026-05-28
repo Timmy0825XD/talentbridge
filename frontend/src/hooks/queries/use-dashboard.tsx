@@ -75,26 +75,26 @@ export interface CandidateDashboardResponse {
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
-export function useCompanyDashboard(enabled = true) {
+export function useCompanyDashboard(enabled = true, userId?: string) {
   return useQuery({
-    queryKey: ['dashboard', 'company'],
+    queryKey: ['dashboard', 'company', userId],
     queryFn: async () => {
       const res = await api.get<CompanyDashboardResponse>('/dashboard/company');
       return res.data;
     },
-    enabled,
+    enabled: enabled && !!userId,
     staleTime: 60_000,
   });
 }
 
-export function useCandidateDashboard(enabled = true) {
+export function useCandidateDashboard(enabled = true, userId?: string) {
   return useQuery({
-    queryKey: ['dashboard', 'candidate'],
+    queryKey: ['dashboard', 'candidate', userId],
     queryFn: async () => {
       const res = await api.get<CandidateDashboardResponse>('/dashboard/candidate');
       return res.data;
     },
-    enabled,
+    enabled: enabled && !!userId,
     staleTime: 60_000,
   });
 }

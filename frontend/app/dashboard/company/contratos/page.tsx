@@ -61,8 +61,8 @@ export default function ContratosEmpresaPage() {
   const [showForm, setShowForm]   = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
 
-  const { data: contracts = [], isLoading: contractsLoading, isError } = useContracts(enabled);
-  const { data: myJobs = [], isLoading: jobsLoading } = useCompanyJobs(enabled && showForm);
+  const { data: contracts = [], isLoading: contractsLoading, isError } = useContracts(enabled, user?.userId);
+  const { data: myJobs = [], isLoading: jobsLoading } = useCompanyJobs(enabled && showForm, user?.userId);
 
   const jobIds = (myJobs as { id: string; title: string }[]).map(j => j.id);
   const applicantQueries = useJobApplicantsBatch(jobIds, enabled && showForm && jobIds.length > 0);

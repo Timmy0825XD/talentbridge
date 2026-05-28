@@ -139,7 +139,7 @@ export default function CandidateProfilePage() {
   const [togglingNotifs, setTogglingNotifs] = useState(false);
   const [notifsMsg, setNotifsMsg]           = useState("");
 
-  const { data: profileData } = useCandidateProfile(!!user);
+  const { data: profileData } = useCandidateProfile(!!user, user?.userId);
   const { data: keywordsData } = useKeywords(!!user);
   const keywords = (keywordsData as Keyword[] | undefined) ?? EMPTY_KEYWORDS;
 
