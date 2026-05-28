@@ -28,6 +28,7 @@ const navLinks: Record<string, { label: string; href: string }[]> = {
     { label: "Mis Vacantes",   href: "/dashboard/company/vacantes" },
     { label: "Buscar Talento", href: "/dashboard/company/talento" },
     { label: "Contratos",      href: "/dashboard/company/contratos" },
+    { label: "Beneficios",     href: "/dashboard/company/beneficios-tributarios" },
     { label: "Mi Perfil",      href: "/profile/company" },
   ],
 };
@@ -56,15 +57,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!isLoading && !user) router.replace("/");
   }, [user, isLoading, router]);
 
-  if (isLoading) {
+  if (isLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f7f9fb]">
         <span className="w-8 h-8 border-2 border-[#00386c]/20 border-t-[#00386c] rounded-full animate-spin" />
       </div>
     );
   }
-
-  if (!user) return null;
 
   const links       = navLinks[user.role] ?? navLinks.STUDENT;
   const accentColor = user.role === "COMPANY" ? "#006d37" : "#00386c";
