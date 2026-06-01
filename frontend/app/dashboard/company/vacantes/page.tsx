@@ -7,6 +7,7 @@ import Link from 'next/link';
 import api from '@/src/lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCompanyJobs, queryKeys } from '@/src/hooks/queries';
+import InfoCallout from "@/src/components/info/InfoCallout";
 import { Plus, Users, TrendingUp, Clock, MoreVertical, CircleDot, CheckCircle2, XCircle, PauseCircle, ArrowUpRight, Edit2 } from 'lucide-react';
 import JobForm from './_components/JobForm';
 
@@ -152,6 +153,11 @@ export default function VacantesPage() {
           {success}
         </div>
       )}
+
+      <InfoCallout
+        title="Publica tu vacante"
+        description="Define título, requisitos, presupuesto y modalidad. Mientras más detalles, mejores candidatos."
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
         <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">

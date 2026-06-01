@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Link from "next/link";
 import { useCompanyDashboard } from "@/src/hooks/queries/use-dashboard";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import {
   Briefcase, Users, ArrowRight, ChevronRight, Building2,
   CircleDot, Clock, CheckCircle2, AlertCircle, DollarSign, Star,
@@ -101,6 +102,13 @@ export default function CompanyDashboardPage() {
           Gestionar vacantes
         </Link>
       </section>
+
+      <InfoCallout
+        title="Tu pipeline de contratación"
+        description="Publica vacantes, revisa postulantes y gestiona contratos desde un solo lugar."
+        href="/info/empresas"
+        linkLabel="Saber más"
+      />
 
       {/* Stats — métricas del endpoint agregado */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-12">

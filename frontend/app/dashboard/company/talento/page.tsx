@@ -10,6 +10,7 @@ import {
   CandidateSearchItem,
   CandidateSearchParams,
 } from "@/src/hooks/queries/use-candidates";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import {
   Search, SlidersHorizontal, User, Star, Briefcase,
   MapPin, ChevronRight, ChevronLeft, AlertCircle,
@@ -301,6 +302,11 @@ export default function TalentoPage() {
 
           {/* Lista candidatos */}
           <aside className="w-full md:w-[400px] flex flex-col gap-3 overflow-y-auto pr-1">
+            <InfoCallout
+              title="Busca talento activamente"
+              description="Explora candidatos por palabras clave, skills o carrera. Contacta a los que mejor se ajusten."
+            />
+
             <div className="flex items-center justify-between mb-1 flex-shrink-0">
               <p className="text-xs font-bold text-[#737781] uppercase tracking-widest">
                 Candidatos
