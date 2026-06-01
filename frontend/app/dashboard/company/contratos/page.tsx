@@ -13,6 +13,7 @@ import {
 } from "@/src/hooks/queries";
 import CreateContractForm from "./_components/CreateContractForm";
 import { ContractsListSkeleton } from "@/src/components/contracts/ContractsListSkeleton";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import {
   FileText, CheckCircle2, AlertCircle,
   ChevronRight, Users, Plus, Calendar, Loader2,
@@ -171,6 +172,13 @@ export default function ContratosEmpresaPage() {
           <CheckCircle2 className="w-4 h-4" /> {successMsg}
         </div>
       )}
+
+      <InfoCallout
+        title="Administra tus contratos"
+        description="Crea, da seguimiento y completa contratos. Revisa entregables y libera pagos."
+        href="/info/procesos/contratos"
+        linkLabel="Saber más"
+      />
 
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[

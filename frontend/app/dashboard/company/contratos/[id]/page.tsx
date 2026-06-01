@@ -7,6 +7,7 @@ import Link from "next/link";
 import api from "@/src/lib/api";
 import DeliverablesPanel from "@/src/components/contracts/DeliverablesPanel";
 import RatingsPanel from "@/src/components/contracts/RatingsPanel";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import {
   ArrowLeft, FileText, Clock, CheckCircle2, XCircle,
   Users, Briefcase, Calendar, DollarSign, AlertCircle,
@@ -264,6 +265,13 @@ export default function ContratoEmpresaDetallePage() {
         {contract.title}
       </h1>
       <p className="text-sm text-[#737781] mb-8">Creado el {formatDate(contract.createdAt)}</p>
+
+      <InfoCallout
+        title="Detalle de contrato"
+        description="Gestiona entregables, pagos y emite el reporte final al completar el contrato."
+        href="/info/procesos/contratos"
+        linkLabel="Saber más"
+      />
 
       {/* Mensajes globales */}
       {[completeMsg, cancelMsg, payMsg, fileMsg, receiptMsg, reportMsg].map((msg, i) =>
