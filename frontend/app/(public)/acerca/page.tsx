@@ -1,4 +1,3 @@
-import { publicLinks } from "@/src/content/site-links";
 import { institutionalContent } from "@/src/content/institutional";
 import InfoPageLayout from "@/src/components/info/InfoPageLayout";
 

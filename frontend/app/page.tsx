@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Sparkles, GraduationCap, Newspaper, CheckCheck, ChartBarBig, ChartSpline, Handshake, Workflow, Landmark } from "lucide-react";
+import { Sparkles, GraduationCap, CheckCheck, ChartBarBig, ChartSpline, Handshake, Workflow, Landmark } from "lucide-react";
 import { publicLinks } from "@/src/content/site-links";
 
 export default function Home() {
@@ -27,13 +27,13 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-4">
-            <Link href="/auth/login" className="text-[#424750] font-medium hover:text-[#00386c] transition-colors px-4 py-2 text-sm" >
+            <Link href={publicLinks.login} className="text-[#424750] font-medium hover:text-[#00386c] transition-colors px-4 py-2 text-sm" >
               Iniciar sesión
             </Link>
-            <Link href="/auth/register"
+            <Link href={publicLinks.register}
               className="bg-gradient-to-br from-[#00386c] to-[#1a4f8b] text-white rounded-full px-6 py-2.5 font-bold tracking-wide text-xs uppercase shadow-md active:scale-95 transition-transform duration-150"
             >
-              Publicar Empleo
+              Registrarse
             </Link>
           </div>
         </div>
@@ -61,7 +61,7 @@ export default function Home() {
               </p>
 
               <div className="animate-fade-up-delay-3 flex flex-wrap gap-4">
-                <Link href="/auth/register"
+                <Link href={publicLinks.register}
                   className="bg-gradient-to-br from-[#00386c] to-[#1a4f8b] text-white rounded-full px-8 py-4 font-bold tracking-wider text-sm uppercase shadow-xl hover:shadow-[#00386c]/20 transition-all active:scale-95"
                 >
                   Explorar oportunidades
@@ -251,7 +251,7 @@ export default function Home() {
                 las mejores organizaciones del Cesar y Colombia.
               </p>
               <div className="flex flex-wrap justify-center gap-4">
-                <Link href="/auth/register"
+                <Link href={publicLinks.register}
                   className="bg-[#006d37] text-white rounded-full px-10 py-5 font-bold tracking-wider text-sm uppercase shadow-2xl hover:bg-[#005228] transition-all"
                 >
                   Crear perfil de candidato
@@ -287,14 +287,14 @@ export default function Home() {
               links: [
                 { label: "Buscar Empleos", href: publicLinks.candidates },
                 { label: "Constructor de CV", href: publicLinks.candidatesCv },
-                { label: "Estadísticas", href: publicLinks.about },
+                { label: "Acerca de", href: publicLinks.about },
               ],
             },
             {
               title: "Empresa",
               links: [
                 { label: "Acerca de TalentBridge", href: publicLinks.about },
-                { label: "Empleos", href: publicLinks.companies },
+                { label: "Para empresas", href: publicLinks.companies },
                 { label: "Contáctanos", href: publicLinks.contact },
               ],
             },

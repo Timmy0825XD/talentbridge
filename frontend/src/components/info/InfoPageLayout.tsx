@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { publicLinks } from "@/src/content/site-links";
 
 interface BreadcrumbItem {
   label: string;
@@ -17,7 +18,7 @@ export default function InfoPageLayout({ title, description, breadcrumb, childre
     <div className="max-w-3xl mx-auto px-6 py-12 lg:py-16 space-y-8">
       {breadcrumb && breadcrumb.length > 0 && (
         <nav className="flex items-center gap-2 text-sm text-on-surface-variant">
-          <Link href="/" className="hover:text-primary transition-colors">Inicio</Link>
+          <Link href={publicLinks.home} className="hover:text-primary transition-colors">Inicio</Link>
           {breadcrumb.map((item) => (
             <span key={item.label} className="flex items-center gap-2">
               <span>/</span>

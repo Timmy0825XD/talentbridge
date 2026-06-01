@@ -49,7 +49,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
               href={publicLinks.register}
               className="bg-gradient-to-br from-primary to-primary-container text-on-primary rounded-full px-6 py-2.5 font-bold tracking-wide text-xs uppercase shadow-md active:scale-95 transition-transform duration-150"
             >
-              Publicar Empleo
+              Registrarse
             </Link>
           </div>
         </div>
@@ -86,7 +86,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
               </li>
               <li>
                 <Link href={publicLinks.about} className="text-xs text-on-surface-variant hover:text-primary transition-colors">
-                  Estad&iacute;sticas
+                  Acerca de
                 </Link>
               </li>
             </ul>
@@ -104,7 +104,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
               </li>
               <li>
                 <Link href={publicLinks.companies} className="text-xs text-on-surface-variant hover:text-primary transition-colors">
-                  Empleos
+                  Para empresas
                 </Link>
               </li>
               <li>
