@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useCandidateDashboard } from "@/src/hooks/queries/use-dashboard";
 import { useCandidateProfile, useJobsList } from "@/src/hooks/queries";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import {
   Send, ArrowRight, GraduationCap, FileText, Pencil,
   Briefcase, CheckCircle2, Clock, AlertCircle, Star,
@@ -270,6 +271,13 @@ export default function CandidateDashboardPage() {
       </div>
 
       <div className="max-w-screen-2xl mx-auto px-8 py-8 space-y-8">
+
+        <InfoCallout
+          title="Tu panel de control"
+          description="Aquí ves tus postulaciones activas, contratos y recomendaciones personalizadas."
+          href="/info/como-funciona"
+          linkLabel="Saber más"
+        />
 
         {/* ── Stat cards (tamaño reducido) ── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

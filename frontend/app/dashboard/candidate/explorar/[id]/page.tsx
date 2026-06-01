@@ -15,6 +15,7 @@ import {
 import { ProfileScoreResponse } from "@/src/types/api";
 import TalentBridgeLoader from "@/src/components/ui/TalentBridgeLoader";
 import Link from "next/link";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import {
   ArrowLeft, MapPin, Clock, Briefcase, CheckCircle2,
   Banknote, Building2, Wifi, Loader2, AlertCircle,
@@ -417,6 +418,13 @@ export default function ExplorarDetallePage() {
                 )}
               </div>
             </div>
+
+            <InfoCallout
+              title="Antes de postularte"
+              description="Revisa los requisitos y asegúrate de que tu perfil esté completo para mejorar tus posibilidades."
+              href="/info/procesos/postulaciones"
+              linkLabel="Saber más"
+            />
 
             {/* Match card */}
             {matchPct > 0 && (
