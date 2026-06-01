@@ -3,6 +3,7 @@
 import { useAuth } from "@/src/context/auth-context";
 import { useEffect, useState } from "react";
 import api from "@/src/lib/api";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import { Search, AlertCircle, Loader2, CheckCircle2, XCircle, Trash2 } from "lucide-react";
 
 interface AdminUser {
@@ -107,6 +108,11 @@ export default function AdminUsuariosPage() {
         <h1 className="text-3xl font-extrabold text-[#191c1e] font-headline">Usuarios</h1>
         <p className="text-[#424750] mt-1">Gestiona cuentas, roles y estados</p>
       </div>
+
+      <InfoCallout
+        title="Gestión de usuarios"
+        description="Busca, activa, suspende o elimina cuentas. Filtra por rol y estado para administrar la plataforma."
+      />
 
       {/* Filtros */}
       <div className="flex gap-3 mb-6 flex-wrap">

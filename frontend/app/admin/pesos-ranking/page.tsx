@@ -3,6 +3,7 @@
 import { useAuth } from "@/src/context/auth-context";
 import { useEffect, useState } from "react";
 import api from "@/src/lib/api";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import { Save, Loader2, AlertCircle, Info } from "lucide-react";
 
 interface RankingWeights {
@@ -101,6 +102,11 @@ export default function AdminPesosRankingPage() {
         <h1 className="text-3xl font-extrabold text-[#191c1e] font-headline">Pesos de ranking</h1>
         <p className="text-[#424750] mt-1">Configura los pesos globales del score de candidatos</p>
       </div>
+
+      <InfoCallout
+        title="Pesos de ranking"
+        description="Define la importancia de cada criterio en el score de candidatos. Ajusta habilidades, experiencia, educación y más."
+      />
 
       <div className="flex items-start gap-3 bg-[#a6c8ff]/20 text-[#00386c] px-4 py-3 rounded-xl mb-6 text-sm">
         <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />

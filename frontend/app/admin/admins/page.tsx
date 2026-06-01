@@ -3,6 +3,7 @@
 import { useAuth } from "@/src/context/auth-context";
 import { useState } from "react";
 import api from "@/src/lib/api";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import { UserPlus, Loader2, CheckCircle2, AlertCircle, Eye, EyeOff } from "lucide-react";
 
 export default function AdminCrearAdminPage() {
@@ -40,6 +41,11 @@ export default function AdminCrearAdminPage() {
         <h1 className="text-3xl font-extrabold text-[#191c1e] font-headline">Crear administrador</h1>
         <p className="text-[#424750] mt-1">Las cuentas ADMIN e INSTITUTION solo se crean desde aquí</p>
       </div>
+
+      <InfoCallout
+        title="Crear administradores"
+        description="Genera cuentas de administrador y de institución. Estas cuentas tienen acceso privilegiado a la plataforma."
+      />
 
       <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6 space-y-5">
         <div>
