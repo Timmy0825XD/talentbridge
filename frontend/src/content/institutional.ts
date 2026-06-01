@@ -58,7 +58,7 @@ export const institutionalContent = {
   },
   roles: {
     title: "Roles en TalentBridge",
-    description: "Tipos de usuario y sus权限 en la plataforma.",
+    description: "Tipos de usuario y sus permisos en la plataforma.",
     sections: [
       {
         title: "Roles Públicos (Autoregistro)",
