@@ -13,6 +13,7 @@ import {
 import { ProfileScoreResponse } from "@/src/types/api";
 import TalentBridgeLoader from "@/src/components/ui/TalentBridgeLoader";
 import Link from "next/link";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import {
   Search, CheckCircle2, MapPin, Clock, Briefcase, AlertCircle,
   Loader2, SlidersHorizontal, X, ChevronDown, ChevronUp,
@@ -419,6 +420,12 @@ export default function ExplorarPage() {
 
         {/* Jobs grid */}
         <div className="flex-1 min-w-0">
+          <InfoCallout
+            title="¿Cómo funciona el match?"
+            description="El porcentaje de coincidencia se calcula comparando las habilidades de la vacante con las de tu perfil."
+            href="/info/candidatos"
+            linkLabel="Saber más"
+          />
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-[#737781] font-medium">
               <span className="font-bold text-[#191c1e]">{jobs.length}</span>{" "}

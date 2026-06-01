@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Sparkles, GraduationCap, Newspaper, CheckCheck, ChartBarBig, ChartSpline, Handshake, Workflow, Landmark } from "lucide-react";
+import { Sparkles, GraduationCap, CheckCheck, ChartBarBig, ChartSpline, Handshake, Workflow, Landmark } from "lucide-react";
+import { publicLinks } from "@/src/content/site-links";
 
 export default function Home() {
   return (
@@ -10,29 +11,29 @@ export default function Home() {
           <div className="flex items-center gap-8">
             <span className="text-2xl font-extrabold font-headline text-[#00386c]"> TalentBridge </span>
             <div className="hidden lg:flex items-center gap-6">
-              <Link href="#" className="text-[#00386c] font-bold border-b-2 border-[#006d37] py-1 text-sm" >
+              <Link href={publicLinks.candidates} className="text-[#00386c] font-bold border-b-2 border-[#006d37] py-1 text-sm" >
                 Buscar Empleos
               </Link>
-              <Link href="#" className="text-[#424750] font-medium hover:text-[#00386c] transition-colors py-1 text-sm" >
+              <Link href={publicLinks.candidatesCv} className="text-[#424750] font-medium hover:text-[#00386c] transition-colors py-1 text-sm" >
                 Constructor de CV
               </Link>
-              <Link href="#" className="text-[#424750] font-medium hover:text-[#00386c] transition-colors py-1 text-sm" >
+              <Link href={publicLinks.universities} className="text-[#424750] font-medium hover:text-[#00386c] transition-colors py-1 text-sm" >
                 Portal Universitario
               </Link>
-              <Link href="#" className="text-[#424750] font-medium hover:text-[#00386c] transition-colors py-1 text-sm" >
+              <Link href={publicLinks.resources} className="text-[#424750] font-medium hover:text-[#00386c] transition-colors py-1 text-sm" >
                 Recursos
               </Link>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <Link href="/auth/login" className="text-[#424750] font-medium hover:text-[#00386c] transition-colors px-4 py-2 text-sm" >
+            <Link href={publicLinks.login} className="text-[#424750] font-medium hover:text-[#00386c] transition-colors px-4 py-2 text-sm" >
               Iniciar sesión
             </Link>
-            <Link href="/auth/register"
+            <Link href={publicLinks.register}
               className="bg-gradient-to-br from-[#00386c] to-[#1a4f8b] text-white rounded-full px-6 py-2.5 font-bold tracking-wide text-xs uppercase shadow-md active:scale-95 transition-transform duration-150"
             >
-              Publicar Empleo
+              Registrarse
             </Link>
           </div>
         </div>
@@ -60,12 +61,12 @@ export default function Home() {
               </p>
 
               <div className="animate-fade-up-delay-3 flex flex-wrap gap-4">
-                <Link href="/auth/register"
+                <Link href={publicLinks.register}
                   className="bg-gradient-to-br from-[#00386c] to-[#1a4f8b] text-white rounded-full px-8 py-4 font-bold tracking-wider text-sm uppercase shadow-xl hover:shadow-[#00386c]/20 transition-all active:scale-95"
                 >
                   Explorar oportunidades
                 </Link>
-                <Link href="#"
+                <Link href={publicLinks.universities}
                   className="bg-[#e6e8ea] text-[#0c4783] rounded-full px-8 py-4 font-bold tracking-wider text-sm uppercase hover:bg-[#e0e3e5] transition-all"
                 >
                   Portal universitario
@@ -118,7 +119,7 @@ export default function Home() {
                     ))}
                   </ul>
                 </div>
-                <Link href="#" className="mt-8 font-bold text-[#00386c] flex items-center gap-2 group-hover:gap-4 transition-all" >
+                <Link href={publicLinks.register} className="mt-8 font-bold text-[#00386c] flex items-center gap-2 group-hover:gap-4 transition-all" >
                   Comenzar →
                 </Link>
               </div>
@@ -140,7 +141,7 @@ export default function Home() {
                     ))}
                   </ul>
                 </div>
-                <Link href="#" className="mt-8 font-bold flex items-center gap-2 group-hover:gap-4 transition-all">
+                <Link href={publicLinks.universities} className="mt-8 font-bold flex items-center gap-2 group-hover:gap-4 transition-all">
                   Portal universitario →
                 </Link>
               </div>
@@ -162,7 +163,7 @@ export default function Home() {
                     Cesar. Contrata con confianza basándote en excelencia
                     académica y potencial de habilidades.
                   </p>
-                  <Link href="#" className="font-bold text-[#00386c] flex items-center gap-2 group-hover:gap-4 transition-all" >
+                  <Link href={publicLinks.companies} className="font-bold text-[#00386c] flex items-center gap-2 group-hover:gap-4 transition-all" >
                     Aliarse con nosotros →
                   </Link>
                 </div>
@@ -250,12 +251,12 @@ export default function Home() {
                 las mejores organizaciones del Cesar y Colombia.
               </p>
               <div className="flex flex-wrap justify-center gap-4">
-                <Link href="/auth/register"
+                <Link href={publicLinks.register}
                   className="bg-[#006d37] text-white rounded-full px-10 py-5 font-bold tracking-wider text-sm uppercase shadow-2xl hover:bg-[#005228] transition-all"
                 >
                   Crear perfil de candidato
                 </Link>
-                <Link href="#"
+                <Link href={publicLinks.contact}
                   className="bg-white/10 backdrop-blur-md text-white border border-white/20 rounded-full px-10 py-5 font-bold tracking-wider text-sm uppercase hover:bg-white/20 transition-all"
                 >
                   Consultas empresariales
@@ -283,23 +284,35 @@ export default function Home() {
           {[
             {
               title: "Plataforma",
-              links: ["Buscar Empleos", "Constructor de CV", "Estadísticas"],
+              links: [
+                { label: "Buscar Empleos", href: publicLinks.candidates },
+                { label: "Constructor de CV", href: publicLinks.candidatesCv },
+                { label: "Acerca de", href: publicLinks.about },
+              ],
             },
             {
               title: "Empresa",
-              links: ["Acerca de TalentBridge", "Empleos", "Contáctanos"],
+              links: [
+                { label: "Acerca de TalentBridge", href: publicLinks.about },
+                { label: "Para empresas", href: publicLinks.companies },
+                { label: "Contáctanos", href: publicLinks.contact },
+              ],
             },
             {
               title: "Legal",
-              links: [ "Política de Privacidad", "Términos de Servicio", "Cookies"],
+              links: [
+                { label: "Política de Privacidad", href: publicLinks.privacy },
+                { label: "Términos de Servicio", href: publicLinks.terms },
+                { label: "Cookies", href: publicLinks.cookies },
+              ],
             },
           ].map(({ title, links }) => (
             <div key={title}>
               <h5 className="text-[#00386c] font-bold mb-4 font-headline text-sm uppercase tracking-widest"> {title} </h5>
               <ul className="space-y-2">
-                {links.map((link) => (
-                  <li key={link}>
-                    <Link href="#" className="text-xs text-slate-500 hover:text-[#00386c] transition-colors" > {link} </Link>
+                {links.map(({ label, href }) => (
+                  <li key={label}>
+                    <Link href={href} className="text-xs text-slate-500 hover:text-[#00386c] transition-colors" > {label} </Link>
                   </li>
                 ))}
               </ul>

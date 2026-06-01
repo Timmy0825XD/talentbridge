@@ -1,0 +1,22 @@
+export const publicLinks = {
+  home: "/",
+  terms: "/legal/terminos",
+  privacy: "/legal/privacidad",
+  cookies: "/legal/cookies",
+  howItWorks: "/info/como-funciona",
+  roles: "/info/roles",
+  candidates: "/info/candidatos",
+  candidatesCv: "/info/candidatos#cv-y-score",
+  companies: "/info/empresas",
+  universities: "/info/universidades",
+  processes: {
+    applications: "/info/procesos/postulaciones",
+    contracts: "/info/procesos/contratos",
+  } as const,
+  resources: "/recursos",
+  about: "/acerca",
+  faq: "/faq",
+  contact: "/contacto",
+  register: "/auth/register",
+  login: "/auth/login",
+} as const;

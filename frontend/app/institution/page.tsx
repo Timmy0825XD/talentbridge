@@ -3,6 +3,7 @@
 import { useAuth } from "@/src/context/auth-context";
 import { useEffect, useState } from "react";
 import api from "@/src/lib/api";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import { GraduationCap, Briefcase, TrendingUp, Users, AlertCircle } from "lucide-react";
 
 interface InstitutionDashboard {
@@ -65,6 +66,11 @@ export default function InstitutionDashboardPage() {
           Seguimiento de inserción laboral de tus estudiantes y egresados
         </p>
       </div>
+
+      <InfoCallout
+        title="Panel institucional"
+        description="Monitorea la inserción laboral de tus estudiantes y egresados. Revisa skills demandadas y contrataciones por área."
+      />
 
       {/* Métricas principales */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-10">

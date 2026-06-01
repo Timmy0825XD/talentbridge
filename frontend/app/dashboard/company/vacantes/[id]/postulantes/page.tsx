@@ -4,6 +4,7 @@ import { useAuth } from '@/src/context/auth-context';
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import api from '@/src/lib/api';
+import InfoCallout from "@/src/components/info/InfoCallout";
 import {
   ArrowLeft, Users, Star, TrendingUp, FileText, Mail, MapPin,
   GraduationCap, Briefcase, Award, CheckCircle2, XCircle, Clock,
@@ -255,6 +256,11 @@ export default function PostulantesPage() {
 
         {/* ── Lista izquierda ─────────────────────────────────────────────── */}
         <div className="w-[340px] shrink-0 flex flex-col gap-3">
+
+          <InfoCallout
+            title="Revisa postulantes"
+            description="Cada postulante muestra su % de match. Puedes filtrar, seleccionar o rechazar."
+          />
 
           {/* Filtros */}
           <div className="flex gap-1.5 flex-wrap">

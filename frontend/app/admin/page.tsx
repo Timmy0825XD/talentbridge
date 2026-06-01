@@ -3,6 +3,7 @@
 import { useAuth } from "@/src/context/auth-context";
 import { useEffect, useState } from "react";
 import api from "@/src/lib/api";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import { Users, Briefcase, FileText, Star, AlertCircle, Send } from "lucide-react";
 
 interface AdminMetrics {
@@ -97,6 +98,11 @@ export default function AdminDashboardPage() {
         </h1>
         <p className="text-[#424750] mt-1">Métricas generales de la plataforma</p>
       </div>
+
+      <InfoCallout
+        title="Panel de administración"
+        description="Monitorea usuarios activos, vacantes, postulaciones y contratos cerrados. Supervisa el rendimiento de la plataforma."
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {cards.map(({ label, value, icon, color, bg, isText }) => (

@@ -3,6 +3,7 @@
 import { useAuth } from "@/src/context/auth-context";
 import { useEffect, useState } from "react";
 import api from "@/src/lib/api";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import { AlertCircle, XCircle } from "lucide-react";
 
 interface AdminJob {
@@ -62,6 +63,11 @@ export default function AdminVacantesPage() {
         <h1 className="text-3xl font-extrabold text-[#191c1e] font-headline">Vacantes</h1>
         <p className="text-[#424750] mt-1">Modera las vacantes publicadas en la plataforma</p>
       </div>
+
+      <InfoCallout
+        title="Gestión de vacantes"
+        description="Revisa y modera las vacantes activas. Puedes cancelar publicaciones que incumplan las políticas."
+      />
 
       {msg && <div className="mb-4 px-4 py-3 rounded-xl text-sm font-semibold bg-[#6bfe9c]/20 text-[#005228]">{msg}</div>}
 

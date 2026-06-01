@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useMyApplications } from "@/src/hooks/queries";
 import { ApplicationStatus } from "@/src/types/api";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import {
   Briefcase, Building2, MapPin, Clock, CheckCircle2,
   XCircle, AlertCircle, Send, ChevronRight, Star,
@@ -113,6 +114,13 @@ export default function PostulacionesPage() {
           Seguimiento de todas tus aplicaciones a vacantes.
         </p>
       </div>
+
+      <InfoCallout
+        title="Seguimiento de postulaciones"
+        description="Cada postulación pasa por: Recibida → En revisión → Seleccionada. Recibirás notificaciones ante cambios."
+        href="/info/procesos/postulaciones"
+        linkLabel="Saber más"
+      />
 
       {/* Stats rápidas */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">

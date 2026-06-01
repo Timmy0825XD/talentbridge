@@ -4,6 +4,7 @@ import { useAuth } from "@/src/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import api from "@/src/lib/api";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import { Calculator, DollarSign, AlertCircle, Loader2, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
 
 interface TaxBenefit {
@@ -96,6 +97,11 @@ export default function BeneficiosTributariosPage() {
           Estima el ahorro fiscal al contratar talento universitario del Cesar.
         </p>
       </div>
+
+      <InfoCallout
+        title="Beneficios tributarios"
+        description="Contrata talento joven y accede a deducciones de hasta el 130% del salario en renta."
+      />
 
       {/* Simulador */}
       <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6 mb-6">

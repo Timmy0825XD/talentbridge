@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import api from "@/src/lib/api";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import { ArrowLeft, Save, Building2, Globe, Mail, Phone, MapPin, Users, Camera, Loader2, Briefcase, ChevronRight, ExternalLink} from "lucide-react";
 
 const EMPTY_FORM = {
@@ -360,6 +361,13 @@ export default function CompanyProfilePage() {
               ))}
             </div>
           </div>
+
+          <InfoCallout
+            title="Perfil visible para candidatos"
+            description="Completar los datos de tu empresa aumenta la confianza y las postulaciones que recibes."
+            href="/info/empresas"
+            linkLabel="Saber más"
+          />
 
           <div className="bg-gradient-to-br from-[#006d37] to-[#00743a] rounded-2xl p-6 text-white">
             <Briefcase className="w-6 h-6 text-[#6bfe9c] mb-3" />

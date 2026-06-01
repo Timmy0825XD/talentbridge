@@ -3,6 +3,7 @@
 import { useAuth } from "@/src/context/auth-context";
 import { useEffect, useState } from "react";
 import api from "@/src/lib/api";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import { Plus, Save, X, Loader2, AlertCircle, CheckCircle2, Building2 } from "lucide-react";
 
 interface Institution {
@@ -109,6 +110,11 @@ export default function AdminInstitucionesPage() {
           <Plus className="w-4 h-4" /> Nueva institución
         </button>
       </div>
+
+      <InfoCallout
+        title="Instituciones educativas"
+        description="Registra, edita y administra las universidades e instituciones educativas vinculadas a la plataforma."
+      />
 
       {msg && <div className="mb-4 px-4 py-3 rounded-xl text-sm font-semibold bg-[#6bfe9c]/20 text-[#005228]">{msg}</div>}
       {error && <div className="mb-4 flex items-center gap-2 bg-[#ffdad6] text-[#93000a] px-4 py-3 rounded-xl text-sm"><AlertCircle className="w-4 h-4" />{error}</div>}
