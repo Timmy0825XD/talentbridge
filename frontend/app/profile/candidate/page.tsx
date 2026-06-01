@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import api from "@/src/lib/api";
 import { useCandidateProfile, useKeywords } from "@/src/hooks/queries";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import {
   ArrowLeft, Save, Upload, X, FileText, User, GraduationCap,
   Briefcase, Wrench, Plus, Globe, Award, FolderGit2, Camera,
@@ -431,6 +432,13 @@ export default function CandidateProfilePage() {
               </div>
             ))}
           </div>
+
+          <InfoCallout
+            title="Entiende tu score"
+            description="Tu puntuación se calcula según habilidades, experiencia, educación y más. Sube tu % completando tu perfil."
+            href="/info/candidatos"
+            linkLabel="Saber más"
+          />
         </aside>
 
         {/* Contenido principal */}
