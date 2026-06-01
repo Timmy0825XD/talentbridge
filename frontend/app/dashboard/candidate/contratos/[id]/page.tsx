@@ -7,6 +7,7 @@ import Link from "next/link";
 import api from "@/src/lib/api";
 import DeliverablesPanel from "@/src/components/contracts/DeliverablesPanel";
 import RatingsPanel from "@/src/components/contracts/RatingsPanel";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import {
   ArrowLeft, FileText, Clock, CheckCircle2, XCircle,
   Building2, Briefcase, Calendar, DollarSign, AlertCircle,
@@ -234,6 +235,13 @@ export default function ContratoDetallePage() {
           ✓ {confirmMsg}
         </div>
       )}
+
+      <InfoCallout
+        title="Entregables y pagos"
+        description="Sube tus entregables según lo acordado. El pago se libera tras la revisión de la empresa."
+        href="/info/procesos/contratos"
+        linkLabel="Saber más"
+      />
 
       {/* Detalles del contrato */}
       <div className="space-y-5">

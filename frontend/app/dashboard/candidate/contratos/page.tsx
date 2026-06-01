@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useContracts } from "@/src/hooks/queries";
 import { ContractsListSkeleton } from "@/src/components/contracts/ContractsListSkeleton";
+import InfoCallout from "@/src/components/info/InfoCallout";
 import {
   FileText, Clock, CheckCircle2, XCircle, AlertCircle,
   ChevronRight, Briefcase, Building2, Calendar,
@@ -125,6 +126,13 @@ export default function ContratosPage() {
           Gestiona los acuerdos de trabajo formalizados con empresas.
         </p>
       </div>
+
+      <InfoCallout
+        title="Gestión de contratos"
+        description="Aquí confirmas, ves avances y calificas al finalizar cada contrato."
+        href="/info/procesos/contratos"
+        linkLabel="Saber más"
+      />
 
       {/* Alerta de contratos pendientes */}
       {pendingCount > 0 && (
