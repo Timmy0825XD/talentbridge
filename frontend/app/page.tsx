@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Sparkles, GraduationCap, Newspaper, CheckCheck, ChartBarBig, ChartSpline, Handshake, Workflow, Landmark } from "lucide-react";
+import { publicLinks } from "@/src/content/site-links";
 
 export default function Home() {
   return (
@@ -283,23 +284,35 @@ export default function Home() {
           {[
             {
               title: "Plataforma",
-              links: ["Buscar Empleos", "Constructor de CV", "Estadísticas"],
+              links: [
+                { label: "Buscar Empleos", href: "#" },
+                { label: "Constructor de CV", href: "#" },
+                { label: "Estadísticas", href: "#" },
+              ],
             },
             {
               title: "Empresa",
-              links: ["Acerca de TalentBridge", "Empleos", "Contáctanos"],
+              links: [
+                { label: "Acerca de TalentBridge", href: "#" },
+                { label: "Empleos", href: "#" },
+                { label: "Contáctanos", href: "#" },
+              ],
             },
             {
               title: "Legal",
-              links: [ "Política de Privacidad", "Términos de Servicio", "Cookies"],
+              links: [
+                { label: "Política de Privacidad", href: publicLinks.privacy },
+                { label: "Términos de Servicio", href: publicLinks.terms },
+                { label: "Cookies", href: publicLinks.cookies },
+              ],
             },
           ].map(({ title, links }) => (
             <div key={title}>
               <h5 className="text-[#00386c] font-bold mb-4 font-headline text-sm uppercase tracking-widest"> {title} </h5>
               <ul className="space-y-2">
-                {links.map((link) => (
-                  <li key={link}>
-                    <Link href="#" className="text-xs text-slate-500 hover:text-[#00386c] transition-colors" > {link} </Link>
+                {links.map(({ label, href }) => (
+                  <li key={label}>
+                    <Link href={href} className="text-xs text-slate-500 hover:text-[#00386c] transition-colors" > {label} </Link>
                   </li>
                 ))}
               </ul>

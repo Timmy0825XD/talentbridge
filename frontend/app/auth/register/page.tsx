@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, ArrowRight, TrendingUp, ArrowLeft } from "lucide-react";
 import api from "@/src/lib/api";
+import { publicLinks } from "@/src/content/site-links";
 
 type Role = "STUDENT" | "GRADUATE" | "COMPANY";
 
@@ -221,11 +222,11 @@ export default function RegisterPage() {
                 />
                 <label htmlFor="terms" className="text-sm text-[#424750] leading-relaxed">
                   Acepto los
-                  <Link href="#" className="text-[#00386c] font-semibold hover:underline underline-offset-4">
+                  <Link href={publicLinks.terms} className="text-[#00386c] font-semibold hover:underline underline-offset-4">
                     Términos de Servicio
                   </Link>
                   y la
-                  <Link href="#" className="text-[#00386c] font-semibold hover:underline underline-offset-4">
+                  <Link href={publicLinks.privacy} className="text-[#00386c] font-semibold hover:underline underline-offset-4">
                     Política de Privacidad
                   </Link>
                 </label>
@@ -267,9 +268,13 @@ export default function RegisterPage() {
           © 2026 TalentBridge
         </span>
         <div className="flex gap-4">
-          {["Privacidad", "Términos", "Soporte"].map((item) => (
-            <Link key={item} href="#" className="text-[10px] font-semibold uppercase tracking-widest text-[#191c1e] hover:text-[#00386c]" >
-              {item}
+          {[
+            { label: "Privacidad", href: publicLinks.privacy },
+            { label: "Términos", href: publicLinks.terms },
+            { label: "Soporte", href: publicLinks.contact },
+          ].map(({ label, href }) => (
+            <Link key={label} href={href} className="text-[10px] font-semibold uppercase tracking-widest text-[#191c1e] hover:text-[#00386c]" >
+              {label}
             </Link>
           ))}
         </div>
