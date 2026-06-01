@@ -14,7 +14,7 @@ export default function Home() {
               <Link href={publicLinks.candidates} className="text-[#00386c] font-bold border-b-2 border-[#006d37] py-1 text-sm" >
                 Buscar Empleos
               </Link>
-              <Link href={`${publicLinks.candidates}#cv-y-score`} className="text-[#424750] font-medium hover:text-[#00386c] transition-colors py-1 text-sm" >
+              <Link href={publicLinks.candidatesCv} className="text-[#424750] font-medium hover:text-[#00386c] transition-colors py-1 text-sm" >
                 Constructor de CV
               </Link>
               <Link href={publicLinks.universities} className="text-[#424750] font-medium hover:text-[#00386c] transition-colors py-1 text-sm" >
@@ -286,7 +286,7 @@ export default function Home() {
               title: "Plataforma",
               links: [
                 { label: "Buscar Empleos", href: publicLinks.candidates },
-                { label: "Constructor de CV", href: `${publicLinks.candidates}#cv-y-score` },
+                { label: "Constructor de CV", href: publicLinks.candidatesCv },
                 { label: "Estadísticas", href: publicLinks.about },
               ],
             },

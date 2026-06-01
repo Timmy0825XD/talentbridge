@@ -6,6 +6,7 @@ export const publicLinks = {
   howItWorks: "/info/como-funciona",
   roles: "/info/roles",
   candidates: "/info/candidatos",
+  candidatesCv: "/info/candidatos#cv-y-score",
   companies: "/info/empresas",
   universities: "/info/universidades",
   processes: {

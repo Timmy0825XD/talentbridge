@@ -18,7 +18,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
                 Buscar Empleos
               </Link>
               <Link
-                href={publicLinks.candidates}
+                href={publicLinks.candidatesCv}
                 className="text-on-surface font-medium hover:text-primary transition-colors py-1 text-sm"
               >
                 Constructor de CV
@@ -80,7 +80,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
                 </Link>
               </li>
               <li>
-                <Link href={publicLinks.candidates} className="text-xs text-on-surface-variant hover:text-primary transition-colors">
+                <Link href={publicLinks.candidatesCv} className="text-xs text-on-surface-variant hover:text-primary transition-colors">
                   Constructor de CV
                 </Link>
               </li>
