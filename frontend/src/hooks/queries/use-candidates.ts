@@ -21,7 +21,7 @@ export interface CandidateSearchItem {
   workMode: string | null;
   skills: string[];
   softSkills: string[];
-  profileScore: { totalScore: number } | null;
+  profileScore: { totalScore: number; breakdown?: Record<string, number>; } | null;
   reputationAvg: number | null;
   ratingCount: number;
 }
