@@ -14,6 +14,7 @@ import {
   Building2, Briefcase, Calendar, DollarSign, AlertCircle,
   Loader2, ExternalLink, Info,
 } from "lucide-react";
+import { toast } from '@/src/lib/toast';
 
 interface Payment {
   id: string; amount: number; description: string | null;
@@ -54,7 +55,6 @@ export default function ContratoDetallePage() {
   const [loading,     setLoading]    = useState(true);
   const [error,       setError]      = useState("");
   const [confirming,  setConfirming] = useState(false);
-  const [confirmMsg,  setConfirmMsg] = useState("");
 
   useEffect(() => {
     if (!isLoading && user?.role === "COMPANY") router.replace("/dashboard/company/contratos");
@@ -75,14 +75,14 @@ export default function ContratoDetallePage() {
 
   async function handleConfirm() {
     if (!contract?.contractFileUrl) return;
-    setConfirming(true); setConfirmMsg("");
+    setConfirming(true);
     try {
       await api.patch(`/contracts/${contractId}/confirm`);
-      setConfirmMsg("¡Contrato confirmado exitosamente! Ya está activo.");
+      toast.success('¡Contrato confirmado exitosamente! Ya está activo.');
       await loadContract();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
-      setConfirmMsg(e.response?.data?.error ?? "Error al confirmar. Intenta de nuevo.");
+      toast.error(e.response?.data?.error ?? 'Error al confirmar. Intenta de nuevo.');
     } finally { setConfirming(false); }
   }
 
@@ -144,11 +144,6 @@ export default function ContratoDetallePage() {
                 La empresa aún no ha subido el documento del contrato.
               </div>
             )}
-            {confirmMsg && (
-              <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-semibold ${confirmMsg.includes("exitosamente") ? "bg-[#6bfe9c]/20 text-[#005228]" : "bg-[#ffdad6] text-[#93000a]"}`}>
-                {confirmMsg}
-              </div>
-            )}
             <button onClick={handleConfirm} disabled={confirming || !hasPDF}
               className="flex items-center gap-2 bg-gradient-to-br from-[#006d37] to-[#00743a] text-white px-8 py-3 rounded-full font-bold text-sm uppercase tracking-wider shadow-lg shadow-[#006d37]/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
               {confirming ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
@@ -157,9 +152,6 @@ export default function ContratoDetallePage() {
           </div>
         )}
 
-        {confirmMsg && !isPending && (
-          <div className="bg-[#6bfe9c]/20 text-[#005228] px-5 py-3.5 rounded-2xl text-sm font-semibold">✓ {confirmMsg}</div>
-        )}
 
         {/* Detalles */}
         <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">

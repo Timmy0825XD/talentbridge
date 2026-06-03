@@ -14,6 +14,7 @@ import {
   Users, Briefcase, Calendar, DollarSign, AlertCircle,
   Loader2, ExternalLink, Upload, Plus, X, Download, ChevronRight
 } from "lucide-react";
+import { toast } from '@/src/lib/toast';
 
 interface Payment { id:string; amount:number; description:string|null; status:string; receiptUrl:string|null; createdAt:string; }
 interface Contract {
@@ -53,19 +54,13 @@ export default function ContratoEmpresaDetallePage() {
   const [loading,           setLoading]           = useState(true);
   const [error,             setError]             = useState("");
   const [uploadingFile,     setUploadingFile]     = useState(false);
-  const [fileMsg,           setFileMsg]           = useState("");
   const [completing,        setCompleting]        = useState(false);
-  const [completeMsg,       setCompleteMsg]       = useState("");
   const [cancelling,        setCancelling]        = useState(false);
-  const [cancelMsg,         setCancelMsg]         = useState("");
   const [showPayForm,       setShowPayForm]       = useState(false);
   const [payForm,           setPayForm]           = useState({ amount:"", description:"" });
   const [savingPay,         setSavingPay]         = useState(false);
-  const [payMsg,            setPayMsg]            = useState("");
   const [uploadingReceipt,  setUploadingReceipt]  = useState<string|null>(null);
-  const [receiptMsg,        setReceiptMsg]        = useState("");
   const [downloadingReport, setDownloadingReport] = useState(false);
-  const [reportMsg,         setReportMsg]         = useState("");
 
   useEffect(() => {
     if (!isLoading && user?.role !== "COMPANY") router.replace("/dashboard/candidate");
@@ -82,65 +77,82 @@ export default function ContratoEmpresaDetallePage() {
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
-    if (file.type !== "application/pdf") { setFileMsg("Solo se permiten archivos PDF."); return; }
-    if (file.size > 10*1024*1024) { setFileMsg("El archivo no puede superar 10MB."); return; }
-    setUploadingFile(true); setFileMsg("");
+    if (file.type !== "application/pdf") { toast.error("Solo se permiten archivos PDF."); return; }
+    if (file.size > 10*1024*1024) { toast.error("El archivo no puede superar 10MB."); return; }
+    setUploadingFile(true);
     const fd = new FormData(); fd.append("file", file);
     try {
-      await api.post(`/contracts/${contractId}/file`, fd, { headers:{ "Content-Type":"multipart/form-data" } });
-      setFileMsg("Documento subido correctamente."); setTimeout(() => setFileMsg(""), 4000);
+      await api.post(`/contracts/${contractId}/file`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      toast.success('Documento subido correctamente.');
       await loadContract();
     } catch (err: unknown) {
-      const ex = err as { response?: { data?: { error?:string } } };
-      setFileMsg(ex.response?.data?.error ?? "Error al subir el archivo.");
-    } finally { setUploadingFile(false); if (e.target) e.target.value=""; }
+      const ex = err as { response?: { data?: { error?: string } } };
+      toast.error(ex.response?.data?.error ?? 'Error al subir el archivo.');
+    } finally { setUploadingFile(false); if (e.target) e.target.value = ""; }
   }
 
   async function handleComplete() {
-    setCompleting(true); setCompleteMsg("");
-    try { await api.patch(`/contracts/${contractId}/complete`); setCompleteMsg("Contrato marcado como completado."); setTimeout(()=>setCompleteMsg(""),4000); await loadContract(); }
-    catch (err: unknown) { const ex=err as {response?:{data?:{error?:string}}}; setCompleteMsg(ex.response?.data?.error??"Error al completar."); }
-    finally { setCompleting(false); }
+    setCompleting(true);
+    try {
+      await api.patch(`/contracts/${contractId}/complete`);
+      toast.success('Contrato marcado como completado.');
+      await loadContract();
+    } catch (err: unknown) {
+      const ex = err as { response?: { data?: { error?: string } } };
+      toast.error(ex.response?.data?.error ?? 'Error al completar.');
+    } finally { setCompleting(false); }
   }
 
   async function handleCancel() {
     if (!confirm("¿Cancelar este contrato? Esta acción no se puede deshacer.")) return;
-    setCancelling(true); setCancelMsg("");
-    try { await api.patch(`/contracts/${contractId}/cancel`); setCancelMsg("Contrato cancelado."); setTimeout(()=>setCancelMsg(""),4000); await loadContract(); }
-    catch (err: unknown) { const ex=err as {response?:{data?:{error?:string}}}; setCancelMsg(ex.response?.data?.error??"Error al cancelar."); }
-    finally { setCancelling(false); }
+    setCancelling(true);
+    try {
+      await api.patch(`/contracts/${contractId}/cancel`);
+      toast.success('Contrato cancelado.');
+      await loadContract();
+    } catch (err: unknown) {
+      const ex = err as { response?: { data?: { error?: string } } };
+      toast.error(ex.response?.data?.error ?? 'Error al cancelar.');
+    } finally { setCancelling(false); }
   }
 
   async function handleAddPayment(e: React.FormEvent) {
     e.preventDefault(); if (!payForm.amount) return;
-    setSavingPay(true); setPayMsg("");
+    setSavingPay(true);
     try {
-      await api.post(`/contracts/${contractId}/payments`, { amount:Number(payForm.amount), description:payForm.description||undefined });
-      setPayMsg("Pago registrado correctamente."); setPayForm({ amount:"", description:"" }); setShowPayForm(false);
-      setTimeout(()=>setPayMsg(""),4000); await loadContract();
-    } catch (err: unknown) { const ex=err as {response?:{data?:{error?:string}}}; setPayMsg(ex.response?.data?.error??"Error al registrar el pago."); }
-    finally { setSavingPay(false); }
+      await api.post(`/contracts/${contractId}/payments`, { amount: Number(payForm.amount), description: payForm.description || undefined });
+      toast.success('Pago registrado correctamente.');
+      setPayForm({ amount: "", description: "" }); setShowPayForm(false);
+      await loadContract();
+    } catch (err: unknown) {
+      const ex = err as { response?: { data?: { error?: string } } };
+      toast.error(ex.response?.data?.error ?? 'Error al registrar el pago.');
+    } finally { setSavingPay(false); }
   }
 
   async function handleReceiptUpload(paymentId: string, e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
-    setUploadingReceipt(paymentId); setReceiptMsg("");
+    setUploadingReceipt(paymentId);
     const fd = new FormData(); fd.append("receipt", file);
     try {
-      await api.post(`/contracts/payments/${paymentId}/receipt`, fd, { headers:{ "Content-Type":"multipart/form-data" } });
-      setReceiptMsg("Comprobante subido."); setTimeout(()=>setReceiptMsg(""),4000); await loadContract();
-    } catch (err: unknown) { const ex=err as {response?:{data?:{error?:string}}}; setReceiptMsg(ex.response?.data?.error??"Error al subir el comprobante."); }
-    finally { setUploadingReceipt(null); if (e.target) e.target.value=""; }
+      await api.post(`/contracts/payments/${paymentId}/receipt`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      toast.success('Comprobante subido.');
+      await loadContract();
+    } catch (err: unknown) {
+      const ex = err as { response?: { data?: { error?: string } } };
+      toast.error(ex.response?.data?.error ?? 'Error al subir el comprobante.');
+    } finally { setUploadingReceipt(null); if (e.target) e.target.value = ""; }
   }
 
   async function handleDownloadReport() {
-    setDownloadingReport(true); setReportMsg("");
+    setDownloadingReport(true);
     try {
-      const res = await api.get(`/contracts/${contractId}/report`, { responseType:"blob" });
-      const url = URL.createObjectURL(new Blob([res.data], { type:"application/pdf" }));
-      const a = document.createElement("a"); a.href=url; a.download=`reporte_contrato_${contractId}.pdf`; a.click(); URL.revokeObjectURL(url);
-    } catch (err: unknown) { const ex=err as {response?:{data?:{error?:string}}}; setReportMsg(ex.response?.data?.error??"Error al descargar."); setTimeout(()=>setReportMsg(""),4000); }
-    finally { setDownloadingReport(false); }
+      const res = await api.get(`/contracts/${contractId}/report`, { responseType: "blob" });
+      const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
+      const a = document.createElement("a"); a.href = url; a.download = `reporte_contrato_${contractId}.pdf`; a.click(); URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      toast.error('Error al descargar el reporte.');
+    } finally { setDownloadingReport(false); }
   }
 
   if (isLoading || !user || loading) return <TalentBridgeLoader />;
@@ -159,8 +171,6 @@ export default function ContratoEmpresaDetallePage() {
   const totalPaid = contract.payments.filter(p=>p.status==="CONFIRMED").reduce((s,p)=>s+p.amount,0);
   const inp = "w-full bg-[#f7f9fb] border border-[#e6e8ea] rounded-xl py-2.5 px-4 text-sm text-[#191c1e] placeholder:text-[#c2c6d1] outline-none focus:border-[#006d37] focus:ring-2 focus:ring-[#006d37]/8 transition-all";
   const lbl = "block text-[10px] font-bold uppercase tracking-widest text-[#424750] mb-1.5";
-
-  const allMsgs = [completeMsg, cancelMsg, payMsg, fileMsg, receiptMsg, reportMsg];
 
   return (
     <div className="min-h-screen bg-[#f7f9fb]">
@@ -186,15 +196,6 @@ export default function ContratoEmpresaDetallePage() {
       </div>
 
       <div className="max-w-screen-md mx-auto px-8 py-8 space-y-5">
-
-        {/* Messages */}
-        {allMsgs.map((msg, i) => msg ? (
-          <div key={i} className={`px-5 py-3.5 rounded-2xl text-sm font-semibold flex items-center gap-2 ${
-            msg.toLowerCase().includes("error")||msg.includes("Solo")||msg.includes("no se puede")
-              ? "bg-[#ffdad6] text-[#93000a] border border-[#ffdad6]"
-              : "bg-[#6bfe9c]/20 text-[#005228] border border-[#6bfe9c]/30"
-          }`}>{msg}</div>
-        ) : null)}
 
         {/* Detalles */}
         <div className="bg-white rounded-2xl border border-[#e6e8ea] overflow-hidden">

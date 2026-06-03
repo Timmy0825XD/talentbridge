@@ -15,6 +15,7 @@ import {
   Briefcase, Building2, AlertCircle,
 } from 'lucide-react';
 import JobForm from './_components/JobForm';
+import { toast } from '@/src/lib/toast';
 
 interface Job {
   id: string; title: string; description: string; type: string;
@@ -57,7 +58,6 @@ export default function VacantesPage() {
 
   const [showForm,     setShowForm]     = useState(false);
   const [editingJob,   setEditingJob]   = useState<Job|null>(null);
-  const [success,      setSuccess]      = useState('');
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [openMenuId,   setOpenMenuId]   = useState<string|null>(null);
 
@@ -69,13 +69,16 @@ export default function VacantesPage() {
     try {
       await api.patch(`/jobs/${jobId}/status`, { status });
       queryClient.invalidateQueries({ queryKey: queryKeys.jobs.companyMine });
-    } catch {}
+      toast.success(`Estado actualizado a "${STATUS_META[status]?.label}".`);
+    } catch {
+      toast.error('No se pudo cambiar el estado.');
+    }
     setOpenMenuId(null);
   }
 
   function handleFormSuccess(msg: string) {
-    setShowForm(false); setEditingJob(null); setSuccess(msg);
-    setTimeout(() => setSuccess(''), 4000);
+    setShowForm(false); setEditingJob(null);
+    toast.success(msg);
     queryClient.invalidateQueries({ queryKey: queryKeys.jobs.companyMine });
   }
 
@@ -122,12 +125,6 @@ export default function VacantesPage() {
       </div>
 
       <div className="max-w-screen-xl mx-auto px-8 py-8 space-y-6">
-
-        {success && (
-          <div className="bg-[#6bfe9c]/20 text-[#005228] text-sm font-semibold px-5 py-3 rounded-2xl flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />{success}
-          </div>
-        )}
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -14,6 +14,7 @@ import {
   FileText, CheckCircle2, AlertCircle, ChevronRight,
   Users, Plus, Calendar, Loader2, Clock, XCircle, ArrowRight,
 } from "lucide-react";
+import { toast } from '@/src/lib/toast';
 
 interface Contract {
   id: string; status: string; title: string; description: string | null;
@@ -49,7 +50,6 @@ export default function ContratosEmpresaPage() {
 
   const [filter,      setFilter]      = useState("ALL");
   const [showForm,    setShowForm]    = useState(false);
-  const [successMsg,  setSuccessMsg]  = useState("");
 
   const { data: contracts=[], isLoading: contractsLoading, isError } = useContracts(enabled, user?.userId);
   const { data: myJobs=[], isLoading: jobsLoading }                  = useCompanyJobs(enabled && showForm, user?.userId);
@@ -78,8 +78,7 @@ export default function ContratosEmpresaPage() {
 
   function handleFormSuccess() {
     setShowForm(false);
-    setSuccessMsg("Contrato creado y enviado al candidato para confirmación.");
-    setTimeout(() => setSuccessMsg(""), 5000);
+    toast.success('Contrato creado y enviado al candidato para confirmación.');
     queryClient.invalidateQueries({ queryKey: queryKeys.contracts.list });
   }
 
@@ -152,12 +151,6 @@ export default function ContratosEmpresaPage() {
       </div>
 
       <div className="max-w-screen-lg mx-auto px-8 py-8 space-y-6">
-
-        {successMsg && (
-          <div className="bg-[#6bfe9c]/20 text-[#005228] text-sm font-semibold px-5 py-3.5 rounded-2xl flex items-center gap-2 border border-[#6bfe9c]/30">
-            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />{successMsg}
-          </div>
-        )}
 
         {/* Alerta pendientes */}
         {pendingCount > 0 && (

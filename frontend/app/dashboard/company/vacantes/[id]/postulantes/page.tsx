@@ -9,8 +9,9 @@ import {
   ArrowLeft, Users, Star, TrendingUp, FileText, Mail, MapPin,
   GraduationCap, Briefcase, Award, CheckCircle2, XCircle, Clock,
   Eye, Loader2, UserCheck, BarChart3, Languages, Layers, BadgeCheck,
-  Sparkles, AlertTriangle, ChevronRight, Search, Filter,
+  Sparkles, AlertTriangle, ChevronRight, Search,
 } from 'lucide-react';
+import { toast } from '@/src/lib/toast';
 
 interface ScoreBreakdown {
   skills: number; experience: number; education: number;
@@ -104,7 +105,6 @@ export default function PostulantesPage() {
   const [statusLoading, setStatusLoading] = useState(false);
   const [filterStatus,  setFilterStatus]  = useState('ALL');
   const [searchQuery,   setSearchQuery]   = useState('');
-  const [success,       setSuccess]       = useState('');
 
   useEffect(() => {
     if (!isLoading && user?.role !== 'COMPANY') router.replace('/dashboard/candidate');
@@ -135,11 +135,12 @@ export default function PostulantesPage() {
     setStatusLoading(true);
     try {
       await api.patch(`/applications/${applicationId}/status`, { status: newStatus });
-      setApplicants(prev => prev.map(a => a.id===applicationId ? {...a, status:newStatus} : a));
-      if (selected?.id===applicationId) setSelected(prev => prev ? {...prev, status:newStatus} : prev);
-      setSuccess(`Estado actualizado a "${STATUS_META[newStatus]?.label}".`);
-      setTimeout(() => setSuccess(''), 3500);
-    } catch {} finally { setStatusLoading(false); }
+      setApplicants(prev => prev.map(a => a.id === applicationId ? { ...a, status: newStatus } : a));
+      if (selected?.id === applicationId) setSelected(prev => prev ? { ...prev, status: newStatus } : prev);
+      toast.success(`Estado actualizado a "${STATUS_META[newStatus]?.label}".`);
+    } catch {
+      toast.error('No se pudo actualizar el estado.');
+    } finally { setStatusLoading(false); }
   }
 
   const filtered = applicants
@@ -187,13 +188,6 @@ export default function PostulantesPage() {
           </div>
         </div>
       </div>
-
-      {/* Success toast */}
-      {success && (
-        <div className="mx-6 mt-3 bg-[#6bfe9c]/20 text-[#005228] text-sm font-semibold px-4 py-2.5 rounded-xl flex items-center gap-2 shrink-0 border border-[#6bfe9c]/30">
-          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />{success}
-        </div>
-      )}
 
       {/* ── Master / Detail ── */}
       <div className="flex-1 flex overflow-hidden p-4 gap-4 min-h-0">

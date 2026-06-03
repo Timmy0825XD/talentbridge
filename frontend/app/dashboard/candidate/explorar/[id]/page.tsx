@@ -5,9 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/src/lib/api";
-import {
-  useCandidateProfile, useJobDetail, useMyApplications, useMyRanking, queryKeys,
-} from "@/src/hooks/queries";
+import { useCandidateProfile, useJobDetail, useMyApplications, useMyRanking, queryKeys,} from "@/src/hooks/queries";
 import { ProfileScoreResponse } from "@/src/types/api";
 import TalentBridgeLoader from "@/src/components/ui/TalentBridgeLoader";
 import { publicLinks } from "@/src/content/site-links";
@@ -17,6 +15,7 @@ import {
   Banknote, Building2, Wifi, Loader2, AlertCircle,
   Calendar, Star, ChevronRight, BookOpen,
 } from "lucide-react";
+import { toast } from "@/src/lib/toast";
 
 interface Job {
   id: string; title: string; description: string; type: string;
@@ -58,7 +57,6 @@ export default function ExplorarDetallePage() {
   const enabled   = !!user && user.role !== "COMPANY";
 
   const [applyingId, setApplyingId] = useState<string|null>(null);
-  const [applyMsg,   setApplyMsg]   = useState("");
   const [isApplied,  setIsApplied]  = useState(false);
 
   const { data: jobRaw, isLoading: jobLoading } = useJobDetail(jobId, enabled);
@@ -79,18 +77,18 @@ export default function ExplorarDetallePage() {
 
   async function handleApply() {
     if (!job) return;
-    setApplyingId(job.id); setApplyMsg("");
+    setApplyingId(job.id);
     try {
       await api.post(`/jobs/${job.id}/apply`);
       setIsApplied(true);
       queryClient.invalidateQueries({ queryKey: queryKeys.applications.me });
-      setApplyMsg("¡Te postulaste exitosamente!");
-      setTimeout(() => setApplyMsg(""), 5000);
+      toast.success('¡Te postulaste exitosamente!');
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
-      setApplyMsg(e.response?.data?.error ?? "Error al postularse. Intenta de nuevo.");
-      setTimeout(() => setApplyMsg(""), 5000);
-    } finally { setApplyingId(null); }
+      toast.error(e.response?.data?.error ?? 'Error al postularse. Intenta de nuevo.');
+    } finally {
+      setApplyingId(null);
+    }
   }
 
   if (isLoading || !user || jobLoading) return <TalentBridgeLoader />;
@@ -164,12 +162,6 @@ export default function ExplorarDetallePage() {
       </div>
 
       <div className="max-w-screen-xl mx-auto px-8 pb-16 pt-16">
-        {applyMsg && (
-          <div className={`mb-6 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-2 ${applyMsg.includes("exitosamente") ? "bg-[#6bfe9c]/20 text-[#005228]" : "bg-[#ffdad6] text-[#93000a]"}`}>
-            {applyMsg.includes("exitosamente") ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-            {applyMsg}
-          </div>
-        )}
 
         <div className="flex gap-8 items-start">
           {/* Left */}
