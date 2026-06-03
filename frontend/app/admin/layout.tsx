@@ -14,7 +14,7 @@ const navLinks = [
   { label: "Usuarios",      href: "/admin/usuarios",       icon: Users },
   { label: "Vacantes",      href: "/admin/vacantes",       icon: Briefcase },
   { label: "Pesos ranking", href: "/admin/pesos-ranking",  icon: Scale },
-  { label: "Instituciones", href: "/admin/instituciones",  icon: Building2 },
+  { label: "Universidades", href: "/admin/universidades",  icon: Building2 },
   { label: "Crear admin",   href: "/admin/admins",         icon: UserPlus },
 ];
 

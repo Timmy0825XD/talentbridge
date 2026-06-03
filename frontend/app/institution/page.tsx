@@ -7,16 +7,15 @@ import InfoCallout from "@/src/components/info/InfoCallout";
 import { GraduationCap, Briefcase, TrendingUp, Users, AlertCircle } from "lucide-react";
 
 interface InstitutionDashboard {
+  institutionName: string;
   metrics: {
-    totalStudents: number;
-    totalGraduates: number;
     activeStudents: number;
-    insertionRate: number;
-    totalContracts: number;
-    completedContracts: number;
+    activeGraduates: number;
+    graduatesWithCompletedContract: number;
+    insertionRatePercent: number;
   };
-  topSkills: Array<{ skill: string; count: number }>;
-  contractsByArea: Array<{ area: string; count: number }>;
+  topDemandedSkills: Array<{ skill: string; count: number }>;
+  hiringByArea: Array<{ area: string; count: number }>;
 }
 
 export default function InstitutionDashboardPage() {
@@ -63,24 +62,23 @@ export default function InstitutionDashboardPage() {
           Panel Institucional
         </h1>
         <p className="text-[#424750] mt-1">
-          Seguimiento de inserción laboral de tus estudiantes y egresados
+          {data?.institutionName
+            ? `Seguimiento de inserción laboral — ${data.institutionName}`
+            : "Seguimiento de inserción laboral de tus estudiantes y egresados"}
         </p>
       </div>
 
       <InfoCallout
         title="Panel institucional"
-        description="Monitorea la inserción laboral de tus estudiantes y egresados. Revisa skills demandadas y contrataciones por área."
+        description="Monitorea egresados y estudiantes vinculados a tu universidad en el catálogo. Solo se cuentan perfiles verificados y activos."
       />
 
-      {/* Métricas principales */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
         {[
-          { icon: <GraduationCap className="w-5 h-5" />, label: "Estudiantes",        value: m?.totalStudents ?? 0,    color: "text-[#00386c]", bg: "bg-[#a6c8ff]/20" },
-          { icon: <GraduationCap className="w-5 h-5" />, label: "Egresados",           value: m?.totalGraduates ?? 0,   color: "text-[#1a4f8b]", bg: "bg-[#a6c8ff]/10" },
-          { icon: <Users className="w-5 h-5" />,         label: "Activos",             value: m?.activeStudents ?? 0,   color: "text-[#005228]", bg: "bg-[#6bfe9c]/20" },
-          { icon: <TrendingUp className="w-5 h-5" />,    label: "Tasa inserción",      value: `${(m?.insertionRate ?? 0).toFixed(1)}%`, color: "text-[#006d37]", bg: "bg-[#6bfe9c]/30", isText: true },
-          { icon: <Briefcase className="w-5 h-5" />,     label: "Contratos totales",   value: m?.totalContracts ?? 0,   color: "text-[#7c5c00]", bg: "bg-[#fff3cd]" },
-          { icon: <Briefcase className="w-5 h-5" />,     label: "Completados",         value: m?.completedContracts ?? 0, color: "text-[#005228]", bg: "bg-[#6bfe9c]/10" },
+          { icon: <Users className="w-5 h-5" />,         label: "Estudiantes activos",  value: m?.activeStudents ?? 0,   color: "text-[#00386c]", bg: "bg-[#a6c8ff]/20" },
+          { icon: <GraduationCap className="w-5 h-5" />, label: "Egresados activos",    value: m?.activeGraduates ?? 0,  color: "text-[#1a4f8b]", bg: "bg-[#a6c8ff]/10" },
+          { icon: <TrendingUp className="w-5 h-5" />,    label: "Tasa inserción",       value: `${(m?.insertionRatePercent ?? 0).toFixed(1)}%`, color: "text-[#006d37]", bg: "bg-[#6bfe9c]/30", isText: true },
+          { icon: <Briefcase className="w-5 h-5" />,     label: "Egresados contratados", value: m?.graduatesWithCompletedContract ?? 0, color: "text-[#005228]", bg: "bg-[#6bfe9c]/10" },
         ].map(({ icon, label, value, color, bg, isText }) => (
           <div key={label} className={`${bg} rounded-2xl p-5`}>
             <div className={`${color} mb-3`}>{icon}</div>
@@ -92,17 +90,16 @@ export default function InstitutionDashboardPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 
-        {/* Skills más demandadas */}
         <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">
           <h2 className="text-sm font-black uppercase tracking-widest text-[#424750] mb-5">
             Skills más demandadas
           </h2>
-          {(data?.topSkills ?? []).length === 0 ? (
+          {(data?.topDemandedSkills ?? []).length === 0 ? (
             <p className="text-sm text-[#737781] text-center py-6">Sin datos aún.</p>
           ) : (
             <div className="space-y-3">
-              {(data?.topSkills ?? []).slice(0, 8).map((s, i) => {
-                const max = data?.topSkills[0]?.count ?? 1;
+              {(data?.topDemandedSkills ?? []).slice(0, 8).map((s, i) => {
+                const max = data?.topDemandedSkills[0]?.count ?? 1;
                 const pct = Math.round((s.count / max) * 100);
                 return (
                   <div key={s.skill} className="flex items-center gap-3">
@@ -124,17 +121,16 @@ export default function InstitutionDashboardPage() {
           )}
         </div>
 
-        {/* Contrataciones por área */}
         <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">
           <h2 className="text-sm font-black uppercase tracking-widest text-[#424750] mb-5">
             Contrataciones por área
           </h2>
-          {(data?.contractsByArea ?? []).length === 0 ? (
+          {(data?.hiringByArea ?? []).length === 0 ? (
             <p className="text-sm text-[#737781] text-center py-6">Sin datos aún.</p>
           ) : (
             <div className="space-y-3">
-              {(data?.contractsByArea ?? []).map(a => {
-                const max = data?.contractsByArea[0]?.count ?? 1;
+              {(data?.hiringByArea ?? []).map(a => {
+                const max = data?.hiringByArea[0]?.count ?? 1;
                 const pct = Math.round((a.count / max) * 100);
                 return (
                   <div key={a.area} className="flex items-center gap-3">

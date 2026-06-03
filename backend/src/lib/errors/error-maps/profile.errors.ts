@@ -4,6 +4,8 @@ export const profileErrorMap: ErrorMap = {
   INVALID_FILE_TYPE: { status: 400, body: { error: 'Tipo de archivo no permitido.' } },
   STORAGE_UPLOAD_FAILED: { status: 500, body: { error: 'Error al subir el archivo. Intenta de nuevo.' } },
   CV_NOT_FOUND: { status: 404, body: { error: 'No tienes un CV cargado.' } },
+  UNIVERSITY_NOT_FOUND: { status: 404, body: { error: 'Universidad no encontrada.' } },
+  UNIVERSITY_INACTIVE: { status: 400, body: { error: 'La universidad seleccionada no está activa.' } },
 };
 
 export const profileCvErrorMap: ErrorMap = {

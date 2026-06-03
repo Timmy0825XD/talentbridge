@@ -14,9 +14,9 @@ router.get('/jobs', adminController.listJobs);
 router.patch('/jobs/:id/moderate', adminController.moderateJob);
 router.get('/ranking-weights', adminController.getRankingWeights);
 router.put('/ranking-weights', adminController.updateRankingWeights);
-router.get('/institutions', adminController.listInstitutions);
-router.post('/institutions', adminController.createInstitution);
-router.patch('/institutions/:id', adminController.updateInstitution);
+router.get('/universities', adminController.listUniversities);
+router.post('/universities', adminController.createUniversity);
+router.patch('/universities/:id', adminController.updateUniversity);
 router.post('/admins', adminController.createAdminUser);
 
 export default router;

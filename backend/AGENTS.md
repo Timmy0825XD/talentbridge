@@ -138,7 +138,7 @@ npm install
 cp .env.example .env   # completar valores
 npx prisma generate
 npx prisma migrate dev
-npx prisma db seed      # keywords iniciales (~120)
+npx prisma db seed      # keywords (~120) + catálogo universidades (~17)
 npm run dev             # http://localhost:3001
 ```
 
@@ -186,8 +186,7 @@ backend/
 - Un service devolviendo un `Response` de Express
 - Registrar rutas sueltas en `app.ts` (siempre archivo en `routes/`)
 
-**Excepción documentada:** `keyword.routes.ts` consulta Prisma inline.
-No replicar ese patrón — al tocar keywords, migrar a `keyword.service.ts` + controller.
+**Keywords:** `keyword.routes.ts` → `keyword.controller.ts` → `keyword.service.ts` (patrón estándar).
 
 ---
 
@@ -335,16 +334,17 @@ Ver plantilla completa en `backend/.env.example`.
 | Dashboards agregados | 4 | `GET /dashboard/company`, `/dashboard/candidate` |
 | Reporte PDF de contrato | 4 | `GET /contracts/:id/report` (pdfkit) |
 | Simulador tributario | 4 | `GET /tax/benefits`, `POST /tax/simulate` |
-| Panel ADMIN | 4 | Métricas, usuarios, moderación, pesos globales, CRUD instituciones |
-| Panel INSTITUTION | 4 | `GET /institution/dashboard` |
+| Panel ADMIN | 4 | Métricas, usuarios, moderación, pesos globales, CRUD universidades |
+| Panel INSTITUTION | 4 | `GET /institution/dashboard` (métricas por `universityId`) |
+| Catálogo de universidades | 5 | Modelo `University`, `GET /universities`, `universityId` en perfil candidato |
+| Admin universidades + cuentas INSTITUTION | 5 | `POST /admin/universities` crea universidad + usuario institución + credenciales |
 
 ### Pendiente
 
 | Área | Sprint | Detalle |
 |---|---|---|
-| UI entregables en frontend | 3 | Oscar — consumir endpoints de deliverables |
-| Validación Zod en otros módulos | 3+ | Adoptado en contratos/ratings/admin; pendiente auth, jobs |
-| Tests automatizados | 3+ | Unit + integración mínima |
+| Validación Zod en otros módulos | 3+ | Adoptado en contratos/ratings/admin/universidades; pendiente auth, jobs |
+| Tests automatizados | 3+ | Existe `npm test` (slugs/credenciales); falta integración auth, apply, contracts |
 | WhatsApp vía n8n | 3 | Canal alternativo a Telegram |
 
 ---
@@ -375,9 +375,10 @@ enum RatingRaterRole { COMPANY CANDIDATE }
 |---|---|
 | **User** | Cuenta central; `isVerified`, `isActive`, `role` |
 | **OtpCode** / **ResetToken** | Verificación y recuperación |
-| **CandidateProfile** | Perfil 1:1; skills[], JSON; `reputationAvg`, `ratingCount`; notificaciones Telegram |
+| **CandidateProfile** | Perfil 1:1; `universityId?` → `University`; skills[], JSON; reputación; notificaciones Telegram |
 | **CompanyProfile** | Perfil empresa 1:1; `reputationAvg`, `ratingCount` |
-| **InstitutionProfile** | Perfil institución 1:1; `institutionName`, `isActive` |
+| **University** | Catálogo único (`name`, `slug`, `isActive`); 1:1 con `InstitutionProfile` opcional |
+| **InstitutionProfile** | Perfil institución 1:1; `universityId` obligatorio; `institutionName`, `isActive` |
 | **Job** | Vacante; `skills[]`, presupuesto, `JobRankConfig?` |
 | **Application** | Postulación única por par job+candidato; `scoreAtApply`, IA insights |
 | **JobRankConfig** | Pesos por vacante (deben sumar ~1.0) |
@@ -401,10 +402,14 @@ enum RatingRaterRole { COMPANY CANDIDATE }
 | `refactor_contracts_deliverables` | PaymentScheme enum, Deliverable, applicationId, reglas |
 | `sprint4_ratings_dashboards_admin` | ContractRating, GlobalRankConfig, InstitutionProfile, reputación |
 | `add_candidate_reputation_fields` | `reputationAvg`, `ratingCount` en candidatos |
+| `add_universities_catalog` | Tabla `universities`; `universityId` en candidato/institución; elimina texto `institution` |
 
 ### Reglas de datos
 
 - Perfiles: siempre **`upsert`**, nunca `create` + `update` separados
+- Candidato: `universityId` opcional — debe existir en catálogo y `isActive: true` (no texto libre)
+- Institución: cada `InstitutionProfile` enlaza **exactamente una** `University` (`universityId` único)
+- Crear universidad (admin/seed): `createUniversityWithAccount()` — slug, email `{slug}@institucion.talentbridge.local`, rol `INSTITUTION`
 - `scoreAtApply` se congela al postular — no se recalcula si el perfil cambia después
 - Keywords nuevas desde CV: `isActive: true` por defecto
 - Contrato: requiere postulación `SELECTED`; candidato confirma solo si hay `contractFileUrl`
@@ -451,7 +456,7 @@ Authorization: Bearer <JWT>
 | Método | Ruta | Roles | Notas |
 |---|---|---|---|
 | GET | `/profile/candidate` | STUDENT, GRADUATE | |
-| PUT | `/profile/candidate` | STUDENT, GRADUATE | upsert |
+| PUT | `/profile/candidate` | STUDENT, GRADUATE | upsert; body incluye `universityId` (nullable) |
 | POST | `/profile/candidate/cv` | STUDENT, GRADUATE | campo `cv`, PDF máx 5MB, extracción IA |
 | POST | `/profile/candidate/photo` | STUDENT, GRADUATE | campo `photo`, imagen máx **2MB** |
 | POST | `/profile/candidate/extract-cv` | STUDENT, GRADUATE | Re-procesar CV ya subido |
@@ -497,6 +502,12 @@ Authorization: Bearer <JWT>
 |---|---|---|---|
 | GET | `/keywords` | `?type=TECHNICAL\|SOFT\|LANGUAGE` | Sí |
 
+### Universidades — `/api/universities`
+
+| Método | Ruta | Roles | Notas |
+|---|---|---|---|
+| GET | `/universities` | Autenticado | Solo activas; respuesta `[{ id, name }]` |
+
 ### Notificaciones — `/api/notifications`
 
 | Método | Ruta | Auth | Consumidor |
@@ -539,16 +550,16 @@ Body `POST /telegram/register`: `{ userId, chatId }`
 | PATCH | `/admin/jobs/:id/moderate` | ADMIN — `{ status }` |
 | GET | `/admin/ranking-weights` | ADMIN |
 | PUT | `/admin/ranking-weights` | ADMIN |
-| GET | `/admin/institutions` | ADMIN |
-| POST | `/admin/institutions` | ADMIN |
-| PATCH | `/admin/institutions/:id` | ADMIN |
+| GET | `/admin/universities` | ADMIN | Lista con `institutionProfile` + usuario |
+| POST | `/admin/universities` | ADMIN | Body `{ name }` — crea universidad + cuenta INSTITUTION; respuesta incluye `generatedCredentials` |
+| PATCH | `/admin/universities/:id` | ADMIN | `{ name?, isActive? }` — sincroniza `institutionName` si hay perfil |
 | POST | `/admin/admins` | ADMIN |
 
 ### Institución — `/api/institution`
 
 | Método | Ruta | Roles |
 |---|---|---|
-| GET | `/institution/dashboard` | INSTITUTION |
+| GET | `/institution/dashboard` | INSTITUTION — métricas filtradas por `universityId` del perfil |
 
 ### Contratos, pagos y entregables — `/api/contracts`
 
@@ -639,6 +650,11 @@ Rate limit 429: hasta 3 reintentos con backoff.
 3. Normalización contra tabla `keywords` (nombre canónico o alta nueva)
 4. Perfil actualizado + recálculo de `ProfileScore`
 
+### Dimensión educación (`lib/ranking.ts`)
+
+- Usa `universityId` del catálogo (no campo texto)
+- Puntos por universidad vinculada, carrera, semestre y año de graduación
+
 ---
 
 ## Notificaciones — n8n y Telegram
@@ -680,6 +696,7 @@ src/
 │   ├── mailer.ts          → sendOtpEmail, sendResetEmail
 │   ├── supabase.ts        → cliente Storage
 │   ├── ranking.ts         → calculateScore, combineScores, DEFAULT_WEIGHTS
+│   ├── university-credentials.ts → slug, email institución, contraseña, acrónimos
 │   ├── gemini.ts          → scoreCompatibility, extractCvIntelligent
 │   ├── cv-extractor.ts    → extractCvKeywords (pdf-parse + keywords BD)
 │   ├── contract-helpers.ts → pickUploadedFile, computePaymentTotals
@@ -697,7 +714,9 @@ src/
 │   │   ├── handle-service-error.ts
 │   │   └── error-maps/    → auth, profile, job, application, contract, etc.
 │   └── validators/
-│       └── contract.validators.ts
+│       ├── contract.validators.ts
+│       ├── admin.validators.ts   → universidades, pesos, moderación
+│       └── rating.validators.ts
 │
 ├── middlewares/
 │   ├── auth.middleware.ts
@@ -722,13 +741,15 @@ src/
 │   ├── report.service.ts
 │   ├── tax.service.ts
 │   ├── admin.service.ts
+│   ├── university.service.ts      → listActiveUniversities
+│   ├── university-create.service.ts → createUniversityWithAccount (admin + seed)
 │   └── institution.service.ts
 │
 ├── controllers/           → asyncHandler + error-maps (sin Prisma directo)
-│   └── ... (todos los dominios + keyword.controller.ts)
+│   └── ... (todos los dominios incl. keyword, university)
 │
 └── routes/                → solo wiring + middlewares
-    └── ...
+    └── ... (+ university.routes.ts registrado en app.ts)
 ```
 
 ### Patrón infra para nuevos módulos (Sprint 4+)
@@ -751,9 +772,16 @@ Archivo: `prisma/seed.ts`
 npx prisma db seed
 ```
 
-- ~120 keywords por tipo y categoría
-- `upsert` — seguro ejecutar varias veces
+- ~120 keywords por tipo y categoría (`upsert`)
+- ~17 universidades iniciales vía `createUniversityWithAccount` (omite si ya existen por nombre)
+- Imprime tabla de credenciales generadas en consola (solo desarrollo)
 - Requiere `tsconfig.seed.json` (`rootDir: "."`)
+
+Tests unitarios de credenciales/slug:
+
+```bash
+npm test
+```
 
 ---
 
@@ -796,7 +824,7 @@ Evidencia DevTools en [`docs/performance/`](../docs/performance/README.md). Todo
 | Job | `companyId`, `status` |
 | Application | `jobId`, `candidateId` |
 | Contract | `companyId`, `candidateId`, `status` |
-| CandidateProfile | `[notificationsEnabled, telegramChatId]` |
+| CandidateProfile | `universityId`, `[notificationsEnabled, telegramChatId]` |
 | ProfileScore | `totalScore` |
 | OtpCode | `[userId, used, expiresAt]` |
 
@@ -814,9 +842,9 @@ Registrar aquí evita que agentes “arreglen” cosas sin contexto del sprint.
 |---|---|---|
 | `/notifications/*` sin secret en dev | Baja | Si `N8N_WEBHOOK_SECRET` vacío, permite acceso (solo desarrollo) |
 | Zod parcial en auth/jobs | Media | Ratings, admin, contratos ya usan Zod |
-| Tests inexistentes | Media | Priorizar auth, apply, contracts, ratings |
-| UI Sprint 4 en frontend | Media | Oscar consumirá endpoints nuevos |
+| Tests de integración | Media | `university-credentials.test.ts` existe; ampliar auth, apply, contracts |
 | WhatsApp vía n8n | Baja | Telegram operativo |
+| Ruta admin frontend `/admin/instituciones` | Baja | URL histórica; API ya es `/admin/universities` |
 | JWT_EXPIRES_IN / OTP env vars no cableadas | Baja | Hardcoded en jwt.ts / auth.service |
 | Payloads slim en listados / Gemini async apply | Baja | Requiere cambio de interfaz — fuera de alcance perf segura |
 | N+1 frontend en contratos (resuelto) | — | Lazy load applicants + React Query |
@@ -842,3 +870,5 @@ Registrar aquí evita que agentes “arreglen” cosas sin contexto del sprint.
 - **Gemini:** no bloquear flujos críticos si la API falla — degradar con valores neutros
 - **Webhooks n8n:** fallo silencioso en `triggerNotificationWebhook` — no revertir creación de vacante
 - **Performance:** seguir [`docs/performance/`](../docs/performance/README.md) — optimizar queries sin cambiar JSON de respuesta
+- **Universidades:** candidatos usan `universityId` del catálogo; admin crea con `POST /admin/universities` (no `/admin/institutions`)
+- **Credenciales institución:** lógica en `lib/university-credentials.ts` — probar con `npm test` al cambiar slugs/emails

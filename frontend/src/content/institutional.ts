@@ -68,7 +68,7 @@ export const institutionalContent = {
       {
         title: "Roles Administrados",
         content:
-          "Estos roles son creados exclusivamente por el equipo de TalentBridge o por administradores: (a) Institución (INSTITUTION) - acceso a paneles de métricas de inserción laboral de egresados, vinculado por nombre de institución; (b) Administrador (ADMIN) - gestión completa de usuarios, vacantes, instituciones y configuración global del sistema.",
+          "Estos roles son creados exclusivamente por el equipo de TalentBridge o por administradores: (a) Institución (INSTITUTION) - acceso a paneles de métricas de inserción laboral de egresados, vinculado a una universidad del catálogo; (b) Administrador (ADMIN) - gestión completa de usuarios, vacantes, universidades y configuración global del sistema.",
       },
       {
         title: "Permisos por Rol",

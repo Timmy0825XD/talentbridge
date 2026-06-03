@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import api from "@/src/lib/api";
-import { useCandidateProfile, useKeywords } from "@/src/hooks/queries";
+import { useCandidateProfile, useKeywords, useUniversities } from "@/src/hooks/queries";
 import InfoCallout from "@/src/components/info/InfoCallout";
+import UniversitySelect from "@/src/components/profile/UniversitySelect";
 import {
   ArrowLeft, Save, Upload, X, FileText, User, GraduationCap,
   Briefcase, Wrench, Plus, Globe, Award, FolderGit2, Camera,
@@ -26,7 +27,7 @@ const EMPTY_FORM = {
   phone:               "",
   summary:             "",
   career:              "",
-  institution:         "",
+  universityId:        null as string | null,
   semester:            "",
   graduationYear:      "",
   workMode:            "remote" as "remote" | "onsite" | "hybrid",
@@ -110,7 +111,7 @@ function SkillInput({ value, onChange, onAdd, placeholder, suggestions }: {
             <button type="button" onMouseDown={e => e.preventDefault()}
               onClick={() => { onAdd(value.trim()); onChange(""); setOpen(false); }}
               className="w-full text-left px-4 py-3 text-sm text-[#006d37] font-semibold hover:bg-[#f7f9fb] transition-colors border-t border-[#f2f4f6] flex items-center gap-2">
-              <Plus className="w-3.5 h-3.5" /> Agregar "{value.trim()}"
+              <Plus className="w-3.5 h-3.5" /> Agregar &quot;{value.trim()}&quot;
             </button>
           )}
         </div>
@@ -136,7 +137,9 @@ export default function CandidateProfilePage() {
 
   const { data: profileData } = useCandidateProfile(!!user, user?.userId);
   const { data: keywordsData } = useKeywords(!!user);
+  const { data: universitiesData } = useUniversities(!!user);
   const keywords = (keywordsData as Keyword[] | undefined) ?? EMPTY_KEYWORDS;
+  const universities = universitiesData ?? [];
 
   useEffect(() => {
     if (!isLoading && !user) router.replace("/auth/login");
@@ -151,7 +154,7 @@ export default function CandidateProfilePage() {
       phone:          d.phone          ?? "",
       summary:        d.summary        ?? "",
       career:         d.career         ?? "",
-      institution:    d.institution    ?? "",
+      universityId:   d.universityId   ?? d.university?.id ?? null,
       semester:       d.semester       != null ? String(d.semester) : "",
       graduationYear: d.graduationYear != null ? String(d.graduationYear) : "",
       workMode:       d.workMode       ?? "remote",
@@ -199,12 +202,13 @@ export default function CandidateProfilePage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    setSaving(true);
     const payload: Record<string, unknown> = {
       fullName:      form.fullName,
       phone:         form.phone         || undefined,
       summary:       form.summary       || undefined,
       career:        form.career        || undefined,
-      institution:   form.institution   || undefined,
+      universityId:  form.universityId  || null,
       workMode:      form.workMode,
       salaryExpected: form.salaryExpected ? Number(form.salaryExpected) : undefined,
       skills:        form.skills,
@@ -277,6 +281,7 @@ export default function CandidateProfilePage() {
   // FIX P3: toggle notificaciones vía endpoint dedicado
   async function handleToggleNotifications() {
     const newValue = !form.notificationsEnabled;
+    setTogglingNotifs(true);
     try {
       await api.patch("/notifications/preferences", { enabled: newValue });
       set("notificationsEnabled", newValue);
@@ -300,9 +305,12 @@ export default function CandidateProfilePage() {
   const techKeywords = keywords.filter(k => k.type === "TECHNICAL");
   const softKeywords = keywords.filter(k => k.type === "SOFT");
 
+  const selectedUniversityName = universities.find(u => u.id === form.universityId)?.name
+    ?? (profileData?.university?.name ?? null);
+
   const totalFields  = 8;
   const filledFields = [
-    form.fullName, form.summary, form.career, form.institution,
+    form.fullName, form.summary, form.career, form.universityId,
     form.skills.length > 0, form.cvUrl, form.photoUrl,
     form.certifications.length > 0 || form.projects.length > 0,
   ].filter(Boolean).length;
@@ -352,7 +360,7 @@ export default function CandidateProfilePage() {
                 {form.fullName || "Tu nombre aquí"}
               </h1>
               <p className="text-white/60 text-lg font-medium">
-                {form.career || "Carrera"}{form.institution ? ` · ${form.institution}` : ""}
+                {form.career || "Carrera"}{selectedUniversityName ? ` · ${selectedUniversityName}` : ""}
               </p>
               <div className="flex flex-wrap gap-3 mt-6 justify-center md:justify-start">
                 {form.cvUrl && (
@@ -488,10 +496,13 @@ export default function CandidateProfilePage() {
               </div>
               <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
-                  <label className={lbl}>Institución</label>
-                  <input type="text" value={form.institution}
-                    onChange={e => set("institution", e.target.value)}
-                    placeholder="e.j. Universidad Popular del Cesar" className={inp} />
+                  <label className={lbl}>Universidad</label>
+                  <UniversitySelect
+                    value={form.universityId}
+                    onChange={id => set("universityId", id)}
+                    universities={universities}
+                    placeholder="Buscar universidad..."
+                  />
                 </div>
                 <div className="md:col-span-2">
                   <label className={lbl}>Carrera</label>

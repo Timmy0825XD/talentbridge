@@ -72,7 +72,7 @@ model CandidateProfile {
   career         String?
   semester       Int?
   graduationYear Int?
-  institution    String?
+  universityId   String?
   skills         String[]
   softSkills     String[]
   languages      Json?
@@ -92,9 +92,11 @@ model CandidateProfile {
   contracts Contract[]
   score          ProfileScore?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  university University? @relation(fields: [universityId], references: [id], onDelete: SetNull)
 
   @@index([career])
+  @@index([universityId])
   @@index([notificationsEnabled, telegramChatId])
   @@map("candidate_profiles")
 }
@@ -350,9 +352,24 @@ model GlobalRankConfig {
   @@map("global_rank_config")
 }
 
+model University {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  institutionProfile InstitutionProfile?
+  candidates         CandidateProfile[]
+
+  @@map("universities")
+}
+
 model InstitutionProfile {
   id              String   @id @default(uuid())
   userId          String   @unique
+  universityId    String   @unique
   institutionName String
   contactEmail    String?
   contactPhone    String?
@@ -360,7 +377,8 @@ model InstitutionProfile {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
   @@map("institution_profiles")
 }

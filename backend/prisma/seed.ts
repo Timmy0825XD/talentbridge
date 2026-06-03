@@ -1,6 +1,27 @@
 import { PrismaClient, KeywordType } from '@prisma/client';
+import { createUniversityWithAccount } from '../src/services/university-create.service';
 
 const prisma = new PrismaClient();
+
+const INITIAL_UNIVERSITIES = [
+  'Universidad Popular del Cesar',
+  'Universidad Nacional de Colombia',
+  'Universidad de Santander',
+  'Fundación Universitaria del Área Andina',
+  'Universidad Antonio Nariño',
+  'Universidad Externado de Colombia',
+  'Universidad Autónoma de Bucaramanga',
+  'Universidad Mariana',
+  'Corporación Universitaria Minuto de Dios',
+  'Universidad Nacional Abierta y a Distancia',
+  'Universidad Santo Tomás',
+  'Fundación Universidad de Bogotá Jorge Tadeo Lozano',
+  'Universidad del Norte',
+  'Universidad de Medellín',
+  'Universidad del Atlántico',
+  'Universidad de Pamplona',
+  'Fundación de Educación Superior UPARSISTEM',
+];
 
 const keywords = [
   // ── DESARROLLO WEB / SISTEMAS ─────────────────────────────────────────
@@ -179,6 +200,29 @@ async function main() {
 
   console.log(`✅ ${keywords.length} keywords insertadas correctamente.`);
   console.log('✅ GlobalRankConfig inicializado.');
+
+  const credentialsLog: { name: string; email: string; password: string }[] = [];
+
+  for (const name of INITIAL_UNIVERSITIES) {
+    const existing = await prisma.university.findUnique({ where: { name } });
+    if (existing) {
+      console.log(`⏭️  Universidad ya existe: ${name}`);
+      continue;
+    }
+
+    const result = await createUniversityWithAccount(name);
+    credentialsLog.push({
+      name: result.university.name,
+      email: result.generatedCredentials.email,
+      password: result.generatedCredentials.password,
+    });
+    console.log(`✅ Universidad creada: ${name}`);
+  }
+
+  if (credentialsLog.length > 0) {
+    console.log('\n📋 Credenciales generadas (solo desarrollo):');
+    console.table(credentialsLog);
+  }
 }
 
 main()

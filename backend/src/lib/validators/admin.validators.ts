@@ -19,22 +19,16 @@ export const updateRankingWeightsSchema = z.object({
   completionWeight: z.number().min(0).max(1),
 });
 
-export const createInstitutionSchema = z.object({
-  email: z.string().email('Correo inválido.'),
-  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres.'),
-  institutionName: z.string().min(2, 'Nombre de institución requerido.'),
-  contactEmail: z.string().email().optional(),
-  contactPhone: z.string().max(30).optional(),
+export const createUniversitySchema = z.object({
+  name: z.string().min(2, 'Nombre de universidad requerido.'),
+});
+
+export const updateUniversitySchema = z.object({
+  name: z.string().min(2).optional(),
+  isActive: z.boolean().optional(),
 });
 
 export const createAdminUserSchema = z.object({
   email: z.string().email('Correo inválido.'),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres.'),
-});
-
-export const updateInstitutionSchema = z.object({
-  institutionName: z.string().min(2).optional(),
-  contactEmail: z.string().email().optional().nullable(),
-  contactPhone: z.string().max(30).optional().nullable(),
-  isActive: z.boolean().optional(),
 });

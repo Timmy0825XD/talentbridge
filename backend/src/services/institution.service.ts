@@ -10,7 +10,7 @@ export async function getInstitutionDashboard(userId: string) {
   if (!profile.isActive) throw new Error('INSTITUTION_INACTIVE');
 
   const institutionFilter = {
-    institution: { equals: profile.institutionName, mode: 'insensitive' as const },
+    universityId: profile.universityId,
     user: { isActive: true, isVerified: true },
   };
 

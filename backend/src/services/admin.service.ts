@@ -9,12 +9,13 @@ import { prisma } from '../lib/prisma';
 import { validateWeightsSum } from '../lib/global-rank-config';
 import {
   createAdminUserSchema,
-  createInstitutionSchema,
+  createUniversitySchema,
   moderateJobSchema,
-  updateInstitutionSchema,
   updateRankingWeightsSchema,
+  updateUniversitySchema,
   updateUserStatusSchema,
 } from '../lib/validators/admin.validators';
+import { createUniversityWithAccount } from './university-create.service';
 import { formatFirstZodIssue } from '../lib/validation/zod-utils';
 
 function parsePagination(query: Record<string, unknown>) {
@@ -173,70 +174,80 @@ export async function updateGlobalRankingWeights(body: unknown) {
   });
 }
 
-export async function listInstitutions() {
-  return prisma.institutionProfile.findMany({
+export async function listUniversities() {
+  return prisma.university.findMany({
     include: {
-      user: { select: { id: true, email: true, isActive: true, isVerified: true } },
+      institutionProfile: {
+        include: {
+          user: { select: { id: true, email: true, isActive: true, isVerified: true } },
+        },
+      },
     },
-    orderBy: { institutionName: 'asc' },
+    orderBy: { name: 'asc' },
   });
 }
 
-export async function createInstitution(body: unknown) {
-  const parsed = createInstitutionSchema.safeParse(body);
+export async function createUniversity(body: unknown) {
+  const parsed = createUniversitySchema.safeParse(body);
   if (!parsed.success) throw new Error(`VALIDATION:${formatFirstZodIssue(parsed.error)}`);
 
-  const existing = await prisma.user.findUnique({ where: { email: parsed.data.email } });
-  if (existing) throw new Error('EMAIL_TAKEN');
+  return createUniversityWithAccount(parsed.data.name);
+}
 
-  const passwordHash = await bcrypt.hash(parsed.data.password, 10);
+export async function updateUniversity(universityId: string, body: unknown) {
+  const parsed = updateUniversitySchema.safeParse(body);
+  if (!parsed.success) throw new Error(`VALIDATION:${formatFirstZodIssue(parsed.error)}`);
 
-  return prisma.$transaction(async tx => {
-    const user = await tx.user.create({
-      data: {
-        email: parsed.data.email,
-        passwordHash,
-        role: Role.INSTITUTION,
-        isVerified: true,
-        isActive: true,
-      },
+  const university = await prisma.university.findUnique({
+    where: { id: universityId },
+    include: { institutionProfile: true },
+  });
+  if (!university) throw new Error('UNIVERSITY_NOT_FOUND');
+
+  if (parsed.data.name && parsed.data.name !== university.name) {
+    const duplicate = await prisma.university.findFirst({
+      where: { name: parsed.data.name, id: { not: universityId } },
     });
+    if (duplicate) throw new Error('UNIVERSITY_NAME_TAKEN');
+  }
 
-    return tx.institutionProfile.create({
+  const isActive = parsed.data.isActive;
+
+  const updated = await prisma.$transaction(async tx => {
+    const uni = await tx.university.update({
+      where: { id: universityId },
       data: {
-        userId: user.id,
-        institutionName: parsed.data.institutionName,
-        contactEmail: parsed.data.contactEmail,
-        contactPhone: parsed.data.contactPhone,
+        ...(parsed.data.name ? { name: parsed.data.name } : {}),
+        ...(isActive !== undefined ? { isActive } : {}),
       },
       include: {
-        user: { select: { id: true, email: true, isActive: true } },
+        institutionProfile: {
+          include: {
+            user: { select: { id: true, email: true, isActive: true, isVerified: true } },
+          },
+        },
       },
     });
+
+    if (university.institutionProfile) {
+      await tx.institutionProfile.update({
+        where: { id: university.institutionProfile.id },
+        data: {
+          ...(parsed.data.name ? { institutionName: parsed.data.name } : {}),
+          ...(isActive !== undefined ? { isActive } : {}),
+        },
+      });
+
+      if (isActive !== undefined) {
+        await tx.user.update({
+          where: { id: university.institutionProfile.userId },
+          data: { isActive },
+        });
+      }
+    }
+
+    return uni;
   });
-}
-
-export async function updateInstitution(institutionId: string, body: unknown) {
-  const parsed = updateInstitutionSchema.safeParse(body);
-  if (!parsed.success) throw new Error(`VALIDATION:${formatFirstZodIssue(parsed.error)}`);
-
-  const profile = await prisma.institutionProfile.findUnique({ where: { id: institutionId } });
-  if (!profile) throw new Error('INSTITUTION_NOT_FOUND');
-
-  const updated = await prisma.institutionProfile.update({
-    where: { id: institutionId },
-    data: parsed.data,
-    include: {
-      user: { select: { id: true, email: true, isActive: true } },
-    },
-  });
-
-  if (parsed.data.isActive !== undefined) {
-    await prisma.user.update({
-      where: { id: profile.userId },
-      data: { isActive: parsed.data.isActive },
-    });
-  }
 
   return updated;
 }

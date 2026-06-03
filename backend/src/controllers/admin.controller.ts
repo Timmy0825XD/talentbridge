@@ -63,29 +63,33 @@ export const updateRankingWeights = asyncHandler(async (req: AuthRequest, res: R
   }
 }, adminErrorMap, 'updateRankingWeights');
 
-export const listInstitutions = asyncHandler(async (_req: AuthRequest, res: Response) => {
-  res.json(await adminService.listInstitutions());
-}, adminErrorMap, 'listInstitutions');
+export const listUniversities = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  res.json(await adminService.listUniversities());
+}, adminErrorMap, 'listUniversities');
 
-export const createInstitution = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const createUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
   try {
-    const institution = await adminService.createInstitution(req.body);
-    res.status(201).json({ message: 'Institución creada.', institution });
+    const result = await adminService.createUniversity(req.body);
+    res.status(201).json({
+      message: 'Universidad creada.',
+      university: result.university,
+      generatedCredentials: result.generatedCredentials,
+    });
   } catch (err) {
     if (handleValidation(err, res)) return;
     throw err;
   }
-}, adminErrorMap, 'createInstitution');
+}, adminErrorMap, 'createUniversity');
 
-export const updateInstitution = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const updateUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
   try {
-    const institution = await adminService.updateInstitution(req.params['id'] as string, req.body);
-    res.json({ message: 'Institución actualizada.', institution });
+    const university = await adminService.updateUniversity(req.params['id'] as string, req.body);
+    res.json({ message: 'Universidad actualizada.', university });
   } catch (err) {
     if (handleValidation(err, res)) return;
     throw err;
   }
-}, adminErrorMap, 'updateInstitution');
+}, adminErrorMap, 'updateUniversity');
 
 export const createAdminUser = asyncHandler(async (req: AuthRequest, res: Response) => {
   try {
