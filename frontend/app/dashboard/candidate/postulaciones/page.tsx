@@ -226,7 +226,7 @@ export default function PostulacionesPage() {
                           <span className="text-xs font-bold text-[#191c1e]">{Math.round(app.scoreAtApply)}% match</span>
                         </div>
                       )}
-                      <Link href="/dashboard/candidate/explorar" className="flex items-center gap-1 text-xs font-bold text-[#00386c] hover:underline">
+                      <Link href={`/dashboard/candidate/explorar/${app.job.id}`} className="flex items-center gap-1 text-xs font-bold text-[#00386c] hover:underline">
                         Ver vacante <ChevronRight className="w-3.5 h-3.5" />
                       </Link>
                     </div>

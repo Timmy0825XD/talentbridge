@@ -10,6 +10,7 @@ import {
   Calculator, DollarSign, AlertCircle, Loader2,
   ChevronDown, ChevronUp, CheckCircle2, Sparkles, ChevronRight,
 } from "lucide-react";
+import { toast } from "@/src/lib/toast";
 
 interface TaxBenefit { title:string; description:string; article?:string; }
 interface TaxSimulationResult {
@@ -48,7 +49,7 @@ export default function BeneficiosTributariosPage() {
   }, [enabled]);
 
   async function handleSimulate() {
-    if (!monthlySalary) { setSimError("Ingresa el salario mensual."); return; }
+    if (!monthlySalary) { toast.error("Ingresa el salario mensual."); return; }
     setSimulating(true); setSimError(""); setResult(null);
     try {
       const res = await api.post<TaxSimulationResult>("/tax/simulate", {
@@ -58,7 +59,7 @@ export default function BeneficiosTributariosPage() {
       setResult(res.data);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
-      setSimError(e.response?.data?.error ?? "Error al simular. Intenta de nuevo.");
+      toast.error(e.response?.data?.error ?? "Error al simular. Intenta de nuevo.");
     } finally { setSimulating(false); }
   }
 

@@ -3,6 +3,10 @@ import { Manrope, DM_Sans } from "next/font/google";
 import { AuthProvider } from "@/src/context/auth-context";
 import { QueryProvider } from "@/src/providers/query-provider";
 import "./globals.css";
+import 'primereact/resources/themes/lara-light-green/theme.css';
+import 'primereact/resources/primereact.min.css';
+import 'primeicons/primeicons.css';
+import ToastProvider from "@/src/providers/ToastProvider";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -26,7 +30,7 @@ export default function RootLayout({ children }: Readonly<{children: React.React
     <html lang="es" className={`${manrope.variable} ${dmSans.variable}`}>
       <body className="min-h-full flex flex-col">
         <AuthProvider>
-          <QueryProvider>{children}</QueryProvider>
+          <QueryProvider>{children} <ToastProvider /></QueryProvider>
         </AuthProvider>
       </body>
     </html>

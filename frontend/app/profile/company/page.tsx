@@ -7,6 +7,7 @@ import Link from "next/link";
 import api from "@/src/lib/api";
 import InfoCallout from "@/src/components/info/InfoCallout";
 import { ArrowLeft, Save, Building2, Globe, Mail, Phone, MapPin, Users, Camera, Loader2, Briefcase, ChevronRight, ExternalLink} from "lucide-react";
+import { toast } from '@/src/lib/toast';
 
 const EMPTY_FORM = {
   companyName:   "",
@@ -42,10 +43,6 @@ export default function CompanyProfilePage() {
   const [form, setForm]                   = useState(EMPTY_FORM);
   const [saving, setSaving]               = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
-  const [error, setError]                 = useState("");
-  const [success, setSuccess]             = useState("");
-  const [logoError, setLogoError]         = useState("");
-  const [logoSuccess, setLogoSuccess]     = useState("");
 
   useEffect(() => {
     if (!isLoading && !user) router.replace("/auth/login");
@@ -78,12 +75,11 @@ export default function CompanyProfilePage() {
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setLogoError(""); setLogoSuccess("");
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setLogoError("Solo JPG, PNG o WebP."); return;
+      toast.error("Solo JPG, PNG o WebP."); return;
     }
     if (file.size > 3 * 1024 * 1024) {
-      setLogoError("La imagen no puede superar 3MB."); return;
+      toast.error("La imagen no puede superar 3MB."); return;
     }
     setLogoUploading(true);
     const fd = new FormData();
@@ -93,12 +89,11 @@ export default function CompanyProfilePage() {
         headers: { "Content-Type": "multipart/form-data" },
       });
       set("logoUrl", res.data.logoUrl ?? "");
-      setLogoSuccess("Logo actualizado.");
-      setTimeout(() => setLogoSuccess(""), 4000);
+      toast.success("Logo actualizado.");
       if (logoInputRef.current) logoInputRef.current.value = "";
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
-      setLogoError(e.response?.data?.error ?? "Error al subir el logo.");
+      toast.error(e.response?.data?.error ?? "Error al subir el logo.");
     } finally {
       setLogoUploading(false);
     }
@@ -106,7 +101,7 @@ export default function CompanyProfilePage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true); setError(""); setSuccess("");
+    setSaving(true);
     const payload = {
       companyName:   form.companyName,
       nit:           form.nit           || undefined,
@@ -120,11 +115,10 @@ export default function CompanyProfilePage() {
     };
     try {
       await api.put("/profile/company", payload);
-      setSuccess("Perfil guardado correctamente.");
-      setTimeout(() => setSuccess(""), 4000);
+      toast.success("Perfil guardado correctamente.");
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
-      setError(e.response?.data?.error ?? "Error al guardar el perfil.");
+      toast.error(e.response?.data?.error ?? "Error al guardar el perfil.");
     } finally {
       setSaving(false);
     }
@@ -284,14 +278,6 @@ export default function CompanyProfilePage() {
       </div>
 
       <div className="h-24" />
-      {(logoError || logoSuccess) && (
-        <div className="max-w-screen-xl mx-auto px-10 mb-2">
-          <p className={`text-sm font-semibold ${logoError ? "text-[#93000a]" : "text-[#005228]"}`}>
-            {logoError || logoSuccess}
-          </p>
-        </div>
-      )}
-
       <div className="max-w-screen-xl mx-auto px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-10">
         <aside className="lg:col-span-3 space-y-5 lg:sticky lg:top-6 self-start">
 
@@ -379,18 +365,6 @@ export default function CompanyProfilePage() {
         </aside>
 
         <div className="lg:col-span-9 space-y-6">
-
-          {error && (
-            <div className="bg-[#ffdad6] text-[#93000a] text-sm font-semibold px-5 py-3.5 rounded-2xl">
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="bg-[#6bfe9c]/20 text-[#005228] text-sm font-semibold px-5 py-3.5 rounded-2xl">
-              ✓ {success}
-            </div>
-          )}
-
           <form onSubmit={handleSave} className="space-y-6">
             <section id="identity" className="bg-white rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm">
               <div className="bg-[#f7f9fb] px-8 py-5 border-b border-[#e6e8ea] flex items-center gap-3">

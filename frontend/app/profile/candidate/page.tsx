@@ -10,8 +10,9 @@ import InfoCallout from "@/src/components/info/InfoCallout";
 import {
   ArrowLeft, Save, Upload, X, FileText, User, GraduationCap,
   Briefcase, Wrench, Plus, Globe, Award, FolderGit2, Camera,
-  Loader2, ExternalLink, ChevronRight, Bell, BellOff,
+  Loader2, ChevronRight, Bell, BellOff,
 } from "lucide-react";
+import { toast } from '@/src/lib/toast';
 
 interface Keyword      { id: string; name: string; type: string; }
 interface Certification { name: string; issuer: string; year: string; }
@@ -130,15 +131,8 @@ export default function CandidateProfilePage() {
   const [saving, setSaving]                 = useState(false);
   const [uploading, setUploading]           = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
-  const [saveError, setSaveError]           = useState("");
-  const [saveSuccess, setSaveSuccess]       = useState("");
-  const [cvError, setCvError]               = useState("");
-  const [cvSuccess, setCvSuccess]           = useState("");
-  const [photoError, setPhotoError]         = useState("");
-  const [photoSuccess, setPhotoSuccess]     = useState("");
   // Toggle notificaciones
   const [togglingNotifs, setTogglingNotifs] = useState(false);
-  const [notifsMsg, setNotifsMsg]           = useState("");
 
   const { data: profileData } = useCandidateProfile(!!user, user?.userId);
   const { data: keywordsData } = useKeywords(!!user);
@@ -205,7 +199,6 @@ export default function CandidateProfilePage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true); setSaveError(""); setSaveSuccess("");
     const payload: Record<string, unknown> = {
       fullName:      form.fullName,
       phone:         form.phone         || undefined,
@@ -224,69 +217,73 @@ export default function CandidateProfilePage() {
     };
     if (user?.role === "STUDENT"  && form.semester)       payload.semester       = Number(form.semester);
     if (user?.role === "GRADUATE" && form.graduationYear) payload.graduationYear = Number(form.graduationYear);
-    try {
-      await api.put("/profile/candidate", payload);
-      setSaveSuccess("Perfil guardado correctamente.");
-      setTimeout(() => setSaveSuccess(""), 4000);
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      setSaveError(e.response?.data?.error ?? "Error al guardar el perfil.");
-    } finally { setSaving(false); }
+  try {
+    await api.put("/profile/candidate", payload);
+    toast.success('Perfil guardado correctamente.');
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { error?: string } } };
+    toast.error(e.response?.data?.error ?? 'Error al guardar el perfil.');
+  } finally { setSaving(false); }
   }
 
   async function handleCvUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
-    setCvError(""); setCvSuccess("");
-    if (file.type !== "application/pdf")   { setCvError("Solo se permiten archivos PDF."); return; }
-    if (file.size > 5 * 1024 * 1024)      { setCvError("El archivo no puede superar 5MB."); return; }
+
+    if (file.type !== "application/pdf") {
+      toast.error("Solo se permiten archivos PDF.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("El archivo no puede superar 5MB.");
+      return;
+    }
     setUploading(true);
     const fd = new FormData(); fd.append("cv", file);
-    try {
-      const res = await api.post("/profile/candidate/cv", fd, { headers: { "Content-Type": "multipart/form-data" } });
-      set("cvUrl", res.data.cvUrl ?? "");
-      setCvSuccess("CV subido exitosamente.");
-      setTimeout(() => setCvSuccess(""), 4000);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      setCvError(e.response?.data?.error ?? "Error al subir el archivo.");
-    } finally { setUploading(false); }
+  try {
+    const res = await api.post("/profile/candidate/cv", fd, { headers: { "Content-Type": "multipart/form-data" } });
+    set("cvUrl", res.data.cvUrl ?? "");
+    toast.success('CV subido exitosamente.');
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { error?: string } } };
+    toast.error(e.response?.data?.error ?? 'Error al subir el archivo.');
+  } finally { setUploading(false); }
   }
 
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
-    setPhotoError(""); setPhotoSuccess("");
+
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setPhotoError("Solo JPG, PNG o WebP."); return;
+      toast.error("Solo JPG, PNG o WebP.");
+      return;
     }
-    // FIX P3: límite corregido a 2MB para coincidir con backend Multer
-    if (file.size > 2 * 1024 * 1024) { setPhotoError("La imagen no puede superar 2MB."); return; }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("La imagen no puede superar 2MB.");
+      return;
+    }
     setPhotoUploading(true);
     const fd = new FormData(); fd.append("photo", file);
     try {
       const res = await api.post("/profile/candidate/photo", fd, { headers: { "Content-Type": "multipart/form-data" } });
       set("photoUrl", res.data.photoUrl ?? "");
-      setPhotoSuccess("Foto actualizada.");
-      setTimeout(() => setPhotoSuccess(""), 4000);
+      toast.success('Foto actualizada.');
       if (photoInputRef.current) photoInputRef.current.value = "";
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
-      setPhotoError(e.response?.data?.error ?? "Error al subir la foto.");
+      toast.error(e.response?.data?.error ?? 'Error al subir la foto.');
     } finally { setPhotoUploading(false); }
   }
 
   // FIX P3: toggle notificaciones vía endpoint dedicado
   async function handleToggleNotifications() {
     const newValue = !form.notificationsEnabled;
-    setTogglingNotifs(true); setNotifsMsg("");
     try {
       await api.patch("/notifications/preferences", { enabled: newValue });
       set("notificationsEnabled", newValue);
-      setNotifsMsg(newValue ? "Notificaciones activadas." : "Notificaciones desactivadas.");
-      setTimeout(() => setNotifsMsg(""), 4000);
+      toast.success(newValue ? 'Notificaciones activadas.' : 'Notificaciones desactivadas.');
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
-      setNotifsMsg(e.response?.data?.error ?? "Error al actualizar preferencias.");
+      toast.error(e.response?.data?.error ?? 'Error al actualizar preferencias.');
     } finally { setTogglingNotifs(false); }
   }
 
@@ -371,8 +368,6 @@ export default function CandidateProfilePage() {
                   {photoUploading ? "Subiendo..." : "Cambiar foto"}
                 </button>
               </div>
-              {photoError   && <p className="mt-3 text-[#ffdad6] text-xs font-semibold">{photoError}</p>}
-              {photoSuccess && <p className="mt-3 text-[#6bfe9c] text-xs font-semibold">{photoSuccess}</p>}
             </div>
 
             <div className="flex-shrink-0 flex flex-col items-center gap-2">
@@ -443,17 +438,6 @@ export default function CandidateProfilePage() {
 
         {/* Contenido principal */}
         <div className="lg:col-span-9 space-y-6">
-
-          {saveError && (
-            <div className="bg-[#ffdad6] text-[#93000a] text-sm font-semibold px-5 py-3.5 rounded-2xl flex items-center gap-2">
-              <X className="w-4 h-4 flex-shrink-0" /> {saveError}
-            </div>
-          )}
-          {saveSuccess && (
-            <div className="bg-[#6bfe9c]/20 text-[#005228] text-sm font-semibold px-5 py-3.5 rounded-2xl">
-              ✓ {saveSuccess}
-            </div>
-          )}
 
           <form id="hero" onSubmit={handleSave} className="space-y-6">
 
@@ -820,8 +804,6 @@ export default function CandidateProfilePage() {
               </div>
             </div>
             <div className="p-8">
-              {cvError   && <div className="mb-4 bg-[#ffdad6] text-[#93000a] text-sm font-semibold px-5 py-3.5 rounded-2xl">{cvError}</div>}
-              {cvSuccess && <div className="mb-4 bg-[#6bfe9c]/20 text-[#005228] text-sm font-semibold px-5 py-3.5 rounded-2xl">✓ {cvSuccess}</div>}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
                   className="flex items-center gap-2 bg-gradient-to-br from-[#006d37] to-[#00743a] text-white font-bold text-sm px-7 py-3.5 rounded-full shadow-lg shadow-[#006d37]/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50">
@@ -852,15 +834,6 @@ export default function CandidateProfilePage() {
               </div>
             </div>
             <div className="p-8">
-              {notifsMsg && (
-                <div className={`mb-5 px-5 py-3.5 rounded-2xl text-sm font-semibold ${
-                  notifsMsg.toLowerCase().includes("error")
-                    ? "bg-[#ffdad6] text-[#93000a]"
-                    : "bg-[#6bfe9c]/20 text-[#005228]"
-                }`}>
-                  {notifsMsg}
-                </div>
-              )}
 
               <div className="flex items-center justify-between p-5 bg-[#f7f9fb] rounded-2xl">
                 <div className="flex items-center gap-4">
