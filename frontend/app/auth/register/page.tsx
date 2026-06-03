@@ -172,6 +172,24 @@ export default function RegisterPage() {
           from { opacity: 0; transform: translateY(12px); }
           to   { opacity: 1; transform: translateY(0); }
         }
+        @keyframes bg-orb-1 {
+          0%, 100% { transform: translate(0px, 0px) scale(1); }
+          33%      { transform: translate(40px, -30px) scale(1.08); }
+          66%      { transform: translate(-20px, 20px) scale(0.96); }
+        }
+        @keyframes bg-orb-2 {
+          0%, 100% { transform: translate(0px, 0px) scale(1); }
+          33%      { transform: translate(-35px, 25px) scale(1.05); }
+          66%      { transform: translate(30px, -15px) scale(0.98); }
+        }
+        @keyframes bg-orb-3 {
+          0%, 100% { transform: translate(0px, 0px) scale(1); }
+          50%      { transform: translate(20px, 30px) scale(1.1); }
+        }
+        @keyframes bg-dots-drift {
+          0%   { background-position: 0px 0px; }
+          100% { background-position: 40px 40px; }
+        }
         .card-in  { animation: slide-card-in 0.8s cubic-bezier(0.16,1,0.3,1) both; }
         .form-in  { animation: form-in 0.7s 0.1s cubic-bezier(0.16,1,0.3,1) both; }
         .f1 { animation: field-in 0.5s 0.1s cubic-bezier(0.16,1,0.3,1) both; }
@@ -181,12 +199,66 @@ export default function RegisterPage() {
         .f5 { animation: field-in 0.5s 0.42s cubic-bezier(0.16,1,0.3,1) both; }
         .f6 { animation: field-in 0.5s 0.50s cubic-bezier(0.16,1,0.3,1) both; }
         .f7 { animation: field-in 0.5s 0.58s cubic-bezier(0.16,1,0.3,1) both; }
+        .bg-orb-1 { animation: bg-orb-1 18s ease-in-out infinite; }
+        .bg-orb-2 { animation: bg-orb-2 24s ease-in-out infinite; }
+        .bg-orb-3 { animation: bg-orb-3 14s ease-in-out infinite; }
+        .bg-dots {
+          background-image: radial-gradient(circle, rgba(0,56,108,0.13) 1px, transparent 1px);
+          background-size: 28px 28px;
+          animation: bg-dots-drift 8s linear infinite;
+        }
       `}</style>
 
-      <div className="min-h-screen flex items-center justify-center bg-[#f2f4f6] p-4 md:p-6 lg:p-10">
+      <div className="min-h-screen flex items-center justify-center p-4 md:p-6 lg:p-10 relative overflow-hidden"
+        style={{ background: "linear-gradient(135deg, #e8edf3 0%, #dde4ed 40%, #e4eae8 100%)" }}>
+
+        {/* Puntos con drift */}
+        <div className="bg-dots absolute inset-0 pointer-events-none" />
+
+        {/* Orbe 1 — azul marino, esquina superior izquierda */}
+        <div className="bg-orb-1 absolute pointer-events-none" style={{
+          top: "-10%", left: "-8%", width: "520px", height: "520px", borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(0,56,108,0.14) 0%, transparent 70%)",
+          filter: "blur(40px)",
+        }} />
+
+        {/* Orbe 2 — verde, esquina inferior derecha */}
+        <div className="bg-orb-2 absolute pointer-events-none" style={{
+          bottom: "-12%", right: "-6%", width: "480px", height: "480px", borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(74,225,131,0.13) 0%, transparent 70%)",
+          filter: "blur(48px)",
+        }} />
+
+        {/* Orbe 3 — azul claro, centro-derecha */}
+        <div className="bg-orb-3 absolute pointer-events-none" style={{
+          top: "30%", right: "12%", width: "280px", height: "280px", borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(0,56,108,0.08) 0%, transparent 70%)",
+          filter: "blur(32px)",
+        }} />
+
+        {/* Orbe 4 — verde suave, centro-izquierda */}
+        <div className="absolute pointer-events-none" style={{
+          top: "55%", left: "8%", width: "200px", height: "200px", borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(107,254,156,0.09) 0%, transparent 70%)",
+          filter: "blur(28px)",
+          animation: "bg-orb-1 20s 3s ease-in-out infinite",
+        }} />
+
+        {/* Watermark TalentBridge */}
+        <div className="absolute bottom-[-4%] right-[-2%] pointer-events-none select-none"
+          style={{
+            fontSize: "clamp(80px, 12vw, 180px)",
+            fontWeight: 900, fontFamily: "var(--font-headline, sans-serif)",
+            color: "transparent",
+            WebkitTextStroke: "1.5px rgba(0,56,108,0.07)",
+            lineHeight: 1, letterSpacing: "-0.02em",
+            userSelect: "none",
+          }}>
+          TalentBridge
+        </div>
 
         {/* ── Main card ── */}
-        <div className="card-in w-full max-w-5xl bg-white rounded-3xl shadow-2xl shadow-black/10 overflow-hidden flex flex-col lg:flex-row">
+        <div className="card-in w-full max-w-5xl bg-white rounded-3xl shadow-2xl shadow-black/10 overflow-hidden flex flex-col lg:flex-row relative z-10">
 
           {/* ════ LEFT: Animated image panel ════ */}
           <div className="relative lg:w-[44%] flex-shrink-0 overflow-hidden"
