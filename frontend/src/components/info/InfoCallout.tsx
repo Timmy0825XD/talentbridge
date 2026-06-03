@@ -22,6 +22,8 @@ export default function InfoCallout({ title, description, href, linkLabel }: Inf
           {href && (
             <Link
               href={href}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-sm font-bold text-[#00386c] hover:text-[#006d37] transition-colors group mt-1"
             >
               {linkLabel ?? "Más información"}

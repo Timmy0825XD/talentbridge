@@ -788,14 +788,6 @@ export default function CandidateProfilePage() {
                               placeholder="¿Qué hace? ¿Qué tecnologías usaste?"
                               className={`${inp} resize-none`} />
                           </div>
-                          <div>
-                            <label className={lbl} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                              <ExternalLink className="w-3 h-3" /> Enlace
-                            </label>
-                            <input type="url" value={proj.url}
-                              onChange={e => updateProject(i, "url", e.target.value)}
-                              placeholder="https://github.com/usuario/proyecto" className={inp} />
-                          </div>
                         </div>
                       </div>
                     ))}
