@@ -3,6 +3,7 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { asyncHandler } from '../lib/errors/async-handler';
 import {
   profileCvErrorMap,
+  profileErrorMap,
   profileLogoErrorMap,
   profilePhotoErrorMap,
 } from '../lib/errors/error-maps/profile.errors';
@@ -16,7 +17,7 @@ export const getCandidateProfile = asyncHandler(async (req: AuthRequest, res: Re
 export const updateCandidateProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
   const profile = await profileService.upsertCandidateProfile(req.user!.userId, req.body);
   res.json(profile);
-}, undefined, 'updateCandidateProfile');
+}, profileErrorMap, 'updateCandidateProfile');
 
 export const getCompanyProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
   const profile = await profileService.getCompanyProfile(req.user!.userId);

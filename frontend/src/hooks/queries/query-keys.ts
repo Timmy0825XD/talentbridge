@@ -23,4 +23,7 @@ export const queryKeys = {
   keywords: {
     all: ['keywords', 'all'] as const,
   },
+  universities: {
+    all: ['universities', 'all'] as const,
+  },
 } as const;

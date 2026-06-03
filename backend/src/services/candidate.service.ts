@@ -14,6 +14,7 @@ export interface CandidateSearchQuery {
 
 const candidateSelect = {
   id: true,
+  userId: true,
   fullName: true,
   career: true,
   skills: true,
@@ -23,6 +24,7 @@ const candidateSelect = {
   summary: true,
   reputationAvg: true,
   ratingCount: true,
+  university: { select: { id: true, name: true } },
   score: {
     select: {
       totalScore: true,
@@ -90,6 +92,7 @@ export async function searchCandidates(userId: string, query: CandidateSearchQue
   return {
     candidates: candidates.map(c => ({
       id: c.id,
+      userId: c.userId,
       fullName: c.fullName,
       career: c.career,
       skills: c.skills,
@@ -97,6 +100,7 @@ export async function searchCandidates(userId: string, query: CandidateSearchQue
       workMode: c.workMode,
       photoUrl: c.photoUrl,
       summary: c.summary ? c.summary.slice(0, 160) : null,
+      university: c.university,
       profileScore: c.score
         ? {
             totalScore: c.score.totalScore,

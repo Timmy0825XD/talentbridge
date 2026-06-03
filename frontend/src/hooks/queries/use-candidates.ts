@@ -16,7 +16,7 @@ export interface CandidateSearchItem {
   userId: string;
   fullName: string | null;
   career: string | null;
-  institution: string | null;
+  university: { id: string; name: string } | null;
   photoUrl: string | null;
   workMode: string | null;
   skills: string[];

@@ -19,7 +19,7 @@ export async function computeAndSaveScore(userId: string): Promise<void> {
     projects:       profile.projects,
     certifications: profile.certifications,
     career:         profile.career,
-    institution:    profile.institution,
+    universityId:   profile.universityId,
     semester:       profile.semester,
     graduationYear: profile.graduationYear,
     summary:        profile.summary,

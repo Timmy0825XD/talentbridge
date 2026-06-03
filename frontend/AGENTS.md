@@ -45,72 +45,39 @@ Los tres integrantes trabajan en **Windows** con **Git Bash** como terminal.
 
 ```
 frontend/
-├── src/
-│   ├── types/
-│   │   └── api.ts                            # Tipos compartidos — fuente de verdad
-│   ├── providers/
-│   │   └── query-provider.tsx                # QueryClientProvider
-│   ├── hooks/
-│   │   └── queries/
-│   │       ├── query-keys.ts
-│   │       ├── index.ts
-│   │       ├── use-applications.ts
-│   │       ├── use-candidates.ts             # GET /candidates/search
-│   │       ├── use-contracts.ts
-│   │       ├── use-dashboard.ts              # GET /dashboard/company|candidate
-│   │       ├── use-jobs.ts
-│   │       ├── use-keywords.ts
-│   │       ├── use-profile.ts
-│   │       └── use-ranking.ts
-│   ├── lib/
-│   │   ├── api.ts                            # Axios + timeout 30s
-│   │   └── query-client.ts                   # staleTime 60s, gcTime 5min
-│   ├── components/
-│   │   └── contracts/
-│   │       ├── DeliverablesPanel.tsx
-│   │       ├── ContractsListSkeleton.tsx
-│   │       └── RatingsPanel.tsx
-│   ├── context/
-│   │   └── auth-context.tsx                  # Redirects por rol incluyendo ADMIN e INSTITUTION
-│   ├── app/
-│   │   ├── layout.tsx                        # AuthProvider + QueryProvider
+├── app/                                      # App Router (Next.js) — NO está bajo src/
+│   ├── layout.tsx                            # AuthProvider + QueryProvider
+│   ├── globals.css                           # Tailwind v4 @theme
+│   ├── page.tsx
+│   ├── auth/...
+│   ├── (public)/...                          # FAQ, legal, info
+│   ├── admin/                                # ← FUERA de dashboard/ — layout propio
+│   │   ├── layout.tsx                        # Guard ADMIN + sidebar; nav "Universidades" → /admin/instituciones
 │   │   ├── page.tsx
-│   │   ├── auth/
-│   │   │   └── ...
-│   │   ├── admin/                            # ← FUERA de dashboard/ — layout propio
-│   │   │   ├── layout.tsx                    # Guard ADMIN + sidebar oscuro
-│   │   │   ├── page.tsx                      # Métricas
-│   │   │   ├── usuarios/page.tsx
-│   │   │   ├── vacantes/page.tsx
-│   │   │   ├── pesos-ranking/page.tsx
-│   │   │   ├── instituciones/page.tsx
-│   │   │   └── admins/page.tsx
-│   │   ├── institution/                      # ← FUERA de dashboard/ — layout propio
-│   │   │   ├── layout.tsx                    # Guard INSTITUTION + header propio
-│   │   │   └── page.tsx
-│   │   ├── dashboard/
-│   │   │   ├── layout.tsx                    # Header + nav activo — solo candidato/empresa
-│   │   │   ├── candidate/
-│   │   │   │   ├── page.tsx                  # GET /dashboard/candidate
-│   │   │   │   ├── explorar/page.tsx
-│   │   │   │   ├── postulaciones/page.tsx
-│   │   │   │   └── contratos/
-│   │   │   │       ├── page.tsx
-│   │   │   │       └── [id]/page.tsx         # + RatingsPanel si COMPLETED
-│   │   │   └── company/
-│   │   │       ├── page.tsx                  # GET /dashboard/company
-│   │   │       ├── vacantes/...
-│   │   │       ├── contratos/
-│   │   │       │   ├── page.tsx
-│   │   │       │   ├── [id]/page.tsx         # + RatingsPanel + reporte PDF
-│   │   │       │   └── _components/CreateContractForm.tsx
-│   │   │       ├── talento/page.tsx          # GET /candidates/search
-│   │   │       └── beneficios-tributarios/page.tsx  # GET /tax/benefits + POST /tax/simulate
-│   │   └── profile/
-│   │       ├── candidate/page.tsx
-│   │       └── company/page.tsx
-│   └── lib/
-│       └── api.ts
+│   │   ├── usuarios/, vacantes/, pesos-ranking/, admins/
+│   │   └── instituciones/page.tsx            # CRUD vía /admin/universities (ruta UI histórica)
+│   ├── institution/                          # ← FUERA de dashboard/
+│   ├── dashboard/                            # Solo candidato y empresa
+│   │   ├── candidate/... (+ contratos, explorar, postulaciones)
+│   │   └── company/... (+ vacantes, contratos, talento, beneficios-tributarios)
+│   └── profile/
+│       ├── candidate/page.tsx                # UniversitySelect + useUniversities
+│       └── company/page.tsx
+├── src/
+│   ├── types/api.ts
+│   ├── providers/query-provider.tsx
+│   ├── hooks/queries/
+│   │   ├── query-keys.ts
+│   │   ├── use-applications.ts, use-candidates.ts, use-contracts.ts
+│   │   ├── use-dashboard.tsx, use-jobs.ts, use-keywords.ts
+│   │   ├── use-profile.ts, use-ranking.ts
+│   │   └── use-universities.ts               # GET /universities
+│   ├── lib/api.ts, query-client.ts
+│   ├── context/auth-context.tsx
+│   ├── components/
+│   │   ├── contracts/                        # DeliverablesPanel, RatingsPanel, skeletons
+│   │   └── profile/UniversitySelect.tsx      # Autocompletado catálogo universidades
+│   └── content/                              # Textos estáticos (faq, legal, etc.)
 ```
 
 ### Regla crítica — layouts por rol
@@ -152,6 +119,7 @@ frontend/
 | `useCandidateSearch(params)` | GET `/candidates/search` |
 | `useCompanyDashboard` | GET `/dashboard/company` |
 | `useCandidateDashboard` | GET `/dashboard/candidate` |
+| `useUniversities` | GET `/universities` (staleTime 5 min) |
 
 ---
 
@@ -176,6 +144,21 @@ INSTITUTION        → /institution
 ---
 
 ## Componentes compartidos
+
+### UniversitySelect
+
+Autocomplete del catálogo (`GET /universities`). Usar con `useUniversities()` en el padre.
+
+```tsx
+<UniversitySelect
+  value={form.universityId}
+  onChange={id => set("universityId", id)}
+  universities={universities}
+/>
+```
+
+- Enviar `universityId` (UUID o `null`) en `PUT /profile/candidate` — no texto libre
+- Respuesta de perfil puede incluir `universityId` y/o `university: { id, name }`
 
 ### DeliverablesPanel
 ```tsx
@@ -219,7 +202,7 @@ Layout independiente con sidebar oscuro. Guard: redirige a `/` si no es ADMIN.
 | `/admin/usuarios` | `GET /admin/users`, `PATCH .../status`, `DELETE ...` | Tabla paginada, filtros, activar/suspender |
 | `/admin/vacantes` | `GET /admin/jobs`, `PATCH .../moderate` | Moderación |
 | `/admin/pesos-ranking` | `GET/PUT /admin/ranking-weights` | 7 pesos: skills, experience, education, certs, reputation, languages, completion — deben sumar 1.0 |
-| `/admin/instituciones` | `GET/POST/PATCH /admin/institutions` | CRUD |
+| `/admin/instituciones` | `GET/POST/PATCH /admin/universities` | CRUD universidades + credenciales al crear |
 | `/admin/admins` | `POST /admin/admins` | Crear cuenta admin |
 
 **Shape real de `/admin/metrics`:**
@@ -263,7 +246,8 @@ Layout independiente con header simple. Guard: redirige a `/` si no es INSTITUTI
 | Método | Ruta | Usado en | Estado |
 |---|---|---|---|
 | POST | `/auth/*` | auth pages | ✅ |
-| GET/PUT | `/profile/candidate` | perfil candidato | ✅ |
+| GET/PUT | `/profile/candidate` | perfil candidato (`universityId`) | ✅ |
+| GET | `/universities` | perfil candidato, UniversitySelect | ✅ |
 | POST | `/profile/candidate/cv` | perfil candidato | ✅ |
 | POST | `/profile/candidate/photo` | perfil candidato (2MB) | ✅ |
 | GET/PUT | `/profile/company` | perfil empresa | ✅ |
@@ -302,7 +286,7 @@ Layout independiente con header simple. Guard: redirige a `/` si no es INSTITUTI
 | GET/PATCH/DELETE | `/admin/users*` | /admin/usuarios | ✅ |
 | GET/PATCH | `/admin/jobs*` | /admin/vacantes | ✅ |
 | GET/PUT | `/admin/ranking-weights` | /admin/pesos-ranking | ✅ |
-| GET/POST/PATCH | `/admin/institutions*` | /admin/instituciones | ✅ |
+| GET/POST/PATCH | `/admin/universities*` | /admin/instituciones | ✅ |
 | POST | `/admin/admins` | /admin/admins | ✅ |
 | GET | `/institution/dashboard` | /institution | ✅ |
 
@@ -332,7 +316,7 @@ Layout independiente con header simple. Guard: redirige a `/` si no es INSTITUTI
 | `/admin/usuarios` | ✅ Sprint 4 |
 | `/admin/vacantes` | ✅ Sprint 4 |
 | `/admin/pesos-ranking` | ✅ Sprint 4 |
-| `/admin/instituciones` | ✅ Sprint 4 |
+| `/admin/instituciones` | ✅ CRUD universidades (API `/admin/universities`) |
 | `/admin/admins` | ✅ Sprint 4 |
 | `/institution` | ✅ Sprint 4 |
 
@@ -358,3 +342,6 @@ Layout independiente con header simple. Guard: redirige a `/` si no es INSTITUTI
 - **Nav activo** usa `isNavActive()` — no cambiar a `pathname ===` simple
 - Al agregar página: actualizar tabla de páginas implementadas
 - Al consumir endpoint nuevo: agregarlo a la tabla de endpoints
+- **`universityId`:** UUID del catálogo — no confundir con `User.id` ni `CandidateProfile.id`
+- **`/admin/instituciones`:** ruta UI legada; consumir **`/admin/universities`** en API
+- Perfil candidato: `UniversitySelect` + `useUniversities`; búsqueda talento muestra `university.name` si existe

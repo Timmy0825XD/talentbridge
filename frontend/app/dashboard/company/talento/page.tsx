@@ -7,16 +7,14 @@ import Link from "next/link";
 import { useKeywords } from "@/src/hooks/queries";
 import {
   useCandidateSearch,
-  CandidateSearchItem,
   CandidateSearchParams,
 } from "@/src/hooks/queries/use-candidates";
-import InfoCallout from "@/src/components/info/InfoCallout";
 import TalentBridgeLoader from "@/src/components/ui/TalentBridgeLoader";
 import {
-  Search, SlidersHorizontal, User, Star, Briefcase,
-  MapPin, ChevronRight, ChevronLeft, AlertCircle,
-  GraduationCap, Wrench, X, Zap, TrendingUp, Users,
-  Award, BookOpen, Globe, Filter, BarChart2,
+  Search, User, Star,
+  ChevronRight, ChevronLeft, AlertCircle,
+  GraduationCap, Wrench, X, Zap, Users,
+  BookOpen, Filter, BarChart2,
 } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -90,7 +88,7 @@ export default function TalentoPage() {
   const [minScore, setMinScore]       = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage]               = useState(1);
-  const [selected, setSelected]       = useState<CandidateSearchItem | null>(null);
+  const [selectedId, setSelectedId]   = useState<string | null>(null);
   const [activeParams, setActiveParams] = useState<CandidateSearchParams>({ page: 1, limit: 12 });
 
   const { data, isLoading: searching, isError } = useCandidateSearch(activeParams, enabled);
@@ -98,21 +96,13 @@ export default function TalentoPage() {
 
   const candidates   = data?.candidates ?? [];
   const pagination   = data?.pagination;
+  const selected     = candidates.find(c => c.id === selectedId) ?? candidates[0] ?? null;
   const techKeywords = (keywords as { id: string; name: string; type: string }[])
     .filter(k => k.type === "TECHNICAL");
 
   useEffect(() => {
     if (!isLoading && user?.role !== "COMPANY") router.replace("/dashboard/candidate");
   }, [user, isLoading, router]);
-
-  useEffect(() => { setActiveParams(p => ({ ...p, page })); }, [page]);
-
-  useEffect(() => {
-    if (candidates.length > 0 && !selected) setSelected(candidates[0]);
-    else if (candidates.length > 0 && selected && !candidates.find(c => c.id === selected.id))
-      setSelected(candidates[0]);
-    else if (candidates.length === 0) setSelected(null);
-  }, [candidates]);
 
   function addSkill(skill: string) {
     if (!skill.trim() || skills.includes(skill.trim())) return;
@@ -129,6 +119,7 @@ export default function TalentoPage() {
     if (workMode)          params.workMode = workMode;
     if (minScore)          params.minScore = minScore;
     setPage(1);
+    setSelectedId(null);
     setActiveParams(params);
     setShowFilters(false);
   }
@@ -137,7 +128,14 @@ export default function TalentoPage() {
     setSearch(""); setSkills([]); setSkillInput("");
     setCareer(""); setWorkMode(""); setMinScore("");
     setPage(1);
+    setSelectedId(null);
     setActiveParams({ page: 1, limit: 12 });
+  }
+
+  function goToPage(nextPage: number) {
+    setPage(nextPage);
+    setSelectedId(null);
+    setActiveParams(prev => ({ ...prev, page: nextPage }));
   }
 
   const hasFilters      = !!(search || skills.length > 0 || career || workMode || minScore);
@@ -377,7 +375,7 @@ export default function TalentoPage() {
                   const scoreColor = score >= 70 ? "text-[#006d37]" : score >= 40 ? "text-[#1a4f8b]" : "text-[#ba1a1a]";
 
                   return (
-                    <article key={candidate.id} onClick={() => setSelected(candidate)}
+                    <article key={candidate.id} onClick={() => setSelectedId(candidate.id)}
                       className={`rounded-2xl p-3.5 cursor-pointer transition-all border ${
                         isActive
                           ? "bg-white border-[#006d37] shadow-lg shadow-[#006d37]/10"
@@ -440,12 +438,12 @@ export default function TalentoPage() {
             {/* Pagination */}
             {pagination && pagination.totalPages > 1 && !searching && (
               <div className="flex items-center justify-between pt-3 border-t border-[#e6e8ea] shrink-0">
-                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                <button onClick={() => goToPage(Math.max(1, page - 1))} disabled={page === 1}
                   className="flex items-center gap-1 text-xs font-black text-[#424750] hover:text-[#006d37] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                   <ChevronLeft className="w-3.5 h-3.5" /> Ant.
                 </button>
                 <span className="text-xs text-[#737781] font-bold">{page} / {pagination.totalPages}</span>
-                <button onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))} disabled={page === pagination.totalPages}
+                <button onClick={() => goToPage(Math.min(pagination.totalPages, page + 1))} disabled={page === pagination.totalPages}
                   className="flex items-center gap-1 text-xs font-black text-[#424750] hover:text-[#006d37] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                   Sig. <ChevronRight className="w-3.5 h-3.5" />
                 </button>
@@ -505,10 +503,10 @@ export default function TalentoPage() {
                               {selected.career}
                             </span>
                           )}
-                          {selected.institution && (
+                          {selected.university?.name && (
                             <span className="flex items-center gap-1.5 text-xs text-white/80 font-semibold">
                               <BookOpen className="w-3.5 h-3.5 text-[#a6c8ff]" />
-                              {selected.institution}
+                              {selected.university.name}
                             </span>
                           )}
                           {selected.workMode && (

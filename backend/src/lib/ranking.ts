@@ -24,7 +24,7 @@ export interface CandidateData {
   projects: any;
   certifications: any;
   career: string | null;
-  institution: string | null;
+  universityId: string | null;
   semester: number | null;
   graduationYear: number | null;
   summary: string | null;
@@ -88,13 +88,13 @@ function scoreExperience(projects: any, summary: string | null): number {
 // ─── CRITERIO 3: Formación académica (20%) ────────────────────────────────────
 function scoreEducation(
   career: string | null,
-  institution: string | null,
+  universityId: string | null,
   semester: number | null,
   graduationYear: number | null
 ): number {
   let score = 0;
 
-  if (institution && institution.length > 0) score += 25;
+  if (universityId) score += 25;
   if (career && career.length > 0) score += 25;
 
   if (graduationYear !== null) {
@@ -142,7 +142,7 @@ function scoreCompletion(data: CandidateData): number {
     !!data.phone,
     !!data.summary && data.summary.length > 30,
     !!data.career,
-    !!data.institution,
+    !!data.universityId,
     !!data.cvUrl,
     !!data.photoUrl,
     !!data.workMode,
@@ -164,7 +164,7 @@ export function calculateScore(
 ): ScoreBreakdown {
   const skills = scoreSkills(data.skills, data.softSkills);
   const experience = scoreExperience(data.projects, data.summary);
-  const education = scoreEducation(data.career, data.institution, data.semester, data.graduationYear);
+  const education = scoreEducation(data.career, data.universityId, data.semester, data.graduationYear);
   const certs = scoreCertsAndLanguages(data.certifications, data.languages);
   const reputation = scoreReputation(data.reputationScore);
   const completion = scoreCompletion(data);

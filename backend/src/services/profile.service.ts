@@ -7,7 +7,12 @@ import { computeAndSaveScore } from './ranking.service';
 // ─── PERFIL CANDIDATO ─────────────────────────────────────────────────────────
 
 export async function getCandidateProfile(userId: string) {
-  return prisma.candidateProfile.findUnique({ where: { userId } });
+  return prisma.candidateProfile.findUnique({
+    where: { userId },
+    include: {
+      university: { select: { id: true, name: true } },
+    },
+  });
 }
 
 export async function upsertCandidateProfile(userId: string, data: {
@@ -17,7 +22,7 @@ export async function upsertCandidateProfile(userId: string, data: {
   career?: string;
   semester?: number;
   graduationYear?: number;
-  institution?: string;
+  universityId?: string | null;
   skills?: string[];
   softSkills?: string[];
   languages?: { language: string; level: string }[];
@@ -26,10 +31,21 @@ export async function upsertCandidateProfile(userId: string, data: {
   salaryExpected?: number;
   workMode?: string;
 }) {
+  if (data.universityId) {
+    const university = await prisma.university.findUnique({
+      where: { id: data.universityId },
+    });
+    if (!university) throw new Error('UNIVERSITY_NOT_FOUND');
+    if (!university.isActive) throw new Error('UNIVERSITY_INACTIVE');
+  }
+
   const profile = await prisma.candidateProfile.upsert({
     where: { userId },
     update: data,
     create: { userId, ...data },
+    include: {
+      university: { select: { id: true, name: true } },
+    },
   });
 
   computeAndSaveScore(userId).catch(err =>
