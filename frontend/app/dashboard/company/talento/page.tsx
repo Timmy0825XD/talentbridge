@@ -11,72 +11,93 @@ import {
   CandidateSearchParams,
 } from "@/src/hooks/queries/use-candidates";
 import InfoCallout from "@/src/components/info/InfoCallout";
+import TalentBridgeLoader from "@/src/components/ui/TalentBridgeLoader";
 import {
   Search, SlidersHorizontal, User, Star, Briefcase,
   MapPin, ChevronRight, ChevronLeft, AlertCircle,
-  GraduationCap, Wrench, X,
+  GraduationCap, Wrench, X, Zap, TrendingUp, Users,
+  Award, BookOpen, Globe, Filter, BarChart2,
 } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const WORKMODE_LABEL: Record<string, string> = {
-  REMOTE:  "Remoto",
-  ONSITE:  "Presencial",
-  HYBRID:  "Híbrido",
-  remote:  "Remoto",
-  onsite:  "Presencial",
-  hybrid:  "Híbrido",
+  REMOTE: "Remoto", ONSITE: "Presencial", HYBRID: "Híbrido",
+  remote: "Remoto", onsite: "Presencial", hybrid: "Híbrido",
 };
 
-function ScoreRing({ score }: { score: number }) {
-  const pct = Math.min(100, Math.max(0, score));
-  const color = pct >= 70 ? "#006d37" : pct >= 40 ? "#1a4f8b" : "#ba1a1a";
+const WORKMODE_COLOR: Record<string, string> = {
+  REMOTE: "bg-[#dbeafe] text-[#1e40af]",
+  ONSITE: "bg-[#dcfce7] text-[#15803d]",
+  HYBRID: "bg-[#fef9c3] text-[#854d0e]",
+  remote: "bg-[#dbeafe] text-[#1e40af]",
+  onsite: "bg-[#dcfce7] text-[#15803d]",
+  hybrid: "bg-[#fef9c3] text-[#854d0e]",
+};
+
+function ScoreArc({ score, dark = false }: { score: number; dark?: boolean }) {
+  const pct   = Math.min(100, Math.max(0, score));
+  const color = pct >= 70 ? "#6bfe9c" : pct >= 40 ? "#a6c8ff" : "#ffb4ab";
+  const darkColor = pct >= 70 ? "#006d37" : pct >= 40 ? "#1a4f8b" : "#ba1a1a";
+  const finalColor = dark ? color : darkColor;
+  const bg    = dark ? "rgba(255,255,255,0.15)" : (pct >= 70 ? "#dcfce7" : pct >= 40 ? "#dbeafe" : "#fee2e2");
+  const label = pct >= 70 ? "Alto" : pct >= 40 ? "Medio" : "Bajo";
+
   return (
-    <div className="relative w-12 h-12 flex-shrink-0">
-      <svg className="w-full h-full -rotate-90" viewBox="0 0 48 48">
-        <circle cx="24" cy="24" r="20" fill="transparent" stroke="#e6e8ea" strokeWidth="3" />
-        <circle cx="24" cy="24" r="20" fill="transparent"
-          stroke={color} strokeWidth="3" strokeLinecap="round"
-          strokeDasharray="125.6"
-          strokeDashoffset={125.6 - (125.6 * pct) / 100}
-          style={{ transition: "stroke-dashoffset 0.5s ease" }}
-        />
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-[#191c1e]">
-        {Math.round(pct)}
-      </span>
+    <div className="flex flex-col items-center gap-1 flex-shrink-0">
+      <div className="relative w-14 h-14">
+        <svg className="w-full h-full -rotate-90" viewBox="0 0 56 56">
+          <circle cx="28" cy="28" r="22" fill={bg} stroke={dark ? "rgba(255,255,255,0.2)" : "#e6e8ea"} strokeWidth="2.5" />
+          <circle cx="28" cy="28" r="22" fill="none"
+            stroke={finalColor} strokeWidth="2.5" strokeLinecap="round"
+            strokeDasharray="138.2"
+            strokeDashoffset={138.2 - (138.2 * pct) / 100}
+            style={{ transition: "stroke-dashoffset 0.6s cubic-bezier(.4,0,.2,1)" }}
+          />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center text-[13px] font-black"
+          style={{ color: dark ? "white" : finalColor }}>{Math.round(pct)}</span>
+      </div>
+      <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: dark ? "rgba(255,255,255,0.7)" : finalColor }}>{label}</span>
     </div>
   );
 }
 
-// ─── Componente ───────────────────────────────────────────────────────────────
+function SkillPill({ skill, highlight }: { skill: string; highlight?: boolean }) {
+  return (
+    <span className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-md transition-all ${
+      highlight
+        ? "bg-[#006d37] text-white"
+        : "bg-[#f2f4f6] text-[#424750] hover:bg-[#e6e8ea]"
+    }`}>
+      {skill}
+    </span>
+  );
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function TalentoPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const enabled = !!user && user.role === "COMPANY";
 
-  // Filtros
-  const [search, setSearch]         = useState("");
-  const [skillInput, setSkillInput] = useState("");
-  const [skills, setSkills]         = useState<string[]>([]);
-  const [career, setCareer]         = useState("");
-  const [workMode, setWorkMode]     = useState("");
-  const [minScore, setMinScore]     = useState("");
+  const [search, setSearch]           = useState("");
+  const [skillInput, setSkillInput]   = useState("");
+  const [skills, setSkills]           = useState<string[]>([]);
+  const [career, setCareer]           = useState("");
+  const [workMode, setWorkMode]       = useState("");
+  const [minScore, setMinScore]       = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [page, setPage]             = useState(1);
-
-  // Candidato seleccionado (panel derecho)
-  const [selected, setSelected] = useState<CandidateSearchItem | null>(null);
-
-  // Params activos para la query
+  const [page, setPage]               = useState(1);
+  const [selected, setSelected]       = useState<CandidateSearchItem | null>(null);
   const [activeParams, setActiveParams] = useState<CandidateSearchParams>({ page: 1, limit: 12 });
 
   const { data, isLoading: searching, isError } = useCandidateSearch(activeParams, enabled);
-  const { data: keywords = [] } = useKeywords(enabled);
+  const { data: keywords = [] }                 = useKeywords(enabled);
 
-  const candidates  = data?.candidates ?? [];
-  const pagination  = data?.pagination;
+  const candidates   = data?.candidates ?? [];
+  const pagination   = data?.pagination;
   const techKeywords = (keywords as { id: string; name: string; type: string }[])
     .filter(k => k.type === "TECHNICAL");
 
@@ -84,17 +105,13 @@ export default function TalentoPage() {
     if (!isLoading && user?.role !== "COMPANY") router.replace("/dashboard/candidate");
   }, [user, isLoading, router]);
 
-  // Cuando cambia la página, actualizar params
-  useEffect(() => {
-    setActiveParams(p => ({ ...p, page }));
-  }, [page]);
+  useEffect(() => { setActiveParams(p => ({ ...p, page })); }, [page]);
 
-  // Seleccionar primero automáticamente
   useEffect(() => {
     if (candidates.length > 0 && !selected) setSelected(candidates[0]);
-    else if (candidates.length > 0 && selected && !candidates.find(c => c.id === selected.id)) {
+    else if (candidates.length > 0 && selected && !candidates.find(c => c.id === selected.id))
       setSelected(candidates[0]);
-    } else if (candidates.length === 0) setSelected(null);
+    else if (candidates.length === 0) setSelected(null);
   }, [candidates]);
 
   function addSkill(skill: string) {
@@ -102,18 +119,15 @@ export default function TalentoPage() {
     setSkills(prev => [...prev, skill.trim()]);
     setSkillInput("");
   }
-
-  function removeSkill(skill: string) {
-    setSkills(prev => prev.filter(s => s !== skill));
-  }
+  function removeSkill(skill: string) { setSkills(prev => prev.filter(s => s !== skill)); }
 
   function handleSearch() {
     const params: CandidateSearchParams = { page: 1, limit: 12 };
-    if (search)           params.search   = search;
-    if (skills.length > 0) params.skills  = skills.join(",");
-    if (career)           params.career   = career;
-    if (workMode)         params.workMode = workMode;
-    if (minScore)         params.minScore = minScore;
+    if (search)            params.search   = search;
+    if (skills.length > 0) params.skills   = skills.join(",");
+    if (career)            params.career   = career;
+    if (workMode)          params.workMode = workMode;
+    if (minScore)          params.minScore = minScore;
     setPage(1);
     setActiveParams(params);
     setShowFilters(false);
@@ -126,110 +140,127 @@ export default function TalentoPage() {
     setActiveParams({ page: 1, limit: 12 });
   }
 
-  const hasFilters = !!(search || skills.length > 0 || career || workMode || minScore);
-  const inp = "w-full bg-[#f2f4f6] border-0 border-b-2 border-transparent focus:border-[#006d37] focus:ring-0 rounded-lg px-4 py-2.5 text-sm text-[#191c1e] placeholder:text-[#737781] outline-none transition-all";
+  const hasFilters      = !!(search || skills.length > 0 || career || workMode || minScore);
+  const activeFiltersN  = [search, skills.length > 0, career, workMode, minScore].filter(Boolean).length;
 
-  if (isLoading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f7f9fb]">
-        <span className="w-8 h-8 border-2 border-[#006d37]/20 border-t-[#006d37] rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const inp = "w-full bg-white border border-[#e6e8ea] focus:border-[#006d37] focus:ring-2 focus:ring-[#006d37]/10 rounded-xl px-4 py-2.5 text-sm text-[#191c1e] placeholder:text-[#b0b7c3] outline-none transition-all";
+
+  if (isLoading || !user) return <TalentBridgeLoader />;
 
   return (
-    <div className="max-w-screen-2xl mx-auto px-8 py-6">
+    <div className="h-[calc(100vh-64px)] flex flex-col bg-[#f7f9fb] overflow-hidden">
 
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-4xl font-extrabold text-[#006d37] font-headline tracking-tight">
-          Buscar Talento
-        </h1>
-        <p className="text-[#424750] mt-1">
-          Encuentra candidatos que se ajusten a tus necesidades.
-        </p>
-      </div>
+      {/* ── Top header ── */}
+      <div className="relative bg-white border-b border-[#e6e8ea] shrink-0 overflow-hidden">
+        {/* Decorative side accent */}
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#006d37] via-[#6bfe9c] to-[#006d37]" />
 
-      {/* Barra de búsqueda */}
-      <section className="mb-6 space-y-3">
-        <div className="flex gap-3">
-          <div className="flex-1 bg-white rounded-xl shadow-sm flex items-center p-1 focus-within:ring-2 focus-within:ring-[#006d37]/10 transition-all">
-            <div className="flex items-center px-4 text-[#737781]">
-              <Search className="w-5 h-5" />
+        <div className="px-8 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-5">
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#006d37]">
+                  TalentBridge
+                </span>
+                <span className="w-1 h-1 rounded-full bg-[#006d37]" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#737781]">
+                  Directorio
+                </span>
+              </div>
+              <h1 className="text-2xl font-black text-[#191c1e] tracking-tight leading-none"
+                style={{ fontFamily: "'Syne', 'Manrope', sans-serif" }}>
+                Buscar Talento
+              </h1>
             </div>
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleSearch()}
-              placeholder="Busca por nombre, carrera o habilidad..."
-              className="flex-1 border-none focus:ring-0 bg-transparent text-[#191c1e] py-3 text-base font-medium placeholder:text-[#c2c6d1] outline-none"
-            />
           </div>
 
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm transition-all border ${
-              showFilters || hasFilters
-                ? "bg-[#006d37] text-white border-[#006d37]"
-                : "bg-white text-[#424750] border-[#e6e8ea] hover:border-[#006d37]"
-            }`}
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-            Filtros
+          {/* Stats chips */}
+          <div className="flex items-center gap-2">
+            {pagination && (
+              <div className="flex items-center gap-1.5 bg-[#f2f4f6] px-3.5 py-2 rounded-xl">
+                <Users className="w-3.5 h-3.5 text-[#006d37]" />
+                <span className="text-xs font-black text-[#191c1e]">{pagination.total}</span>
+                <span className="text-xs text-[#737781] font-medium">candidatos</span>
+              </div>
+            )}
             {hasFilters && (
-              <span className="bg-white/30 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                {[search, skills.length > 0, career, workMode, minScore].filter(Boolean).length}
+              <button onClick={clearFilters}
+                className="flex items-center gap-1.5 bg-[#ffdad6] text-[#93000a] px-3.5 py-2 rounded-xl text-xs font-bold hover:bg-[#ffb4ab] transition-colors">
+                <X className="w-3 h-3" /> Limpiar
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Search bar ── */}
+        <div className="px-8 pb-4 flex gap-3">
+          <div className="flex-1 flex items-center bg-[#f7f9fb] border border-[#e6e8ea] rounded-2xl overflow-hidden focus-within:border-[#006d37] focus-within:ring-2 focus-within:ring-[#006d37]/10 transition-all">
+            <Search className="w-4 h-4 text-[#737781] ml-4 shrink-0" />
+            <input
+              type="text" value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleSearch()}
+              placeholder="Nombre, carrera, habilidad..."
+              className="flex-1 bg-transparent border-none focus:ring-0 text-[#191c1e] px-3 py-3 text-sm font-medium placeholder:text-[#b0b7c3] outline-none"
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="mr-3 text-[#737781] hover:text-[#191c1e]">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <button onClick={() => setShowFilters(!showFilters)}
+            className={`relative flex items-center gap-2 px-4 py-3 rounded-2xl font-bold text-sm transition-all border ${
+              showFilters || hasFilters
+                ? "bg-[#006d37] text-white border-[#006d37] shadow-lg shadow-[#006d37]/20"
+                : "bg-white text-[#424750] border-[#e6e8ea] hover:border-[#006d37]/40"
+            }`}>
+            <Filter className="w-4 h-4" />
+            Filtros
+            {activeFiltersN > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#6bfe9c] text-[#003d1f] text-[9px] font-black rounded-full flex items-center justify-center">
+                {activeFiltersN}
               </span>
             )}
           </button>
 
-          <button
-            onClick={handleSearch}
-            className="bg-gradient-to-br from-[#006d37] to-[#00743a] text-white px-6 py-3 rounded-xl font-bold text-sm tracking-widest uppercase hover:opacity-90 active:scale-95 transition-all"
-          >
+          <button onClick={handleSearch}
+            className="bg-[#006d37] text-white px-6 py-3 rounded-2xl font-black text-sm tracking-wider uppercase hover:bg-[#00743a] active:scale-95 transition-all shadow-lg shadow-[#006d37]/25">
             Buscar
           </button>
         </div>
 
-        {/* Filtros expandibles */}
+        {/* ── Filters panel ── */}
         {showFilters && (
-          <div className="bg-white rounded-xl border border-[#e6e8ea] p-5 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="mx-8 mb-4 bg-[#f7f9fb] border border-[#e6e8ea] rounded-2xl p-5 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
               {/* Skills */}
-              <div className="sm:col-span-2 lg:col-span-3">
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#424750] mb-2">
+              <div className="sm:col-span-2 lg:col-span-4">
+                <label className="block text-[10px] font-black uppercase tracking-widest text-[#737781] mb-2">
                   Habilidades requeridas
                 </label>
                 <div className="flex gap-2 mb-2">
-                  <input
-                    type="text"
-                    value={skillInput}
+                  <input type="text" value={skillInput}
                     onChange={e => setSkillInput(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addSkill(skillInput); } }}
                     placeholder="ej. React, Python, Diseño UX..."
-                    list="skill-suggestions"
-                    className={inp}
-                  />
+                    list="skill-suggestions" className={inp} />
                   <datalist id="skill-suggestions">
-                    {techKeywords.slice(0, 20).map(k => (
-                      <option key={k.id} value={k.name} />
-                    ))}
+                    {techKeywords.slice(0, 20).map(k => <option key={k.id} value={k.name} />)}
                   </datalist>
-                  <button type="button" onClick={() => addSkill(skillInput)}
-                    className="px-4 py-2 bg-[#006d37] text-white rounded-lg text-sm font-bold hover:bg-[#00743a] transition-colors">
+                  <button onClick={() => addSkill(skillInput)}
+                    className="px-4 py-2.5 bg-[#006d37] text-white rounded-xl text-sm font-black hover:bg-[#00743a] transition-colors">
                     +
                   </button>
                 </div>
                 {skills.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {skills.map(s => (
-                      <span key={s}
-                        className="flex items-center gap-1.5 bg-[#006d37] text-white text-xs font-semibold px-3 py-1.5 rounded-full">
+                      <span key={s} className="flex items-center gap-1.5 bg-[#006d37] text-white text-xs font-bold px-3 py-1.5 rounded-full">
                         {s}
-                        <button onClick={() => removeSkill(s)}
-                          className="hover:text-[#ffdad6] transition-colors">
+                        <button onClick={() => removeSkill(s)} className="hover:text-[#ffdad6] transition-colors">
                           <X className="w-3 h-3" />
                         </button>
                       </span>
@@ -238,342 +269,385 @@ export default function TalentoPage() {
                 )}
               </div>
 
-              {/* Carrera */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#424750] mb-2">Carrera</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-[#737781] mb-2">Carrera</label>
                 <input type="text" value={career} onChange={e => setCareer(e.target.value)}
-                  placeholder="ej. Ingeniería de Sistemas"
-                  className={inp} />
+                  placeholder="ej. Ing. Sistemas" className={inp} />
               </div>
-
-              {/* Modalidad */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#424750] mb-2">Modalidad</label>
-                <select value={workMode} onChange={e => setWorkMode(e.target.value)}
-                  className={`${inp} cursor-pointer`}>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-[#737781] mb-2">Modalidad</label>
+                <select value={workMode} onChange={e => setWorkMode(e.target.value)} className={`${inp} cursor-pointer`}>
                   <option value="">Todas</option>
                   <option value="REMOTE">Remoto</option>
                   <option value="ONSITE">Presencial</option>
                   <option value="HYBRID">Híbrido</option>
                 </select>
               </div>
-
-              {/* Score mínimo */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#424750] mb-2">
-                  Score mínimo
-                </label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-[#737781] mb-2">Score mínimo</label>
                 <input type="number" min={0} max={100} value={minScore}
-                  onChange={e => setMinScore(e.target.value)}
-                  placeholder="ej. 60"
-                  className={inp} />
+                  onChange={e => setMinScore(e.target.value)} placeholder="ej. 60" className={inp} />
               </div>
             </div>
 
-            <div className="flex justify-between items-center pt-2 border-t border-[#f2f4f6]">
+            <div className="flex justify-between items-center pt-3 border-t border-[#e6e8ea]">
               <button onClick={clearFilters}
-                className="text-sm text-[#737781] hover:text-[#ba1a1a] font-semibold transition-colors">
-                Limpiar filtros
+                className="text-sm text-[#737781] hover:text-[#ba1a1a] font-bold transition-colors">
+                Limpiar todo
               </button>
               <button onClick={handleSearch}
-                className="bg-gradient-to-br from-[#006d37] to-[#00743a] text-white px-6 py-2.5 rounded-full font-bold text-sm hover:opacity-90 transition-all">
+                className="bg-[#006d37] text-white px-6 py-2.5 rounded-xl font-black text-sm hover:bg-[#00743a] transition-all">
                 Aplicar filtros
               </button>
             </div>
           </div>
         )}
-      </section>
+      </div>
 
-      {/* Error */}
+      {/* ── Error ── */}
       {isError && (
-        <div className="flex flex-col items-center gap-3 py-16 text-center">
+        <div className="flex flex-col items-center gap-3 py-20 text-center">
           <AlertCircle className="w-10 h-10 text-[#ba1a1a]" />
-          <p className="text-[#93000a] font-semibold">No se pudieron cargar los candidatos.</p>
+          <p className="text-[#93000a] font-bold">No se pudieron cargar los candidatos.</p>
           <button onClick={handleSearch}
-            className="px-6 py-2 bg-[#006d37] text-white rounded-full text-sm font-bold hover:opacity-90">
+            className="px-6 py-2.5 bg-[#006d37] text-white rounded-xl text-sm font-bold hover:opacity-90">
             Reintentar
           </button>
         </div>
       )}
 
-      {/* Layout master/detail */}
+      {/* ── Master / Detail ── */}
       {!isError && (
-        <div className="flex gap-6 h-[calc(100vh-320px)] min-h-[560px]">
+        <div className="flex-1 flex overflow-hidden p-4 gap-4 min-h-0">
 
-          {/* Lista candidatos */}
-          <aside className="w-full md:w-[400px] flex flex-col gap-3 overflow-y-auto pr-1">
-            <InfoCallout
-              title="Busca talento activamente"
-              description="Explora candidatos por palabras clave, skills o carrera. Contacta a los que mejor se ajusten."
-            />
+          {/* ── LEFT: Candidate list ── */}
+          <div className="w-[340px] shrink-0 flex flex-col gap-3 min-h-0">
 
-            <div className="flex items-center justify-between mb-1 flex-shrink-0">
-              <p className="text-xs font-bold text-[#737781] uppercase tracking-widest">
-                Candidatos
-              </p>
+            {/* Count */}
+            <div className="flex items-center justify-between shrink-0 px-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#737781]">
+                Resultados
+              </span>
               {pagination && (
-                <span className="text-xs font-semibold text-[#006d37]">
-                  {pagination.total} resultado{pagination.total !== 1 ? "s" : ""}
+                <span className="text-xs font-black text-[#006d37] bg-[#dcfce7] px-2.5 py-0.5 rounded-full">
+                  {pagination.total} candidato{pagination.total !== 1 ? "s" : ""}
                 </span>
               )}
             </div>
 
             {/* Skeleton */}
             {searching && (
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="bg-white rounded-xl p-4 animate-pulse">
+              <div className="space-y-2.5 overflow-y-auto">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="bg-white rounded-2xl p-4 animate-pulse border border-[#f2f4f6]">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-[#e6e8ea] rounded-full flex-shrink-0" />
+                      <div className="w-11 h-11 bg-[#f2f4f6] rounded-xl flex-shrink-0" />
                       <div className="flex-1 space-y-2">
-                        <div className="h-3 bg-[#e6e8ea] rounded w-3/4" />
-                        <div className="h-2.5 bg-[#f2f4f6] rounded w-1/2" />
+                        <div className="h-3 bg-[#f2f4f6] rounded-lg w-3/4" />
+                        <div className="h-2.5 bg-[#f7f9fb] rounded-lg w-1/2" />
                       </div>
-                      <div className="w-12 h-12 bg-[#f2f4f6] rounded-full" />
+                      <div className="w-14 h-14 bg-[#f7f9fb] rounded-full" />
                     </div>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Vacío */}
+            {/* Empty */}
             {!searching && candidates.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <User className="w-10 h-10 text-[#c2c6d1] mb-3" />
-                <p className="text-sm text-[#737781] font-medium">
-                  No se encontraron candidatos con ese criterio.
-                </p>
+              <div className="flex-1 flex flex-col items-center justify-center text-center bg-white rounded-2xl border border-[#e6e8ea] py-12 px-6">
+                <div className="w-16 h-16 bg-[#f2f4f6] rounded-2xl flex items-center justify-center mb-4">
+                  <Users className="w-7 h-7 text-[#c2c6d1]" />
+                </div>
+                <p className="font-bold text-[#191c1e] text-sm mb-1">Sin resultados</p>
+                <p className="text-xs text-[#737781] mb-4">Intenta con otros filtros o términos de búsqueda.</p>
                 <button onClick={clearFilters}
-                  className="mt-4 text-xs text-[#006d37] font-bold hover:underline">
-                  Ver todos los candidatos
+                  className="text-xs text-[#006d37] font-black hover:underline underline-offset-2">
+                  Ver todos →
                 </button>
               </div>
             )}
 
             {/* Cards */}
-            {!searching && candidates.map(candidate => {
-              const score    = candidate.profileScore?.totalScore ?? 0;
-              const isActive = selected?.id === candidate.id;
+            {!searching && (
+              <div className="flex-1 overflow-y-auto space-y-2 pr-0.5">
+                {candidates.map(candidate => {
+                  const score    = candidate.profileScore?.totalScore ?? 0;
+                  const isActive = selected?.id === candidate.id;
+                  const scoreColor = score >= 70 ? "text-[#006d37]" : score >= 40 ? "text-[#1a4f8b]" : "text-[#ba1a1a]";
 
-              return (
-                <article key={candidate.id}
-                  onClick={() => setSelected(candidate)}
-                  className={`p-4 rounded-xl cursor-pointer transition-all ${
-                    isActive
-                      ? "bg-white border-2 border-[#006d37]/20 shadow-lg"
-                      : "bg-[#f2f4f6] border border-transparent hover:bg-white hover:shadow-md"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    {/* Avatar */}
-                    <div className="w-12 h-12 rounded-full bg-[#006d37]/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                      {candidate.photoUrl ? (
-                        <img src={candidate.photoUrl} alt={candidate.fullName ?? ""}
-                          className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-lg font-black text-[#006d37]">
-                          {(candidate.fullName ?? "?")[0].toUpperCase()}
-                        </span>
-                      )}
-                    </div>
+                  return (
+                    <article key={candidate.id} onClick={() => setSelected(candidate)}
+                      className={`rounded-2xl p-3.5 cursor-pointer transition-all border ${
+                        isActive
+                          ? "bg-white border-[#006d37] shadow-lg shadow-[#006d37]/10"
+                          : "bg-white border-[#e6e8ea] hover:border-[#006d37]/30 hover:shadow-sm"
+                      }`}>
+                      <div className="flex items-center gap-3">
+                        {/* Avatar */}
+                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-white font-black text-base shrink-0 shadow-sm overflow-hidden ${
+                          isActive
+                            ? "bg-gradient-to-br from-[#006d37] to-[#00743a]"
+                            : "bg-gradient-to-br from-[#424750] to-[#737781]"
+                        }`}>
+                          {candidate.photoUrl
+                            ? <img src={candidate.photoUrl} alt={candidate.fullName ?? ""} className="w-full h-full object-cover" />
+                            : (candidate.fullName ?? "?")[0].toUpperCase()
+                          }
+                        </div>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm text-[#191c1e] truncate">
-                        {candidate.fullName ?? "Candidato"}
-                      </p>
-                      <p className="text-xs text-[#737781] truncate">
-                        {candidate.career ?? "Sin carrera registrada"}
-                      </p>
-                      {candidate.workMode && (
-                        <span className="text-[10px] font-semibold text-[#424750] bg-[#e6e8ea] px-2 py-0.5 rounded-full mt-1 inline-block">
-                          {WORKMODE_LABEL[candidate.workMode] ?? candidate.workMode}
-                        </span>
-                      )}
-                    </div>
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-black text-sm leading-tight truncate ${isActive ? "text-[#006d37]" : "text-[#191c1e]"}`}>
+                            {candidate.fullName ?? "Candidato"}
+                          </p>
+                          <p className="text-[11px] text-[#737781] truncate mt-0.5">
+                            {candidate.career ?? "Sin carrera"}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-1.5">
+                            {candidate.workMode && (
+                              <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${WORKMODE_COLOR[candidate.workMode] ?? "bg-[#f2f4f6] text-[#424750]"}`}>
+                                {WORKMODE_LABEL[candidate.workMode] ?? candidate.workMode}
+                              </span>
+                            )}
+                            {candidate.skills.slice(0, 1).map(s => (
+                              <span key={s} className="text-[9px] font-bold px-2 py-0.5 bg-[#f2f4f6] text-[#424750] rounded-full truncate max-w-[80px]">
+                                {s}
+                              </span>
+                            ))}
+                            {candidate.skills.length > 1 && (
+                              <span className="text-[9px] text-[#737781] font-bold">+{candidate.skills.length - 1}</span>
+                            )}
+                          </div>
+                        </div>
 
-                    {/* Score ring */}
-                    <ScoreRing score={score} />
-                  </div>
+                        {/* Score */}
+                        <div className="shrink-0 flex flex-col items-center">
+                          <span className={`text-xl font-black leading-none ${scoreColor}`}>
+                            {Math.round(score)}
+                          </span>
+                          <span className="text-[8px] font-bold text-[#737781] uppercase tracking-widest mt-0.5">pts</span>
+                        </div>
 
-                  {/* Skills preview */}
-                  {candidate.skills.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-3">
-                      {candidate.skills.slice(0, 3).map(s => (
-                        <span key={s}
-                          className="text-[10px] font-semibold text-[#424750] bg-[#e6e8ea] px-2 py-0.5 rounded-md">
-                          {s}
-                        </span>
-                      ))}
-                      {candidate.skills.length > 3 && (
-                        <span className="text-[10px] font-semibold text-[#737781]">
-                          +{candidate.skills.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </article>
-              );
-            })}
+                        {isActive && <ChevronRight className="w-4 h-4 text-[#006d37] shrink-0" />}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
 
-            {/* Paginación */}
+            {/* Pagination */}
             {pagination && pagination.totalPages > 1 && !searching && (
-              <div className="flex items-center justify-between pt-3 border-t border-[#e6e8ea] flex-shrink-0 mt-2">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="flex items-center gap-1 text-xs font-bold text-[#424750] hover:text-[#006d37] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" /> Anterior
+              <div className="flex items-center justify-between pt-3 border-t border-[#e6e8ea] shrink-0">
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                  className="flex items-center gap-1 text-xs font-black text-[#424750] hover:text-[#006d37] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                  <ChevronLeft className="w-3.5 h-3.5" /> Ant.
                 </button>
-                <span className="text-xs text-[#737781] font-semibold">
-                  {page} / {pagination.totalPages}
-                </span>
-                <button
-                  onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
-                  disabled={page === pagination.totalPages}
-                  className="flex items-center gap-1 text-xs font-bold text-[#424750] hover:text-[#006d37] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  Siguiente <ChevronRight className="w-3.5 h-3.5" />
+                <span className="text-xs text-[#737781] font-bold">{page} / {pagination.totalPages}</span>
+                <button onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))} disabled={page === pagination.totalPages}
+                  className="flex items-center gap-1 text-xs font-black text-[#424750] hover:text-[#006d37] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                  Sig. <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
-          </aside>
+          </div>
 
-          {/* Detalle candidato */}
-          <main className="hidden md:flex flex-1 flex-col bg-white rounded-2xl border border-[#e6e8ea] overflow-hidden">
+          {/* ── RIGHT: Candidate detail ── */}
+          <div className="flex-1 bg-white rounded-2xl border border-[#e6e8ea] overflow-hidden flex flex-col min-w-0 shadow-sm">
             {!selected ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
-                <User className="w-12 h-12 text-[#c2c6d1] mb-4" />
-                <h3 className="font-bold text-lg text-[#191c1e] font-headline">
+                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[#f2f4f6] to-[#e6e8ea] flex items-center justify-center mb-5">
+                  <User className="w-10 h-10 text-[#c2c6d1]" />
+                </div>
+                <h3 className="font-black text-xl text-[#191c1e] mb-2"
+                  style={{ fontFamily: "'Syne', sans-serif" }}>
                   Selecciona un candidato
                 </h3>
-                <p className="text-sm text-[#737781] mt-1">
-                  Haz clic en cualquier perfil para ver sus detalles.
+                <p className="text-sm text-[#737781] max-w-xs">
+                  Haz clic en cualquier perfil de la lista para ver sus detalles.
                 </p>
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto">
-                {/* Banner */}
-                <div className="h-28 bg-gradient-to-r from-[#006d37] to-[#00743a] relative flex-shrink-0">
-                  <div className="absolute bottom-0 left-0 p-6 translate-y-10 flex items-end gap-5">
-                    <div className="w-20 h-20 rounded-2xl bg-white shadow-xl ring-4 ring-white overflow-hidden flex items-center justify-center flex-shrink-0">
-                      {selected.photoUrl ? (
-                        <img src={selected.photoUrl} alt={selected.fullName ?? ""}
-                          className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-3xl font-black text-[#006d37]">
-                          {(selected.fullName ?? "?")[0].toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
+              <>
+                {/* ── Hero banner ── */}
+                <div className="relative shrink-0 bg-gradient-to-r from-[#003d1f] via-[#006d37] to-[#1a4f8b] overflow-hidden">
+                  {/* Pattern overlay */}
+                  <svg className="absolute inset-0 w-full h-full opacity-[0.07]" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                      <pattern id="hero-dots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+                        <circle cx="2" cy="2" r="1.5" fill="white" />
+                      </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#hero-dots)" />
+                  </svg>
 
-                <div className="p-6 pt-16 space-y-6">
-                  {/* Nombre y datos básicos */}
-                  <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div>
-                      <h2 className="text-2xl font-extrabold text-[#191c1e] font-headline tracking-tight">
-                        {selected.fullName ?? "Candidato"}
-                      </h2>
-                      <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-[#737781]">
-                        {selected.career && (
-                          <span className="flex items-center gap-1.5">
-                            <GraduationCap className="w-3.5 h-3.5" />
-                            {selected.career}
-                          </span>
-                        )}
-                        {selected.institution && (
-                          <span className="flex items-center gap-1.5">
-                            <MapPin className="w-3.5 h-3.5" />
-                            {selected.institution}
-                          </span>
-                        )}
-                        {selected.workMode && (
-                          <span className="flex items-center gap-1.5">
-                            <Briefcase className="w-3.5 h-3.5" />
-                            {WORKMODE_LABEL[selected.workMode] ?? selected.workMode}
-                          </span>
-                        )}
+                  {/* Avatar + name row — todo dentro del banner */}
+                  <div className="relative flex items-center justify-between px-8 py-5 gap-4">
+                    <div className="flex items-center gap-4">
+                      {/* Avatar */}
+                      <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm ring-2 ring-white/30 overflow-hidden flex items-center justify-center shrink-0 shadow-lg">
+                        {selected.photoUrl
+                          ? <img src={selected.photoUrl} alt={selected.fullName ?? ""} className="w-full h-full object-cover" />
+                          : <span className="text-2xl font-black text-white">{(selected.fullName ?? "?")[0].toUpperCase()}</span>
+                        }
+                      </div>
+
+                      <div>
+                        <h2 className="text-xl font-black text-white tracking-tight leading-none"
+                          style={{ fontFamily: "'Syne', 'Manrope', sans-serif" }}>
+                          {selected.fullName ?? "Candidato"}
+                        </h2>
+                        <div className="flex flex-wrap items-center gap-2.5 mt-1.5">
+                          {selected.career && (
+                            <span className="flex items-center gap-1.5 text-xs text-white/80 font-semibold">
+                              <GraduationCap className="w-3.5 h-3.5 text-[#6bfe9c]" />
+                              {selected.career}
+                            </span>
+                          )}
+                          {selected.institution && (
+                            <span className="flex items-center gap-1.5 text-xs text-white/80 font-semibold">
+                              <BookOpen className="w-3.5 h-3.5 text-[#a6c8ff]" />
+                              {selected.institution}
+                            </span>
+                          )}
+                          {selected.workMode && (
+                            <span className="text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider bg-white/20 text-white border border-white/20">
+                              {WORKMODE_LABEL[selected.workMode] ?? selected.workMode}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Score y reputación */}
-                    <div className="flex items-center gap-4 flex-shrink-0">
-                      {selected.profileScore && (
-                        <div className="text-center">
-                          <ScoreRing score={selected.profileScore.totalScore} />
-                          <p className="text-[10px] text-[#737781] font-semibold mt-1">Score</p>
-                        </div>
-                      )}
-                      {selected.reputationAvg !== null && selected.ratingCount > 0 && (
-                        <div className="text-center">
-                          <div className="w-12 h-12 rounded-full bg-[#6bfe9c]/20 flex items-center justify-center">
-                            <span className="text-sm font-black text-[#006d37]">
-                              {selected.reputationAvg.toFixed(1)}
+                      {/* Score + reputation */}
+                      <div className="flex items-center gap-3 shrink-0">
+                        {selected.profileScore && (
+                          <ScoreArc score={selected.profileScore.totalScore} dark />
+                        )}
+                        {selected.reputationAvg !== null && selected.ratingCount > 0 && (
+                          <div className="flex flex-col items-center gap-1">
+                            <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-[#fbbf24]/60 flex flex-col items-center justify-center">
+                              <span className="text-sm font-black text-white leading-none">
+                                {selected.reputationAvg.toFixed(1)}
+                              </span>
+                              <Star className="w-3 h-3 text-[#fbbf24] fill-[#fbbf24]" />
+                            </div>
+                            <span className="text-[9px] font-bold text-white/60 uppercase tracking-widest">
+                              {selected.ratingCount} op.
                             </span>
                           </div>
-                          <p className="text-[10px] text-[#737781] font-semibold mt-1 flex items-center gap-0.5 justify-center">
-                            <Star className="w-2.5 h-2.5" />
-                            {selected.ratingCount} op.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Skills técnicas */}
-                  {selected.skills.length > 0 && (
-                    <div className="bg-[#f7f9fb] rounded-xl p-4">
-                      <p className="text-xs font-bold text-[#424750] uppercase tracking-wider mb-3 flex items-center gap-2">
-                        <Wrench className="w-3.5 h-3.5" /> Habilidades técnicas
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {selected.skills.map(s => (
-                          <span key={s}
-                            className="px-3 py-1 bg-[#006d37] text-white text-xs font-semibold rounded-full">
-                            {s}
-                          </span>
-                        ))}
+                        )}
                       </div>
-                    </div>
-                  )}
-
-                  {/* Skills blandas */}
-                  {selected.softSkills.length > 0 && (
-                    <div className="bg-[#f7f9fb] rounded-xl p-4">
-                      <p className="text-xs font-bold text-[#424750] uppercase tracking-wider mb-3">
-                        Habilidades blandas
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {selected.softSkills.map(s => (
-                          <span key={s}
-                            className="px-3 py-1 bg-[#6bfe9c]/20 text-[#005228] text-xs font-semibold rounded-full border border-[#6bfe9c]/40">
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* CTA — ir a vacantes */}
-                  <div className="bg-[#f7f9fb] rounded-xl p-5 flex items-center justify-between gap-4">
-                    <div>
-                      <p className="font-bold text-sm text-[#191c1e]">¿Te interesa este candidato?</p>
-                      <p className="text-xs text-[#737781] mt-0.5">
-                        Publica una vacante y el candidato puede postularse, o marca un postulante como Seleccionado para crear un contrato.
-                      </p>
-                    </div>
-                    <Link href="/dashboard/company/vacantes"
-                      className="flex-shrink-0 flex items-center gap-2 bg-[#006d37] text-white px-5 py-2.5 rounded-full text-sm font-bold hover:opacity-90 transition-all whitespace-nowrap">
-                      Ver vacantes <ChevronRight className="w-4 h-4" />
-                    </Link>
                   </div>
                 </div>
-              </div>
+
+                {/* ── Scrollable content ── */}
+                <div className="flex-1 overflow-y-auto">
+                  <div className="px-8 py-5 space-y-5">
+
+                    {/* Skills técnicas */}
+                    {selected.skills.length > 0 && (
+                      <div className="rounded-2xl border border-[#e6e8ea] overflow-hidden">
+                        <div className="flex items-center gap-2.5 px-5 py-3 bg-[#f7f9fb] border-b border-[#e6e8ea]">
+                          <div className="w-6 h-6 bg-[#006d37]/10 rounded-lg flex items-center justify-center">
+                            <Wrench className="w-3.5 h-3.5 text-[#006d37]" />
+                          </div>
+                          <p className="text-[10px] font-black text-[#424750] uppercase tracking-widest">
+                            Habilidades técnicas
+                          </p>
+                          <span className="ml-auto text-[10px] font-bold text-[#737781] bg-[#e6e8ea] px-2 py-0.5 rounded-full">
+                            {selected.skills.length}
+                          </span>
+                        </div>
+                        <div className="p-5 bg-white flex flex-wrap gap-2">
+                          {selected.skills.map(s => <SkillPill key={s} skill={s} highlight />)}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Soft skills */}
+                    {selected.softSkills.length > 0 && (
+                      <div className="rounded-2xl border border-[#e6e8ea] overflow-hidden">
+                        <div className="flex items-center gap-2.5 px-5 py-3 bg-[#f7f9fb] border-b border-[#e6e8ea]">
+                          <div className="w-6 h-6 bg-[#6bfe9c]/20 rounded-lg flex items-center justify-center">
+                            <Zap className="w-3.5 h-3.5 text-[#006d37]" />
+                          </div>
+                          <p className="text-[10px] font-black text-[#424750] uppercase tracking-widest">
+                            Habilidades blandas
+                          </p>
+                        </div>
+                        <div className="p-5 bg-white flex flex-wrap gap-2">
+                          {selected.softSkills.map(s => <SkillPill key={s} skill={s} />)}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Score breakdown si existe */}
+                    {selected.profileScore?.breakdown && (
+                      <div className="rounded-2xl border border-[#e6e8ea] overflow-hidden">
+                        <div className="flex items-center gap-2.5 px-5 py-3 bg-[#f7f9fb] border-b border-[#e6e8ea]">
+                          <div className="w-6 h-6 bg-[#1a4f8b]/10 rounded-lg flex items-center justify-center">
+                            <BarChart2 className="w-3.5 h-3.5 text-[#1a4f8b]" />
+                          </div>
+                          <p className="text-[10px] font-black text-[#424750] uppercase tracking-widest">
+                            Desglose de puntaje
+                          </p>
+                        </div>
+                        <div className="p-5 bg-white grid grid-cols-2 gap-3">
+                          {Object.entries(selected.profileScore.breakdown).map(([key, val]) => {
+                            const labels: Record<string, string> = {
+                              skills: "Habilidades", experience: "Experiencia",
+                              education: "Educación", certs: "Certificados",
+                              reputation: "Reputación", languages: "Idiomas", completion: "Completitud",
+                            };
+                            const pct = Math.min(Math.round(val as number), 100);
+                            return (
+                              <div key={key} className="space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[11px] font-semibold text-[#424750]">{labels[key] ?? key}</span>
+                                  <span className="text-[11px] font-black text-[#191c1e]">{pct}</span>
+                                </div>
+                                <div className="h-1.5 bg-[#f2f4f6] rounded-full overflow-hidden">
+                                  <div className="h-full rounded-full bg-gradient-to-r from-[#006d37] to-[#6bfe9c] transition-all duration-700"
+                                    style={{ width: `${pct}%` }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* CTA */}
+                    <div className="relative rounded-2xl overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-br from-[#006d37] to-[#1a4f8b]" />
+                      <div className="absolute inset-0 opacity-10">
+                        <svg width="100%" height="100%"><defs><pattern id="cta-grid" width="30" height="30" patternUnits="userSpaceOnUse">
+                          <path d="M 30 0 L 0 0 0 30" fill="none" stroke="white" strokeWidth="0.5"/></pattern></defs>
+                          <rect width="100%" height="100%" fill="url(#cta-grid)" /></svg>
+                      </div>
+                      <div className="relative flex items-center justify-between p-5 gap-4">
+                        <div>
+                          <p className="font-black text-white text-sm leading-tight">
+                            ¿Te interesa este candidato?
+                          </p>
+                          <p className="text-xs text-white/70 mt-1 max-w-xs">
+                            Publica una vacante o selecciona un postulante para iniciar un contrato.
+                          </p>
+                        </div>
+                        <Link href="/dashboard/company/vacantes"
+                          className="shrink-0 flex items-center gap-2 bg-[#6bfe9c] text-[#003d1f] px-5 py-2.5 rounded-xl text-xs font-black hover:bg-white transition-all whitespace-nowrap shadow-lg">
+                          Ver vacantes <ChevronRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              </>
             )}
-          </main>
+          </div>
         </div>
       )}
     </div>
