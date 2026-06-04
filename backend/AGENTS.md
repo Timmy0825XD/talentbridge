@@ -60,7 +60,7 @@ flujos de automatización de **n8n** (webhooks, Telegram, WhatsApp planificado).
 | @supabase/supabase-js | 2.x | Storage de archivos |
 | bcryptjs | 3.x | Hashing de contraseñas (factor 10) |
 | jsonwebtoken | 9.x | JWT stateless |
-| nodemailer | 8.x | SMTP (Mailtrap en dev) |
+| nodemailer | 8.x | SMTP (Brevo) |
 | multer | 2.x | Uploads en memoria |
 | zod | 4.x | Instalado — **validación en controllers pendiente de adopción sistemática** |
 | uuid | 13.x | Tokens de reset |
@@ -97,7 +97,7 @@ Todos los comandos y rutas deben ser compatibles con Windows.
 | Servicio | Uso | Plan |
 |---|---|---|
 | Supabase | PostgreSQL + Storage | Gratuito |
-| Mailtrap | Correos en desarrollo | Gratuito |
+| Brevo | Correos transaccionales (OTP, reset) | Gratuito (300/día) |
 | Google Gemini | Ranking IA + extracción de CV | API key |
 | n8n | Automatización de notificaciones | Self-hosted / cloud del equipo |
 
@@ -122,11 +122,13 @@ Path de archivos:
 
 En todos los casos `upsert: true` — el archivo nuevo reemplaza el anterior.
 
-### Mailtrap
+### Brevo (SMTP)
 
-- Solo desarrollo — captura correos sin enviarlos a destinatarios reales
-- Configurado en `src/lib/mailer.ts` (Nodemailer + SMTP)
-- Producción: migración planificada a **Resend** (`RESEND_API_KEY` en `.env.example`)
+- Relay: `smtp-relay.sendinblue.com` (puerto `587`, STARTTLS). El panel puede mostrar `smtp-relay.brevo.com`, pero el certificado TLS del relay suele ser `*.sendinblue.com` — `mailer.ts` normaliza el host brevo.com automáticamente.
+- Credenciales en panel **SMTP & API** (login SMTP + SMTP key, distinta de la API v3 si aplica)
+- Remitente (`SMTP_FROM`) debe estar verificado en Brevo
+- Configurado en `src/lib/mailer.ts` — `sendOtpEmail`, `sendResetEmail`
+- Plan free: 300 correos/día (transaccional + campañas comparten cupo)
 
 ---
 
@@ -308,9 +310,11 @@ Ver plantilla completa en `backend/.env.example`.
 | `N8N_WEBHOOK_URL` | Webhook que n8n expone al publicar vacante |
 | `N8N_WEBHOOK_SECRET` | Header `x-webhook-secret` para `/notifications/*` |
 | `TELEGRAM_BOT_TOKEN` | Bot de Telegram (flujo n8n) |
-| `SMTP_*` | Mailtrap en desarrollo |
-| `SMTP_FROM` | Remitente |
-| `RESEND_API_KEY` | Producción (planificado) |
+| `SMTP_HOST` | `smtp-relay.sendinblue.com` (alias brevo.com normalizado en código) |
+| `SMTP_PORT` | `587` (STARTTLS) |
+| `SMTP_USER` | Login SMTP del panel Brevo |
+| `SMTP_PASS` | SMTP key del panel Brevo |
+| `SMTP_FROM` | Remitente verificado (ej. `TalentBridge <email@...>`) |
 
 ---
 
@@ -320,7 +324,7 @@ Ver plantilla completa en `backend/.env.example`.
 
 | Área | Sprint | Detalle |
 |---|---|---|
-| Auth (registro, OTP, login, reset) | 1 | JWT, bcrypt, Mailtrap |
+| Auth (registro, OTP, login, reset) | 1 | JWT, bcrypt, Brevo SMTP |
 | Perfiles candidato y empresa | 1–2 | upsert, foto, logo, CV |
 | CV Intelligence | 2 | Gemini + pdf-parse + keywords dinámicas |
 | Ranking de perfil | 2 | `ProfileScore`, `GET/POST /ranking` |

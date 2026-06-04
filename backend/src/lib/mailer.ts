@@ -1,42 +1,70 @@
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import {
+  buildOtpEmailHtml,
+  buildOtpEmailText,
+  buildResetEmailHtml,
+  buildResetEmailText,
+} from './email-templates';
 
 dotenv.config();
 
+const SMTP_ENV_KEYS = [
+  'SMTP_HOST',
+  'SMTP_PORT',
+  'SMTP_USER',
+  'SMTP_PASS',
+  'SMTP_FROM',
+] as const;
+
+function assertSmtpEnv(): void {
+  const missing = SMTP_ENV_KEYS.filter((key) => !process.env[key]?.trim());
+  if (missing.length > 0) {
+    throw new Error(
+      `Configuración SMTP incompleta. Faltan: ${missing.join(', ')}`
+    );
+  }
+}
+
+assertSmtpEnv();
+
+/** Host con certificado TLS válido (el relay SA aún expone sendinblue.com, no brevo.com). */
+function resolveSmtpHost(): { connectHost: string; tlsServername: string } {
+  const raw = process.env.SMTP_HOST!.trim().replace(/\.$/, '');
+  if (raw === 'smtp-relay.brevo.com') {
+    return {
+      connectHost: 'smtp-relay.sendinblue.com',
+      tlsServername: 'smtp-relay.sendinblue.com',
+    };
+  }
+  return { connectHost: raw, tlsServername: raw };
+}
+
+const { connectHost, tlsServername } = resolveSmtpHost();
+
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
+  host: connectHost,
   port: Number(process.env.SMTP_PORT),
+  secure: false,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  tls: {
+    servername: tlsServername,
+  },
 });
 
-// Envía el código OTP de verificación de cuenta
 export async function sendOtpEmail(to: string, code: string): Promise<void> {
   await transporter.sendMail({
     from: process.env.SMTP_FROM,
     to,
     subject: 'TalentBridge — Verifica tu cuenta',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
-        <h2 style="color: #1e40af;">Verifica tu cuenta</h2>
-        <p>Tu código de verificación es:</p>
-        <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; 
-                    color: #1e40af; padding: 16px; background: #eff6ff; 
-                    border-radius: 8px; text-align: center;">
-          ${code}
-        </div>
-        <p style="color: #6b7280; margin-top: 16px;">
-          Este código expira en <strong>10 minutos</strong>.<br/>
-          Si no solicitaste esto, ignora este correo.
-        </p>
-      </div>
-    `,
+    html: buildOtpEmailHtml(code),
+    text: buildOtpEmailText(code),
   });
 }
 
-// Envía el enlace de recuperación de contraseña
 export async function sendResetEmail(to: string, token: string): Promise<void> {
   const url = `${process.env.FRONTEND_URL}/auth/reset-password?token=${token}`;
 
@@ -44,20 +72,7 @@ export async function sendResetEmail(to: string, token: string): Promise<void> {
     from: process.env.SMTP_FROM,
     to,
     subject: 'TalentBridge — Restablece tu contraseña',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
-        <h2 style="color: #1e40af;">Restablecer contraseña</h2>
-        <p>Recibimos una solicitud para restablecer tu contraseña.</p>
-        <a href="${url}" 
-           style="display: inline-block; padding: 12px 24px; background: #1e40af; 
-                  color: white; text-decoration: none; border-radius: 6px; margin: 16px 0;">
-          Restablecer contraseña
-        </a>
-        <p style="color: #6b7280;">
-          Este enlace expira en <strong>15 minutos</strong>.<br/>
-          Si no solicitaste esto, ignora este correo.
-        </p>
-      </div>
-    `,
+    html: buildResetEmailHtml(url),
+    text: buildResetEmailText(url),
   });
 }
