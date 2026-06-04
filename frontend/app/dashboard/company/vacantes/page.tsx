@@ -12,7 +12,7 @@ import { publicLinks } from "@/src/content/site-links";
 import {
   Plus, Users, TrendingUp, Clock, MoreVertical, CircleDot,
   CheckCircle2, XCircle, PauseCircle, ArrowUpRight, Edit2,
-  Briefcase, Building2, AlertCircle,
+  Briefcase, Building2, AlertCircle, X,
 } from 'lucide-react';
 import JobForm from './_components/JobForm';
 import { toast } from '@/src/lib/toast';
@@ -53,8 +53,8 @@ export default function VacantesPage() {
   const router      = useRouter();
   const queryClient = useQueryClient();
   const enabled     = !!user && user.role === 'COMPANY';
-  const { data: jobsRaw=[], isLoading: loadingJobs, refetch } = useCompanyJobs(enabled, user?.userId);
-  const jobs        = jobsRaw as Job[];
+  const { data: jobsRaw=[], isLoading: loadingJobs } = useCompanyJobs(enabled, user?.userId);
+  const jobs = jobsRaw as Job[];
 
   const [showForm,     setShowForm]     = useState(false);
   const [editingJob,   setEditingJob]   = useState<Job|null>(null);
@@ -64,6 +64,13 @@ export default function VacantesPage() {
   useEffect(() => {
     if (!isLoading && user?.role !== 'COMPANY') router.replace('/dashboard/candidate');
   }, [user, isLoading, router]);
+
+  // Cierra menú al hacer clic fuera
+  useEffect(() => {
+    const handler = () => setOpenMenuId(null);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, []);
 
   async function handleStatusChange(jobId: string, status: string) {
     try {
@@ -107,56 +114,56 @@ export default function VacantesPage() {
           <rect width="100%" height="100%" fill="url(#vac-grid)" />
         </svg>
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-        <div className="relative max-w-screen-xl mx-auto px-8 py-10">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+        <div className="relative max-w-screen-xl mx-auto px-4 sm:px-8 py-7 sm:py-10">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <p className="text-[#6bfe9c] text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+              <p className="text-[#6bfe9c] text-xs font-bold uppercase tracking-widest mb-1.5 flex items-center gap-2">
                 <Briefcase className="w-3.5 h-3.5" /> Mis vacantes
               </p>
-              <h1 className="font-headline font-extrabold text-4xl text-white tracking-tight">Mis Vacantes</h1>
-              <p className="text-white/60 text-sm mt-2">Gestiona tu pipeline de talento y oportunidades activas.</p>
+              <h1 className="font-headline font-extrabold text-2xl sm:text-4xl text-white tracking-tight">Mis Vacantes</h1>
+              <p className="text-white/60 text-xs sm:text-sm mt-1">Gestiona tu pipeline de talento y oportunidades activas.</p>
             </div>
             <button onClick={() => { setEditingJob(null); setShowForm(true); }}
-              className="flex items-center gap-2 bg-[#6bfe9c] text-[#00210c] px-6 py-3.5 rounded-2xl font-bold text-sm uppercase tracking-wider shadow-lg shadow-[#006d37]/20 hover:opacity-90 active:scale-95 transition-all">
+              className="flex items-center gap-2 bg-[#6bfe9c] text-[#00210c] px-5 sm:px-6 py-3 sm:py-3.5 rounded-2xl font-bold text-sm uppercase tracking-wider shadow-lg hover:opacity-90 active:scale-95 transition-all self-start sm:self-auto">
               <Plus className="w-4 h-4" /> Nueva vacante
             </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-screen-xl mx-auto px-8 py-8 space-y-6">
+      <div className="max-w-screen-xl mx-auto px-4 sm:px-8 py-5 sm:py-8 space-y-5 sm:space-y-6">
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           {[
-            { label: "Activas",      value: activeCount,                                   icon: <CircleDot className="w-5 h-5" />,  color: "text-[#006d37]", iconBg: "bg-[#6bfe9c]/20", sub: `${jobs.length} totales publicadas` },
+            { label: "Activas",      value: activeCount,                                   icon: <CircleDot className="w-5 h-5" />,  color: "text-[#006d37]", iconBg: "bg-[#6bfe9c]/20", sub: `${jobs.length} totales` },
             { label: "Postulantes",  value: totalApplicants,                               icon: <Users className="w-5 h-5" />,      color: "text-[#00386c]", iconBg: "bg-[#a6c8ff]/20", sub: "En todas tus vacantes" },
             { label: "En selección", value: jobs.filter(j=>j.status==='SELECTING').length, icon: <Clock className="w-5 h-5" />,      color: "text-[#7c5c00]", iconBg: "bg-[#fff3cd]",    sub: "Vacantes en proceso" },
           ].map(({ label, value, icon, color, iconBg, sub }) => (
-            <div key={label} className="bg-white rounded-2xl border border-[#e6e8ea] p-6 hover:shadow-md hover:-translate-y-0.5 transition-all group">
-              <div className="flex items-center justify-between mb-4">
+            <div key={label} className="bg-white rounded-2xl border border-[#e6e8ea] p-4 sm:p-6 hover:shadow-md transition-all group">
+              <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold uppercase tracking-widest text-[#424750]">{label}</span>
-                <div className={`w-9 h-9 rounded-full ${iconBg} flex items-center justify-center ${color} group-hover:scale-110 transition-transform`}>{icon}</div>
+                <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full ${iconBg} flex items-center justify-center ${color}`}>{icon}</div>
               </div>
-              <p className="text-4xl font-extrabold font-headline text-[#191c1e]">{value}</p>
-              <p className={`mt-2 flex items-center gap-1 ${color} text-xs font-semibold`}>
+              <p className="text-3xl sm:text-4xl font-extrabold font-headline text-[#191c1e]">{value}</p>
+              <p className={`mt-1.5 flex items-center gap-1 ${color} text-xs font-semibold`}>
                 <TrendingUp className="w-3 h-3" />{sub}
               </p>
             </div>
           ))}
         </div>
 
-        {/* Filtros */}
-        <div className="flex gap-2 flex-wrap">
+        {/* Filtros — scroll horizontal en mobile */}
+        <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible scrollbar-hide">
           {FILTER_TABS.map(tab => {
             const count = tab.key==='ALL' ? jobs.length : jobs.filter(j=>j.status===tab.key).length;
             return (
               <button key={tab.key} onClick={() => setActiveFilter(tab.key)}
-                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
+                className={`px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
                   activeFilter === tab.key ? 'bg-[#006d37] text-white shadow-md' : 'bg-white text-[#424750] border border-[#e6e8ea] hover:border-[#006d37]/20'
                 }`}>
                 {tab.label}
-                <span className={`ml-1.5 text-xs ${activeFilter===tab.key?"opacity-70":"text-[#737781]"}`}>({count})</span>
+                <span className={`ml-1 text-[10px] sm:text-xs ${activeFilter===tab.key?"opacity-70":"text-[#737781]"}`}>({count})</span>
               </button>
             );
           })}
@@ -164,45 +171,43 @@ export default function VacantesPage() {
 
         {/* Grid vacantes */}
         {loadingJobs ? (
-          <div className="flex justify-center py-20">
+          <div className="flex justify-center py-16 sm:py-20">
             <span className="w-8 h-8 border-2 border-[#006d37]/20 border-t-[#006d37] rounded-full animate-spin" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
             {filtered.map(job => {
               const meta = STATUS_META[job.status];
               return (
                 <div key={job.id}
-                  className="group bg-white rounded-2xl border border-[#e6e8ea] overflow-hidden hover:shadow-xl hover:shadow-[#006d37]/8 hover:-translate-y-1 transition-all duration-300 flex flex-col relative">
-                  {/* Color top bar based on status */}
-                  <div className="h-1 w-full transition-all duration-300"
-                    style={{ background: `${meta.stripe}` }} />
+                  className="group bg-white rounded-2xl border border-[#e6e8ea] overflow-hidden hover:shadow-xl hover:shadow-[#006d37]/8 hover:-translate-y-0.5 transition-all duration-300 flex flex-col relative">
+                  <div className="h-1 w-full" style={{ background: meta.stripe }} />
+                  <div className="p-4 sm:p-6 flex flex-col flex-1">
 
-                  <div className="p-6 flex flex-col flex-1">
                     {/* Header */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md"
+                    <div className="flex items-start justify-between mb-3 sm:mb-4">
+                      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0"
                           style={{ background: `linear-gradient(135deg, ${meta.stripe}22, ${meta.stripe}11)`, border: `1px solid ${meta.stripe}30` }}>
-                          <Briefcase className="w-5 h-5" style={{ color: meta.stripe }} />
+                          <Briefcase className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: meta.stripe }} />
                         </div>
-                        <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold ${meta.bg} ${meta.color}`}>
+                        <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-bold ${meta.bg} ${meta.color}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${meta.dot} ${job.status==='ACTIVE'?"animate-pulse":""}`} />
                           {meta.label}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-shrink-0">
                         <button onClick={() => { setEditingJob(job); setShowForm(true); }}
-                          className="p-1.5 text-[#737781] hover:text-[#006d37] hover:bg-[#006d37]/10 rounded-lg transition-colors" title="Editar">
-                          <Edit2 className="w-4 h-4" />
+                          className="p-1.5 text-[#737781] hover:text-[#006d37] hover:bg-[#006d37]/10 rounded-lg transition-colors">
+                          <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </button>
                         <div className="relative">
-                          <button onClick={() => setOpenMenuId(openMenuId===job.id?null:job.id)}
+                          <button onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId===job.id?null:job.id); }}
                             className="p-1.5 text-[#737781] hover:text-[#191c1e] hover:bg-[#f2f4f6] rounded-lg transition-colors">
-                            <MoreVertical className="w-4 h-4" />
+                            <MoreVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           </button>
                           {openMenuId===job.id && (
-                            <div className="absolute right-0 top-8 z-20 bg-white border border-[#e6e8ea] rounded-xl shadow-xl py-1 min-w-[160px]">
+                            <div className="absolute right-0 top-8 z-20 bg-white border border-[#e6e8ea] rounded-xl shadow-xl py-1 min-w-[160px]" onClick={e => e.stopPropagation()}>
                               <p className="text-[10px] font-bold uppercase tracking-wider text-[#737781] px-3 py-2">Cambiar estado</p>
                               {Object.entries(STATUS_META).map(([key, m]) => (
                                 <button key={key} onClick={() => handleStatusChange(job.id, key)}
@@ -216,56 +221,56 @@ export default function VacantesPage() {
                       </div>
                     </div>
 
-                    {/* Title + meta */}
-                    <h3 className="font-headline font-bold text-lg text-[#191c1e] mb-1 group-hover:text-[#006d37] transition-colors line-clamp-2 leading-tight">
+                    {/* Title */}
+                    <h3 className="font-headline font-bold text-sm sm:text-lg text-[#191c1e] mb-1 group-hover:text-[#006d37] transition-colors line-clamp-2 leading-tight">
                       {job.title}
                     </h3>
-                    <p className="text-xs text-[#737781] mb-5 flex items-center gap-1.5 flex-wrap">
+                    <p className="text-xs text-[#737781] mb-3 sm:mb-5 flex items-center gap-1 flex-wrap">
                       {TYPE_LABELS[job.type]} · {WORK_MODE_LABELS[job.workMode]}
                       {job.area && <><span>·</span>{job.area}</>}
                     </p>
 
-                    {/* Stats row */}
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                      <div className="bg-[#f7f9fb] rounded-xl p-3">
-                        <p className="text-[10px] text-[#737781] mb-0.5 font-semibold uppercase tracking-wider">Postulantes</p>
-                        <p className="text-2xl font-extrabold font-headline text-[#191c1e]">{job._count.applications}</p>
+                    {/* Stats */}
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-4">
+                      <div className="bg-[#f7f9fb] rounded-xl p-2.5 sm:p-3">
+                        <p className="text-[9px] sm:text-[10px] text-[#737781] mb-0.5 font-semibold uppercase tracking-wider">Postulantes</p>
+                        <p className="text-xl sm:text-2xl font-extrabold font-headline text-[#191c1e]">{job._count.applications}</p>
                       </div>
-                      <div className="bg-[#f7f9fb] rounded-xl p-3">
-                        <p className="text-[10px] text-[#737781] mb-0.5 font-semibold uppercase tracking-wider">Publicada</p>
-                        <p className="text-2xl font-extrabold font-headline text-[#191c1e]">{formatDate(job.createdAt)}</p>
+                      <div className="bg-[#f7f9fb] rounded-xl p-2.5 sm:p-3">
+                        <p className="text-[9px] sm:text-[10px] text-[#737781] mb-0.5 font-semibold uppercase tracking-wider">Publicada</p>
+                        <p className="text-xl sm:text-2xl font-extrabold font-headline text-[#191c1e]">{formatDate(job.createdAt)}</p>
                       </div>
                     </div>
 
                     {/* Budget */}
                     {job.budgetMin && (
-                      <p className="text-xs font-semibold text-[#006d37] mb-4 flex items-center gap-1">
+                      <p className="text-xs font-semibold text-[#006d37] mb-3 flex items-center gap-1">
                         <span className="w-1 h-1 rounded-full bg-[#006d37]" />
                         ${job.budgetMin.toLocaleString('es-CO')} — ${job.budgetMax?.toLocaleString('es-CO')} COP
                       </p>
                     )}
 
-                    {/* Skills preview */}
+                    {/* Skills */}
                     {job.skills.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-4">
-                        {job.skills.slice(0,3).map(s=>(
+                      <div className="flex flex-wrap gap-1 mb-3 sm:mb-4">
+                        {job.skills.slice(0,3).map(s => (
                           <span key={s} className="text-[9px] bg-[#006d37]/8 text-[#006d37] px-2 py-0.5 rounded font-bold">{s}</span>
                         ))}
                         {job.skills.length > 3 && <span className="text-[9px] text-[#737781]">+{job.skills.length-3}</span>}
                       </div>
                     )}
 
-                    {/* Footer CTA */}
-                    <div className="mt-auto pt-4 border-t border-[#f2f4f6] flex items-center justify-between">
+                    {/* Footer */}
+                    <div className="mt-auto pt-3 sm:pt-4 border-t border-[#f2f4f6] flex items-center justify-between">
                       <span className="text-xs text-[#737781]">
                         {job._count.applications > 0
                           ? `${job._count.applications} candidato${job._count.applications!==1?"s":""}`
                           : 'Sin postulantes aún'}
                       </span>
                       <Link href={`/dashboard/company/vacantes/${job.id}/postulantes`}
-                        className="flex items-center gap-1 text-xs font-bold text-[#006d37] hover:underline underline-offset-4 group/link">
+                        className="flex items-center gap-1 text-xs font-bold text-[#006d37] hover:underline underline-offset-4">
                         Ver postulantes
-                        <ArrowUpRight className="w-3.5 h-3.5 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 transition-transform" />
+                        <ArrowUpRight className="w-3.5 h-3.5" />
                       </Link>
                     </div>
                   </div>
@@ -275,12 +280,12 @@ export default function VacantesPage() {
 
             {/* Add card */}
             <div onClick={() => { setEditingJob(null); setShowForm(true); }}
-              className="bg-white rounded-2xl border-2 border-dashed border-[#c2c6d1] flex flex-col items-center justify-center p-10 text-center min-h-[280px] cursor-pointer hover:border-[#006d37] hover:bg-[#f7f9fb] transition-all group">
-              <div className="w-16 h-16 rounded-full bg-[#f2f4f6] flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#6bfe9c]/20 transition-all">
-                <Plus className="w-7 h-7 text-[#006d37]" />
+              className="bg-white rounded-2xl border-2 border-dashed border-[#c2c6d1] flex flex-col items-center justify-center p-8 sm:p-10 text-center min-h-[200px] sm:min-h-[280px] cursor-pointer hover:border-[#006d37] hover:bg-[#f7f9fb] transition-all group">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[#f2f4f6] flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 group-hover:bg-[#6bfe9c]/20 transition-all">
+                <Plus className="w-6 h-6 sm:w-7 sm:h-7 text-[#006d37]" />
               </div>
-              <h4 className="font-bold text-lg text-[#00386c] font-headline mb-1">¿Necesitas más talento?</h4>
-              <p className="text-sm text-[#737781] max-w-[180px]">Publica una nueva vacante y empieza a recibir postulaciones hoy.</p>
+              <h4 className="font-bold text-sm sm:text-lg text-[#00386c] font-headline mb-1">¿Necesitas más talento?</h4>
+              <p className="text-xs sm:text-sm text-[#737781] max-w-[180px]">Publica una nueva vacante y empieza a recibir postulaciones hoy.</p>
             </div>
           </div>
         )}

@@ -52,7 +52,7 @@ export default function ContratosPage() {
 
   if (isError && contracts.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#f7f9fb] text-center px-8">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#f7f9fb] text-center px-6">
         <AlertCircle className="w-10 h-10 text-[#ba1a1a]" />
         <p className="text-[#93000a] font-semibold">No se pudieron cargar los contratos.</p>
         <button onClick={() => refetch()} className="px-6 py-2 bg-[#00386c] text-white rounded-full text-sm font-bold hover:opacity-90 transition">Reintentar</button>
@@ -76,46 +76,44 @@ export default function ContratosPage() {
           <rect width="100%" height="100%" fill="url(#ct-grid)" />
         </svg>
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-        <div className="relative max-w-screen-lg mx-auto px-8 py-10">
+        <div className="relative max-w-screen-lg mx-auto px-4 sm:px-8 py-8 sm:py-10">
           <p className="text-[#a6c8ff] text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
             <FileText className="w-3.5 h-3.5 text-[#6bfe9c]" /> Mis contratos
           </p>
-          <h1 className="font-headline font-extrabold text-4xl text-white tracking-tight">Mis Contratos</h1>
-          <p className="text-[#a6c8ff] text-sm mt-2">Gestiona los acuerdos de trabajo formalizados con empresas.</p>
+          <h1 className="font-headline font-extrabold text-2xl sm:text-4xl text-white tracking-tight">Mis Contratos</h1>
+          <p className="text-[#a6c8ff] text-xs sm:text-sm mt-1.5">Gestiona los acuerdos de trabajo formalizados con empresas.</p>
 
-          {/* Quick stats en el hero */}
-          <div className="flex gap-3 mt-5 flex-wrap">
+          {/* Stats chips */}
+          <div className="flex gap-2 mt-4 flex-wrap">
             {[
-              { label: "Total",      value: contracts.length,                                      cls: "bg-white/10 border-white/15 text-white" },
-              { label: "Activos",    value: contracts.filter(c=>c.status==="ACTIVE").length,       cls: "bg-[#6bfe9c]/15 border-[#6bfe9c]/20 text-[#6bfe9c]" },
-              { label: "Pendientes", value: pendingCount,                                          cls: pendingCount > 0 ? "bg-[#ffc107]/15 border-[#ffc107]/30 text-[#ffc107]" : "bg-white/10 border-white/15 text-white" },
-              { label: "Completados",value: contracts.filter(c=>c.status==="COMPLETED").length,    cls: "bg-white/10 border-white/15 text-white" },
+              { label: "Total",       value: contracts.length,                                   cls: "bg-white/10 border-white/15 text-white" },
+              { label: "Activos",     value: contracts.filter(c=>c.status==="ACTIVE").length,    cls: "bg-[#6bfe9c]/15 border-[#6bfe9c]/20 text-[#6bfe9c]" },
+              { label: "Pendientes",  value: pendingCount,                                       cls: pendingCount > 0 ? "bg-[#ffc107]/15 border-[#ffc107]/30 text-[#ffc107]" : "bg-white/10 border-white/15 text-white" },
+              { label: "Completados", value: contracts.filter(c=>c.status==="COMPLETED").length, cls: "bg-white/10 border-white/15 text-white" },
             ].map(({ label, value, cls }) => (
-              <div key={label} className={`flex items-center gap-2 px-4 py-2 rounded-2xl border backdrop-blur-sm ${cls}`}>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">{label}</p>
-                  <p className="text-lg font-headline font-extrabold leading-none mt-0.5">{value}</p>
-                </div>
+              <div key={label} className={`flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl border backdrop-blur-sm ${cls}`}>
+                <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider opacity-70">{label}</p>
+                <p className="text-base sm:text-lg font-headline font-extrabold leading-none">{value}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="max-w-screen-lg mx-auto px-8 py-8 space-y-6">
+      <div className="max-w-screen-lg mx-auto px-4 sm:px-8 py-5 sm:py-8 space-y-4 sm:space-y-6">
 
         {/* Alerta pendientes */}
         {pendingCount > 0 && (
-          <div className="bg-[#fff3cd] border border-[#ffc107]/30 text-[#7c5c00] px-5 py-4 rounded-2xl flex items-center gap-3">
-            <Clock className="w-5 h-5 flex-shrink-0" />
+          <div className="bg-[#fff3cd] border border-[#ffc107]/30 text-[#7c5c00] px-4 py-3.5 rounded-2xl flex items-start sm:items-center gap-3">
+            <Clock className="w-5 h-5 flex-shrink-0 mt-0.5 sm:mt-0" />
             <p className="text-sm font-semibold">
               Tienes <span className="font-black">{pendingCount}</span> contrato{pendingCount > 1 ? "s" : ""} pendiente{pendingCount > 1 ? "s" : ""} de confirmación.
             </p>
           </div>
         )}
 
-        {/* Filtros */}
-        <div className="flex gap-2 flex-wrap">
+        {/* Filtros — scroll horizontal en mobile */}
+        <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible scrollbar-hide">
           {[
             { key:"ALL",               label:"Todos" },
             { key:"PENDING_CANDIDATE", label:"Pendientes" },
@@ -126,11 +124,11 @@ export default function ContratosPage() {
             const count = tab.key === "ALL" ? contracts.length : contracts.filter(c=>c.status===tab.key).length;
             return (
               <button key={tab.key} onClick={() => setFilter(tab.key)}
-                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
+                className={`px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
                   filter === tab.key ? "bg-[#00386c] text-white shadow-md" : "bg-white text-[#424750] border border-[#e6e8ea] hover:border-[#00386c]/20"
                 }`}>
                 {tab.label}
-                <span className={`ml-1.5 text-xs ${filter===tab.key?"opacity-70":"text-[#737781]"}`}>({count})</span>
+                <span className={`ml-1 text-[10px] sm:text-xs ${filter===tab.key?"opacity-70":"text-[#737781]"}`}>({count})</span>
               </button>
             );
           })}
@@ -138,17 +136,19 @@ export default function ContratosPage() {
 
         {/* Lista */}
         {listLoading ? <ContractsListSkeleton /> : filtered.length === 0 ? (
-          <div className="bg-white rounded-2xl border-2 border-dashed border-[#c2c6d1] p-16 text-center">
-            <div className="w-16 h-16 bg-[#f2f4f6] rounded-2xl flex items-center justify-center mx-auto mb-4"><FileText className="w-7 h-7 text-[#c2c6d1]" /></div>
-            <h3 className="font-bold text-lg text-[#191c1e] font-headline mb-1">
+          <div className="bg-white rounded-2xl border-2 border-dashed border-[#c2c6d1] p-10 sm:p-16 text-center">
+            <div className="w-14 h-14 bg-[#f2f4f6] rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-6 h-6 text-[#c2c6d1]" />
+            </div>
+            <h3 className="font-bold text-base sm:text-lg text-[#191c1e] font-headline mb-1">
               {filter === "ALL" ? "Sin contratos aún" : "Sin contratos en este estado"}
             </h3>
             <p className="text-sm text-[#737781]">
-              {filter === "ALL" ? "Cuando una empresa te asigne un contrato aparecerá aquí." : "No tienes contratos con este estado en este momento."}
+              {filter === "ALL" ? "Cuando una empresa te asigne un contrato aparecerá aquí." : "No tienes contratos con este estado."}
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {filtered.map(contract => {
               const meta      = STATUS_META[contract.status] ?? STATUS_META.CANCELLED;
               const isPending = contract.status === "PENDING_CANDIDATE";
@@ -157,33 +157,56 @@ export default function ContratosPage() {
                   className={`block bg-white rounded-2xl border transition-all hover:shadow-lg hover:shadow-[#00386c]/5 group ${
                     isPending ? "border-[#ffc107]/40 ring-1 ring-[#ffc107]/20" : "border-[#e6e8ea] hover:border-[#00386c]/15"
                   }`}>
-                  <div className="p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-4 flex-1 min-w-0">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${isPending ? "bg-[#fff3cd]" : "bg-gradient-to-br from-[#00386c]/10 to-[#1a4f8b]/10"}`}>
-                          <FileText className={`w-5 h-5 ${isPending ? "text-[#7c5c00]" : "text-[#00386c]"}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-2 flex-wrap">
-                            <h3 className="font-bold text-lg text-[#191c1e] font-headline group-hover:text-[#00386c] transition-colors truncate">{contract.title}</h3>
-                            <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold flex-shrink-0 ${meta.bg} ${meta.color}`}>{meta.icon}{meta.label}</span>
-                          </div>
-                          <div className="flex flex-wrap gap-4 text-sm text-[#424750]">
-                            {contract.company?.companyName && <span className="flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 text-[#737781]" />{contract.company.companyName}</span>}
-                            {contract.job?.title && <span className="flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5 text-[#737781]" />{contract.job.title}</span>}
-                            <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-[#737781]" />{formatDate(contract.startDate)}{contract.endDate ? ` → ${formatDate(contract.endDate)}` : ""}</span>
-                          </div>
-                        </div>
+                  <div className="p-4 sm:p-6">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      {/* Icon */}
+                      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 ${
+                        isPending ? "bg-[#fff3cd]" : "bg-gradient-to-br from-[#00386c]/10 to-[#1a4f8b]/10"
+                      }`}>
+                        <FileText className={`w-4 h-4 sm:w-5 sm:h-5 ${isPending ? "text-[#7c5c00]" : "text-[#00386c]"}`} />
                       </div>
-                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                        <p className="font-extrabold text-lg text-[#191c1e] font-headline">{formatAmount(contract.totalAmount)}</p>
-                        <ChevronRight className="w-5 h-5 text-[#c2c6d1] group-hover:text-[#00386c] transition-colors" />
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        {/* Title + status */}
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <h3 className="font-bold text-sm sm:text-base text-[#191c1e] font-headline group-hover:text-[#00386c] transition-colors leading-tight line-clamp-2">
+                            {contract.title}
+                          </h3>
+                          <ChevronRight className="w-4 h-4 text-[#c2c6d1] group-hover:text-[#00386c] transition-colors flex-shrink-0 mt-0.5" />
+                        </div>
+
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold mb-2 ${meta.bg} ${meta.color}`}>
+                          {meta.icon}{meta.label}
+                        </span>
+
+                        {/* Meta info */}
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[#424750]">
+                          {contract.company?.companyName && (
+                            <span className="flex items-center gap-1"><Building2 className="w-3 h-3 text-[#737781]" />{contract.company.companyName}</span>
+                          )}
+                          {contract.job?.title && (
+                            <span className="flex items-center gap-1 hidden sm:flex"><Briefcase className="w-3 h-3 text-[#737781]" />{contract.job.title}</span>
+                          )}
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3 text-[#737781]" />
+                            {formatDate(contract.startDate)}{contract.endDate ? ` → ${formatDate(contract.endDate)}` : ""}
+                          </span>
+                        </div>
+
+                        {/* Amount */}
+                        {contract.totalAmount && (
+                          <p className="font-extrabold text-sm text-[#191c1e] font-headline mt-2">
+                            {formatAmount(contract.totalAmount)}
+                          </p>
+                        )}
                       </div>
                     </div>
+
                     {isPending && (
-                      <div className="mt-4 pt-4 border-t border-[#f2f4f6] flex items-center justify-between">
+                      <div className="mt-3 pt-3 border-t border-[#f2f4f6] flex items-center justify-between gap-2">
                         <p className="text-xs text-[#7c5c00] font-semibold">Revisa los términos y confirma tu participación</p>
-                        <span className="text-xs font-bold text-[#00386c] underline underline-offset-2">Ver y confirmar →</span>
+                        <span className="text-xs font-bold text-[#00386c] underline underline-offset-2 whitespace-nowrap">Confirmar →</span>
                       </div>
                     )}
                   </div>

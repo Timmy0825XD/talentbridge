@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/src/lib/api";
-import { useCandidateProfile, useJobDetail, useMyApplications, useMyRanking, queryKeys,} from "@/src/hooks/queries";
+import { useCandidateProfile, useJobDetail, useMyApplications, useMyRanking, queryKeys } from "@/src/hooks/queries";
 import { ProfileScoreResponse } from "@/src/types/api";
 import TalentBridgeLoader from "@/src/components/ui/TalentBridgeLoader";
 import { publicLinks } from "@/src/content/site-links";
@@ -86,9 +86,7 @@ export default function ExplorarDetallePage() {
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
       toast.error(e.response?.data?.error ?? 'Error al postularse. Intenta de nuevo.');
-    } finally {
-      setApplyingId(null);
-    }
+    } finally { setApplyingId(null); }
   }
 
   if (isLoading || !user || jobLoading) return <TalentBridgeLoader />;
@@ -97,110 +95,161 @@ export default function ExplorarDetallePage() {
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#f7f9fb] text-center px-8">
       <AlertCircle className="w-10 h-10 text-[#ba1a1a]" />
       <p className="text-[#93000a] font-semibold">No se encontró la vacante.</p>
-      <Link href="/dashboard/candidate/explorar" className="px-6 py-2 bg-[#00386c] text-white rounded-full text-sm font-bold hover:opacity-90 transition">
+      <Link href="/dashboard/candidate/explorar"
+        className="px-6 py-2 bg-[#00386c] text-white rounded-full text-sm font-bold hover:opacity-90 transition">
         Volver a explorar
       </Link>
     </div>
   );
 
   const matchPct = calcMatch(myScore, job.skills, mySkills);
-  const initials  = (job.company?.companyName ?? "?")[0].toUpperCase();
-  const logoUrl   = (job.company as { logoUrl?: string })?.logoUrl ?? null;
+  const initials = (job.company?.companyName ?? "?")[0].toUpperCase();
+  const logoUrl  = (job.company as { logoUrl?: string })?.logoUrl ?? null;
 
   return (
     <div className="min-h-screen bg-[#f7f9fb]">
 
-      {/* Hero */}
-      <div className="relative bg-gradient-to-r from-[#00386c] via-[#0c4783] to-[#00386c] overflow-visible" style={{ paddingBottom: "52px" }}>
+      {/* ── Hero ── */}
+      <div className="relative bg-gradient-to-r from-[#00386c] via-[#0c4783] to-[#00386c] overflow-hidden pb-14 sm:pb-14"
+        style={{ paddingBottom: "52px" }}>
         <svg className="absolute inset-0 w-full h-full opacity-[0.07]" xmlns="http://www.w3.org/2000/svg">
           <defs><pattern id="detail-grid" width="40" height="40" patternUnits="userSpaceOnUse">
             <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.8"/></pattern></defs>
           <rect width="100%" height="100%" fill="url(#detail-grid)" />
         </svg>
-        {!logoUrl && (
-          <div className="absolute right-16 top-1/2 -translate-y-1/2 text-[200px] font-black text-white opacity-[0.04] select-none leading-none pointer-events-none">{initials}</div>
-        )}
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
-        <div className="relative max-w-screen-xl mx-auto px-8 pt-6">
-          <div className="flex items-center gap-2 text-white/60 text-xs font-medium mb-3">
+        <div className="relative max-w-screen-xl mx-auto px-4 sm:px-8 pt-5 sm:pt-6">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-1.5 text-white/60 text-xs font-medium mb-3 flex-wrap">
             <Link href="/dashboard/candidate" className="hover:text-white transition-colors">Inicio</Link>
-            <ChevronRight className="w-3 h-3" />
+            <ChevronRight className="w-3 h-3 flex-shrink-0" />
             <Link href="/dashboard/candidate/explorar" className="hover:text-white transition-colors">Explorar</Link>
-            <ChevronRight className="w-3 h-3" />
-            <span className="text-white/90 truncate max-w-xs">{job.title}</span>
+            <ChevronRight className="w-3 h-3 flex-shrink-0" />
+            <span className="text-white/90 truncate max-w-[150px] sm:max-w-xs">{job.title}</span>
           </div>
-          <h1 className="font-headline font-extrabold text-3xl text-white tracking-tight leading-snug mb-3">{job.title}</h1>
-          <div className="flex flex-wrap gap-2 mb-6">
+
+          <h1 className="font-headline font-extrabold text-xl sm:text-3xl text-white tracking-tight leading-snug mb-3">
+            {job.title}
+          </h1>
+
+          {/* Chips */}
+          <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-5">
             {[
               { icon: <Briefcase className="w-3 h-3" />, label: TYPE_LABEL[job.type] ?? job.type },
               { icon: job.workMode === "REMOTE" ? <Wifi className="w-3 h-3" /> : <Building2 className="w-3 h-3" />, label: WORKMODE_LABEL[job.workMode] ?? job.workMode },
               { icon: <Banknote className="w-3 h-3" />, label: formatBudget(job.budgetMin, job.budgetMax) },
               ...(job.company?.city ? [{ icon: <MapPin className="w-3 h-3" />, label: job.company.city }] : []),
             ].map(({ icon, label }) => (
-              <span key={label} className="flex items-center gap-1.5 bg-white/10 border border-white/15 text-white/80 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm">
+              <span key={label} className="flex items-center gap-1 sm:gap-1.5 bg-white/10 border border-white/15 text-white/80 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold backdrop-blur-sm">
                 {icon}{label}
               </span>
             ))}
           </div>
+
+          {/* Company row */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-2xl bg-white shadow-xl ring-4 ring-[#00386c] flex items-center justify-center flex-shrink-0 translate-y-10 overflow-hidden">
-                {logoUrl ? <img src={logoUrl} alt={job.company?.companyName ?? ""} className="w-full h-full object-cover" />
-                  : <span className="text-3xl font-black text-[#00386c]">{initials}</span>}
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-xl sm:rounded-2xl bg-white shadow-xl ring-2 sm:ring-4 ring-[#00386c] flex items-center justify-center flex-shrink-0 translate-y-8 sm:translate-y-10 overflow-hidden">
+                {logoUrl
+                  ? <img src={logoUrl} alt={job.company?.companyName ?? ""} className="w-full h-full object-cover" />
+                  : <span className="text-xl sm:text-3xl font-black text-[#00386c]">{initials}</span>}
               </div>
-              <div className="translate-y-10">
-                <h2 className="font-headline font-bold text-lg text-white drop-shadow">{job.company?.companyName ?? "Empresa"}</h2>
-                <span className="flex items-center gap-1 text-white/70 text-xs mt-0.5"><Clock className="w-3 h-3" />{timeAgo(job.createdAt)}</span>
+              <div className="translate-y-8 sm:translate-y-10">
+                <h2 className="font-headline font-bold text-sm sm:text-lg text-white drop-shadow">
+                  {job.company?.companyName ?? "Empresa"}
+                </h2>
+                <span className="flex items-center gap-1 text-white/70 text-xs mt-0.5">
+                  <Clock className="w-3 h-3" />{timeAgo(job.createdAt)}
+                </span>
               </div>
             </div>
-            <Link href="/dashboard/candidate/explorar" className="flex items-center gap-2 text-sm text-white/70 hover:text-white font-semibold transition-colors translate-y-2">
-              <ArrowLeft className="w-4 h-4" /> Volver
+            <Link href="/dashboard/candidate/explorar"
+              className="flex items-center gap-1.5 text-xs sm:text-sm text-white/70 hover:text-white font-semibold transition-colors translate-y-2">
+              <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Volver</span>
             </Link>
           </div>
         </div>
       </div>
 
-      <div className="max-w-screen-xl mx-auto px-8 pb-16 pt-16">
+      {/* ── Content ── */}
+      <div className="max-w-screen-xl mx-auto px-4 sm:px-8 pb-12 pt-10 sm:pt-16">
 
-        <div className="flex gap-8 items-start">
-          {/* Left */}
-          <div className="flex-1 min-w-0 space-y-8">
+        {/* ── Mobile: Apply button flotante fijo ── */}
+        <div className="fixed bottom-0 left-0 right-0 z-30 p-3 bg-white/90 backdrop-blur-md border-t border-[#e6e8ea] sm:hidden">
+          {isApplied ? (
+            <div className="flex items-center justify-center gap-2 bg-[#6bfe9c]/20 text-[#005228] px-4 py-3 rounded-xl font-bold text-sm border border-[#006d37]/20">
+              <CheckCircle2 className="w-4 h-4" /> Ya te postulaste
+            </div>
+          ) : (
+            <button onClick={handleApply} disabled={applyingId === job.id}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-br from-[#00386c] to-[#1a4f8b] text-white px-6 py-3.5 rounded-xl font-bold text-sm shadow-lg disabled:opacity-60">
+              {applyingId === job.id
+                ? <><Loader2 className="w-4 h-4 animate-spin" />Enviando...</>
+                : <><Briefcase className="w-4 h-4" />Aplicar a este trabajo</>}
+            </button>
+          )}
+        </div>
+
+        {/* ── Layout: stack en mobile, side-by-side en md+ ── */}
+        <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start pb-20 sm:pb-0">
+
+          {/* ── Left: job details ── */}
+          <div className="flex-1 min-w-0 space-y-6 sm:space-y-8 w-full">
+
+            {/* Tags */}
             <div className="flex flex-wrap gap-2">
               {[TYPE_LABEL[job.type] ?? job.type, WORKMODE_LABEL[job.workMode] ?? job.workMode, ...(job.area ? [job.area] : [])].map(t => (
                 <span key={t} className="px-3 py-1.5 bg-[#e0eeff] text-[#00386c] rounded-full text-xs font-bold">{t}</span>
               ))}
             </div>
+
+            {/* Descripción */}
             <section>
-              <h3 className="font-headline font-bold text-xl text-[#191c1e] mb-3 pb-2 border-b border-[#e6e8ea]">Descripción del trabajo</h3>
+              <h3 className="font-headline font-bold text-lg sm:text-xl text-[#191c1e] mb-3 pb-2 border-b border-[#e6e8ea]">
+                Descripción del trabajo
+              </h3>
               <p className="text-[#424750] text-sm leading-relaxed whitespace-pre-line">{job.description}</p>
             </section>
+
+            {/* Skills */}
             {job.skills.length > 0 && (
               <section>
-                <h3 className="font-headline font-bold text-xl text-[#191c1e] mb-3 pb-2 border-b border-[#e6e8ea]">Habilidades requeridas</h3>
+                <h3 className="font-headline font-bold text-lg sm:text-xl text-[#191c1e] mb-3 pb-2 border-b border-[#e6e8ea]">
+                  Habilidades requeridas
+                </h3>
                 <div className="flex flex-wrap gap-2">
                   {job.skills.map(skill => {
                     const tengo = mySkills.map(s=>s.toLowerCase()).includes(skill.toLowerCase());
                     return (
-                      <span key={skill} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${tengo ? "bg-[#6bfe9c]/20 text-[#005228] ring-1 ring-[#006d37]/20" : "bg-[#f2f4f6] text-[#424750]"}`}>
+                      <span key={skill} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                        tengo ? "bg-[#6bfe9c]/20 text-[#005228] ring-1 ring-[#006d37]/20" : "bg-[#f2f4f6] text-[#424750]"
+                      }`}>
                         {tengo && <CheckCircle2 className="w-3 h-3" />}{skill}
                       </span>
                     );
                   })}
                 </div>
                 {mySkills.length === 0 && (
-                  <p className="text-xs text-[#737781] mt-3 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />Completa tu perfil para ver qué habilidades ya tienes.</p>
+                  <p className="text-xs text-[#737781] mt-3 flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5" />Completa tu perfil para ver qué habilidades ya tienes.
+                  </p>
                 )}
               </section>
             )}
+
+            {/* Entregables */}
             {job.deliverables && (
               <section>
-                <h3 className="font-headline font-bold text-xl text-[#191c1e] mb-3 pb-2 border-b border-[#e6e8ea]">Entregables esperados</h3>
+                <h3 className="font-headline font-bold text-lg sm:text-xl text-[#191c1e] mb-3 pb-2 border-b border-[#e6e8ea]">
+                  Entregables esperados
+                </h3>
                 <p className="text-[#424750] text-sm leading-relaxed">{job.deliverables}</p>
               </section>
             )}
 
-            {/* Footer info */}
+            {/* Info footer */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
               {[
                 { icon: <Star className="w-4 h-4" />, title: "¿Cómo funciona el match?", desc: "El % se calcula comparando tus skills con las de la vacante.", href: publicLinks.candidates },
@@ -218,19 +267,24 @@ export default function ExplorarDetallePage() {
             </div>
           </div>
 
-          {/* Right sticky */}
-          <div className="w-80 flex-shrink-0 space-y-4" style={{ position:"sticky", top:88 }}>
+          {/* ── Right: sticky sidebar (solo md+) ── */}
+          <div className="hidden sm:block w-full md:w-72 lg:w-80 flex-shrink-0 space-y-4 md:sticky md:top-24">
+
+            {/* Apply button */}
             {isApplied ? (
-              <div className="w-full flex items-center justify-center gap-2 bg-[#6bfe9c]/20 text-[#005228] px-6 py-4 rounded-2xl font-bold text-sm border border-[#006d37]/20">
+              <div className="flex items-center justify-center gap-2 bg-[#6bfe9c]/20 text-[#005228] px-6 py-4 rounded-2xl font-bold text-sm border border-[#006d37]/20">
                 <CheckCircle2 className="w-5 h-5" /> Ya te postulaste a esta vacante
               </div>
             ) : (
               <button onClick={handleApply} disabled={applyingId === job.id}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-br from-[#00386c] to-[#1a4f8b] text-white px-6 py-4 rounded-2xl font-headline font-bold text-base shadow-lg shadow-[#00386c]/25 hover:opacity-90 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed">
-                {applyingId === job.id ? <><Loader2 className="w-5 h-5 animate-spin" />Enviando...</> : <><Briefcase className="w-5 h-5" />Aplicar a este trabajo</>}
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-br from-[#00386c] to-[#1a4f8b] text-white px-6 py-4 rounded-2xl font-bold text-base shadow-lg shadow-[#00386c]/25 hover:opacity-90 active:scale-95 transition-all disabled:opacity-60">
+                {applyingId === job.id
+                  ? <><Loader2 className="w-5 h-5 animate-spin" />Enviando...</>
+                  : <><Briefcase className="w-5 h-5" />Aplicar a este trabajo</>}
               </button>
             )}
 
+            {/* Resumen */}
             <div className="bg-white rounded-2xl border border-[#e6e8ea] overflow-hidden">
               <div className="px-5 py-4 border-b border-[#f2f4f6]">
                 <h3 className="font-headline font-bold text-[#191c1e] text-base">Resumen del trabajo</h3>
@@ -255,6 +309,7 @@ export default function ExplorarDetallePage() {
               </div>
             </div>
 
+            {/* Match */}
             {matchPct > 0 && (
               <div className="bg-white rounded-2xl border border-[#e6e8ea] p-5">
                 <h3 className="font-headline font-bold text-[#191c1e] text-sm mb-3">Compatibilidad con tu perfil</h3>
@@ -268,7 +323,9 @@ export default function ExplorarDetallePage() {
                         strokeDashoffset={150.8-(150.8*matchPct)/100} strokeLinecap="round"
                         style={{ transition:"stroke-dashoffset 0.8s ease" }} />
                     </svg>
-                    <span className={`absolute inset-0 flex items-center justify-center text-[11px] font-bold ${matchPct >= 70 ? "text-[#006d37]" : matchPct >= 40 ? "text-[#00386c]" : "text-[#ba1a1a]"}`}>{matchPct}%</span>
+                    <span className={`absolute inset-0 flex items-center justify-center text-[11px] font-bold ${matchPct >= 70 ? "text-[#006d37]" : matchPct >= 40 ? "text-[#00386c]" : "text-[#ba1a1a]"}`}>
+                      {matchPct}%
+                    </span>
                   </div>
                   <p className="text-xs text-[#737781] leading-relaxed">
                     {matchPct >= 70 ? "¡Excelente! Tu perfil encaja muy bien con esta vacante."
@@ -278,7 +335,34 @@ export default function ExplorarDetallePage() {
                 </div>
               </div>
             )}
+
+            {/* Match mobile (debajo del contenido) */}
           </div>
+
+          {/* Match en mobile — debajo del contenido */}
+          {matchPct > 0 && (
+            <div className="sm:hidden w-full bg-white rounded-2xl border border-[#e6e8ea] p-4">
+              <h3 className="font-headline font-bold text-[#191c1e] text-sm mb-3">Compatibilidad con tu perfil</h3>
+              <div className="flex items-center gap-4">
+                <div className="relative w-12 h-12 flex-shrink-0">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 56 56">
+                    <circle cx="28" cy="28" r="24" fill="none" stroke="#e6e8ea" strokeWidth="4"/>
+                    <circle cx="28" cy="28" r="24" fill="none"
+                      stroke={matchPct >= 70 ? "#006d37" : matchPct >= 40 ? "#00386c" : "#ba1a1a"}
+                      strokeWidth="4" strokeDasharray="150.8"
+                      strokeDashoffset={150.8-(150.8*matchPct)/100} strokeLinecap="round"/>
+                  </svg>
+                  <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold ${matchPct >= 70 ? "text-[#006d37]" : matchPct >= 40 ? "text-[#00386c]" : "text-[#ba1a1a]"}`}>
+                    {matchPct}%
+                  </span>
+                </div>
+                <p className="text-xs text-[#737781] leading-relaxed">
+                  {matchPct >= 70 ? "¡Tu perfil encaja muy bien!" : matchPct >= 40 ? "Buen match. Refuerza algunas habilidades." : "Actualiza tu CV para mejorar tu match."}
+                </p>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
     </div>

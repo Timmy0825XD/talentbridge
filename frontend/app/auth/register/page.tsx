@@ -58,6 +58,9 @@ const roleData: Record<Role, {
   },
 };
 
+// Pre-render all three panels; we crossfade between them instead of swapping
+const ALL_ROLES: Role[] = ["STUDENT", "GRADUATE", "COMPANY"];
+
 function passwordStrength(pw: string): { score: number; label: string; color: string } {
   if (!pw)           return { score: 0, label: "",          color: "#e0e3e5" };
   if (pw.length < 8) return { score: 1, label: "Muy débil", color: "#ba1a1a" };
@@ -74,16 +77,13 @@ function passwordStrength(pw: string): { score: number; label: string; color: st
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [role, setRole]               = useState<Role>("STUDENT");
-  const [prevRole, setPrevRole]       = useState<Role>("STUDENT");
-  const [animState, setAnimState]     = useState<"idle"|"flipping"|"landed">("idle");
-  const [showPassword, setShowPw]     = useState(false);
-  const [showConfirm, setShowConf]    = useState(false);
-  const [isLoading, setIsLoading]     = useState(false);
-  const [error, setError]             = useState<string | null>(null);
-  const [form, setForm]               = useState({ email: "", password: "", confirm: "", terms: false });
-  const [mouse, setMouse]             = useState({ x: 0, y: 0 });
-  const panelRef                      = useRef<HTMLDivElement>(null);
+  const [role, setRole]           = useState<Role>("STUDENT");
+  const [showPassword, setShowPw] = useState(false);
+  const [showConfirm, setShowConf]= useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError]         = useState<string | null>(null);
+  const [form, setForm]           = useState({ email: "", password: "", confirm: "", terms: false });
+  const [mouse, setMouse]         = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -95,17 +95,6 @@ export default function RegisterPage() {
     window.addEventListener("mousemove", onMove);
     return () => window.removeEventListener("mousemove", onMove);
   }, []);
-
-  function switchRole(next: Role) {
-    if (next === role || animState !== "idle") return;
-    setPrevRole(role);
-    setAnimState("flipping");
-    setTimeout(() => {
-      setRole(next);
-      setAnimState("landed");
-      setTimeout(() => setAnimState("idle"), 500);
-    }, 400);
-  }
 
   async function handleRegister() {
     setError(null);
@@ -129,33 +118,11 @@ export default function RegisterPage() {
   const current  = roleData[role];
   const strength = passwordStrength(form.password);
 
-  // Panel animation styles
-  const panelStyle = (() => {
-    if (animState === "flipping") return {
-      transform: "perspective(1200px) rotateY(-25deg) translateX(-30px) scale(0.94)",
-      opacity: 0.3,
-      filter: "brightness(0.6)",
-      transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-    };
-    if (animState === "landed") return {
-      transform: "perspective(1200px) rotateY(8deg) translateX(10px) scale(0.97)",
-      opacity: 0.8,
-      filter: "brightness(0.85)",
-      transition: "none",
-    };
-    return {
-      transform: `perspective(1200px) rotateY(${mouse.x * 0.04}deg) rotateX(${-mouse.y * 0.03}deg)`,
-      opacity: 1,
-      filter: "brightness(1)",
-      transition: animState === "idle" ? "transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), all 0.5s cubic-bezier(0.16, 1, 0.3, 1)" : "all 0.45s cubic-bezier(0.16, 1, 0.3, 1)",
-    };
-  })();
-
-  const contentStyle = (() => {
-    if (animState === "flipping") return { opacity: 0, transform: "translateY(16px)", transition: "all 0.25s ease" };
-    if (animState === "landed")   return { opacity: 0, transform: "translateY(-8px)",  transition: "none" };
-    return { opacity: 1, transform: "translateY(0)", transition: "all 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.05s" };
-  })();
+  // Subtle parallax tilt (desktop only, on the active panel)
+  const tiltStyle = {
+    transform: `perspective(1200px) rotateY(${mouse.x * 0.04}deg) rotateX(${-mouse.y * 0.03}deg)`,
+    transition: "transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
+  };
 
   return (
     <>
@@ -190,9 +157,14 @@ export default function RegisterPage() {
           0%   { background-position: 0px 0px; }
           100% { background-position: 40px 40px; }
         }
+        /* Panel content fade in after crossfade settles */
+        @keyframes panel-content-in {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
         .card-in  { animation: slide-card-in 0.8s cubic-bezier(0.16,1,0.3,1) both; }
         .form-in  { animation: form-in 0.7s 0.1s cubic-bezier(0.16,1,0.3,1) both; }
-        .f1 { animation: field-in 0.5s 0.1s cubic-bezier(0.16,1,0.3,1) both; }
+        .f1 { animation: field-in 0.5s 0.10s cubic-bezier(0.16,1,0.3,1) both; }
         .f2 { animation: field-in 0.5s 0.18s cubic-bezier(0.16,1,0.3,1) both; }
         .f3 { animation: field-in 0.5s 0.26s cubic-bezier(0.16,1,0.3,1) both; }
         .f4 { animation: field-in 0.5s 0.34s cubic-bezier(0.16,1,0.3,1) both; }
@@ -207,36 +179,75 @@ export default function RegisterPage() {
           background-size: 28px 28px;
           animation: bg-dots-drift 8s linear infinite;
         }
+
+        /* ─── Crossfade panel layers ─── */
+        /*
+          Each role has its own absolutely-positioned layer inside the panel.
+          Inactive layers have opacity:0 and pointer-events:none so only the
+          active one is visible/interactive. The transition is pure CSS so it
+          starts immediately with zero JS delay.
+        */
+        .panel-layer {
+          position: absolute;
+          inset: 0;
+          transition: opacity 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+          will-change: opacity;
+        }
+        .panel-layer.active  { opacity: 1;  pointer-events: auto; }
+        .panel-layer.inactive{ opacity: 0;  pointer-events: none; }
+
+        /* Content inside each layer fades up when it becomes active */
+        .panel-layer.active .panel-content {
+          animation: panel-content-in 0.5s 0.15s cubic-bezier(0.16,1,0.3,1) both;
+        }
+        .panel-layer.inactive .panel-content {
+          animation: none;
+        }
+
+        /* ─── Mobile layout ─── */
+        /*
+          On mobile: form is on top, image panel is below (decorative strip).
+          We achieve this with flex-col-reverse on the card wrapper.
+        */
+        @media (max-width: 1023px) {
+          .card-wrapper {
+            flex-direction: column-reverse !important;
+          }
+          .image-panel {
+            min-height: 220px !important;
+            max-height: 260px !important;
+            /* On mobile the panel needs an explicit height since it's not flex-filling */
+            height: 240px;
+          }
+          /* On mobile hide the verbose copy, show only brand + badge + stat */
+          .image-panel .panel-middle { display: none; }
+          .image-panel .panel-bottom { margin-top: auto; }
+        }
       `}</style>
 
-      <div className="min-h-screen flex items-center justify-center p-4 md:p-6 lg:p-10 relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, #e8edf3 0%, #dde4ed 40%, #e4eae8 100%)" }}>
-
-        {/* Puntos con drift */}
+      <div
+        className="min-h-screen flex items-center justify-center p-4 md:p-6 lg:p-10 relative overflow-hidden"
+        style={{ background: "linear-gradient(135deg, #e8edf3 0%, #dde4ed 40%, #e4eae8 100%)" }}
+      >
+        {/* Animated dot grid */}
         <div className="bg-dots absolute inset-0 pointer-events-none" />
 
-        {/* Orbe 1 — azul marino, esquina superior izquierda */}
+        {/* Background orbs */}
         <div className="bg-orb-1 absolute pointer-events-none" style={{
           top: "-10%", left: "-8%", width: "520px", height: "520px", borderRadius: "50%",
           background: "radial-gradient(circle, rgba(0,56,108,0.14) 0%, transparent 70%)",
           filter: "blur(40px)",
         }} />
-
-        {/* Orbe 2 — verde, esquina inferior derecha */}
         <div className="bg-orb-2 absolute pointer-events-none" style={{
           bottom: "-12%", right: "-6%", width: "480px", height: "480px", borderRadius: "50%",
           background: "radial-gradient(circle, rgba(74,225,131,0.13) 0%, transparent 70%)",
           filter: "blur(48px)",
         }} />
-
-        {/* Orbe 3 — azul claro, centro-derecha */}
         <div className="bg-orb-3 absolute pointer-events-none" style={{
           top: "30%", right: "12%", width: "280px", height: "280px", borderRadius: "50%",
           background: "radial-gradient(circle, rgba(0,56,108,0.08) 0%, transparent 70%)",
           filter: "blur(32px)",
         }} />
-
-        {/* Orbe 4 — verde suave, centro-izquierda */}
         <div className="absolute pointer-events-none" style={{
           top: "55%", left: "8%", width: "200px", height: "200px", borderRadius: "50%",
           background: "radial-gradient(circle, rgba(107,254,156,0.09) 0%, transparent 70%)",
@@ -244,8 +255,9 @@ export default function RegisterPage() {
           animation: "bg-orb-1 20s 3s ease-in-out infinite",
         }} />
 
-        {/* Watermark TalentBridge */}
-        <div className="absolute bottom-[-4%] right-[-2%] pointer-events-none select-none"
+        {/* Watermark */}
+        <div
+          className="absolute bottom-[-4%] right-[-2%] pointer-events-none select-none"
           style={{
             fontSize: "clamp(80px, 12vw, 180px)",
             fontWeight: 900, fontFamily: "var(--font-headline, sans-serif)",
@@ -253,96 +265,172 @@ export default function RegisterPage() {
             WebkitTextStroke: "1.5px rgba(0,56,108,0.07)",
             lineHeight: 1, letterSpacing: "-0.02em",
             userSelect: "none",
-          }}>
+          }}
+        >
           TalentBridge
         </div>
 
         {/* ── Main card ── */}
-        <div className="card-in w-full max-w-5xl bg-white rounded-3xl shadow-2xl shadow-black/10 overflow-hidden flex flex-col lg:flex-row relative z-10">
+        <div
+          className="card-in card-wrapper w-full max-w-5xl bg-white rounded-3xl shadow-2xl shadow-black/10 overflow-hidden flex relative z-10"
+          style={{ flexDirection: "row" }}
+        >
 
-          {/* ════ LEFT: Animated image panel ════ */}
-          <div className="relative lg:w-[44%] flex-shrink-0 overflow-hidden"
-            style={{ minHeight: 500, background: current.color }}>
-
-            {/* Book/page flip 3D wrapper */}
-            <div ref={panelRef} className="absolute inset-0" style={{ transformStyle: "preserve-3d", ...panelStyle }}>
-
-              {/* Image */}
-              <div className="absolute inset-0">
-                <Image src={current.image} alt={current.label} fill
-                  className="object-cover transition-all duration-500"
-                  style={{ opacity: 0.35 }} unoptimized />
-              </div>
-
-              {/* Gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-              <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${current.color}dd 0%, ${current.color}88 50%, transparent 100%)` }} />
-
-              {/* Animated content inside panel */}
-              <div className="absolute inset-0 flex flex-col justify-between p-10" style={contentStyle}>
-
-                {/* Top: brand */}
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/15 backdrop-blur-md border border-white/25 rounded-xl flex items-center justify-center">
-                    <span className="text-white font-black text-xs">TB</span>
-                  </div>
-                  <span className="text-white font-extrabold text-lg font-headline tracking-tight">TalentBridge</span>
-                </div>
-
-                {/* Middle: copy */}
-                <div className="space-y-4">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border"
-                    style={{ background: `${current.accent}20`, borderColor: `${current.accent}40`, color: current.accent }}>
-                    <Sparkles className="w-3 h-3" /> {current.label}
-                  </div>
-                  <h2 className="font-headline text-3xl xl:text-4xl font-extrabold text-white leading-[1.1] tracking-tight">
-                    {current.headline}
-                  </h2>
-                  <p className="text-white/70 text-sm leading-relaxed max-w-xs">{current.sub}</p>
-
-                  {/* Features */}
-                  <div className="space-y-2.5 pt-1">
-                    {current.features.map(({ icon, text }) => (
-                      <div key={text} className="flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                          style={{ background: `${current.accent}20`, color: current.accent }}>
-                          {icon}
-                        </div>
-                        <span className="text-white/85 text-xs font-semibold">{text}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Bottom: glass stat card */}
-                <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-4 shadow-xl">
-                  <div className="flex items-center gap-3">
-                    <div className="flex -space-x-2 flex-shrink-0">
-                      {["#6bfe9c","#a6c8ff","#C9A84C","#4ae183"].map((c, i) => (
-                        <div key={i} className="w-7 h-7 rounded-full border-2 border-white/20 flex items-center justify-center text-[8px] font-black"
-                          style={{ background: c, color: "#00210c", zIndex: 4 - i }}>
-                          {["EG","AN","MA","LP"][i]}
-                        </div>
-                      ))}
+          {/* ════ LEFT: Crossfading image panel ════ */}
+          <div
+            className="image-panel relative lg:w-[44%] flex-shrink-0 overflow-hidden"
+            style={{ minHeight: 500 }}
+          >
+            {/* Subtle parallax wrapper — only moves on desktop via mouse */}
+            <div className="absolute inset-0 hidden lg:block" style={tiltStyle}>
+              {/* All three layers live here; only the active one is visible */}
+              {ALL_ROLES.map((r) => {
+                const d = roleData[r];
+                const isActive = r === role;
+                return (
+                  <div
+                    key={r}
+                    className={`panel-layer ${isActive ? "active" : "inactive"}`}
+                    style={{ background: d.color }}
+                  >
+                    {/* Photo */}
+                    <div className="absolute inset-0">
+                      <Image
+                        src={d.image} alt={d.label} fill
+                        className="object-cover"
+                        style={{ opacity: 0.35 }}
+                        unoptimized
+                      />
                     </div>
-                    <div>
-                      <p className="text-white text-xs font-bold">500+ candidatos activos</p>
-                      <div className="flex gap-0.5 mt-0.5">
-                        {[1,2,3,4,5].map(i => <Star key={i} className="w-2.5 h-2.5 fill-[#C9A84C] text-[#C9A84C]" />)}
+                    {/* Gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                    <div className="absolute inset-0" style={{
+                      background: `linear-gradient(135deg, ${d.color}dd 0%, ${d.color}88 50%, transparent 100%)`
+                    }} />
+
+                    {/* Panel content */}
+                    <div className="panel-content absolute inset-0 flex flex-col justify-between p-10">
+                      {/* Brand */}
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white/15 backdrop-blur-md border border-white/25 rounded-xl flex items-center justify-center">
+                          <span className="text-white font-black text-xs">TB</span>
+                        </div>
+                        <span className="text-white font-extrabold text-lg tracking-tight">TalentBridge</span>
+                      </div>
+
+                      {/* Middle copy */}
+                      <div className="panel-middle space-y-4">
+                        <div
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border"
+                          style={{ background: `${d.accent}20`, borderColor: `${d.accent}40`, color: d.accent }}
+                        >
+                          <Sparkles className="w-3 h-3" /> {d.label}
+                        </div>
+                        <h2 className="text-3xl xl:text-4xl font-extrabold text-white leading-[1.1] tracking-tight">
+                          {d.headline}
+                        </h2>
+                        <p className="text-white/70 text-sm leading-relaxed max-w-xs">{d.sub}</p>
+                        <div className="space-y-2.5 pt-1">
+                          {d.features.map(({ icon, text }) => (
+                            <div key={text} className="flex items-center gap-3">
+                              <div
+                                className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                                style={{ background: `${d.accent}20`, color: d.accent }}
+                              >
+                                {icon}
+                              </div>
+                              <span className="text-white/85 text-xs font-semibold">{text}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Bottom stat card */}
+                      <div className="panel-bottom bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-4 shadow-xl">
+                        <div className="flex items-center gap-3">
+                          <div className="flex -space-x-2 flex-shrink-0">
+                            {["#6bfe9c","#a6c8ff","#C9A84C","#4ae183"].map((c, i) => (
+                              <div
+                                key={i}
+                                className="w-7 h-7 rounded-full border-2 border-white/20 flex items-center justify-center text-[8px] font-black"
+                                style={{ background: c, color: "#00210c", zIndex: 4 - i }}
+                              >
+                                {["EG","AN","MA","LP"][i]}
+                              </div>
+                            ))}
+                          </div>
+                          <div>
+                            <p className="text-white text-xs font-bold">500+ candidatos activos</p>
+                            <div className="flex gap-0.5 mt-0.5">
+                              {[1,2,3,4,5].map(i => (
+                                <Star key={i} className="w-2.5 h-2.5 fill-[#C9A84C] text-[#C9A84C]" />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                );
+              })}
             </div>
 
-            {/* Page edge shadow (book spine effect) */}
-            <div className="absolute right-0 top-0 bottom-0 w-6 pointer-events-none"
-              style={{ background: "linear-gradient(to left, rgba(0,0,0,0.18) 0%, transparent 100%)" }} />
+            {/* Mobile version: simple crossfading background (no parallax) */}
+            <div className="absolute inset-0 lg:hidden">
+              {ALL_ROLES.map((r) => {
+                const d = roleData[r];
+                const isActive = r === role;
+                return (
+                  <div
+                    key={r}
+                    className={`panel-layer ${isActive ? "active" : "inactive"}`}
+                    style={{ background: d.color }}
+                  >
+                    <div className="absolute inset-0">
+                      <Image
+                        src={d.image} alt={d.label} fill
+                        className="object-cover"
+                        style={{ opacity: 0.3 }}
+                        unoptimized
+                      />
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                    <div className="absolute inset-0" style={{
+                      background: `linear-gradient(135deg, ${d.color}cc 0%, ${d.color}66 60%, transparent 100%)`
+                    }} />
+                    {/* Mobile: brand top-left + stat bottom */}
+                    <div className="absolute inset-0 flex flex-col justify-between p-6">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-white/15 backdrop-blur-md border border-white/25 rounded-xl flex items-center justify-center">
+                          <span className="text-white font-black text-[10px]">TB</span>
+                        </div>
+                        <span className="text-white font-extrabold text-base tracking-tight">TalentBridge</span>
+                      </div>
+                      {/* Mobile: role tag + headline */}
+                      <div className="space-y-2">
+                        <div
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest border"
+                          style={{ background: `${d.accent}20`, borderColor: `${d.accent}40`, color: d.accent }}
+                        >
+                          <Sparkles className="w-2.5 h-2.5" /> {d.label}
+                        </div>
+                        <p className="text-white font-extrabold text-xl leading-tight">{d.headline}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Page edge shadow (book spine) */}
+            <div
+              className="absolute right-0 top-0 bottom-0 w-6 pointer-events-none hidden lg:block"
+              style={{ background: "linear-gradient(to left, rgba(0,0,0,0.18) 0%, transparent 100%)" }}
+            />
           </div>
 
           {/* ════ RIGHT: Form ════ */}
-          <div className="form-in flex-1 flex items-center justify-center px-8 py-10 lg:px-12 lg:py-12 bg-white">
+          <div className="form-in flex-1 flex items-center justify-center px-6 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-12 bg-white">
             <div className="w-full max-w-sm">
 
               {/* Back + heading */}
@@ -360,7 +448,10 @@ export default function RegisterPage() {
                   </h3>
                   <p className="text-[#737781] text-xs mt-1">Elige tu rol y completa los datos.</p>
                 </div>
-                <Link href="/" className="flex items-center gap-1 text-[#737781] hover:text-[#00386c] text-xs font-semibold transition-colors group ml-4 flex-shrink-0">
+                <Link
+                  href="/"
+                  className="flex items-center gap-1 text-[#737781] hover:text-[#00386c] text-xs font-semibold transition-colors group ml-4 flex-shrink-0"
+                >
                   <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" /> Inicio
                 </Link>
               </div>
@@ -371,12 +462,14 @@ export default function RegisterPage() {
                   const active = role === r;
                   const d = roleData[r];
                   return (
-                    <button key={r} type="button" onClick={() => switchRole(r)}
+                    <button
+                      key={r} type="button" onClick={() => setRole(r)}
                       className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-full text-xs font-bold transition-all duration-300 ${
                         active
                           ? "bg-white shadow-md text-[#191c1e] scale-[1.02]"
                           : "text-[#737781] hover:text-[#424750]"
-                      }`}>
+                      }`}
+                    >
                       <span className={active ? "text-[#00386c]" : "opacity-60"}>{d.icon}</span>
                       {d.label}
                     </button>
@@ -393,9 +486,11 @@ export default function RegisterPage() {
                   </label>
                   <div className="relative group">
                     <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#c2c6d1] group-focus-within:text-[#00386c] transition-colors" />
-                    <input type="email"
+                    <input
+                      type="email"
                       placeholder={role === "COMPANY" ? "contacto@empresa.com" : "nombre@universidad.edu"}
-                      value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
+                      value={form.email}
+                      onChange={e => setForm({ ...form, email: e.target.value })}
                       className="w-full bg-[#f7f9fb] border border-[#e6e8ea] rounded-xl py-3 pl-10 pr-4 focus:border-[#00386c] focus:bg-white focus:ring-3 focus:ring-[#00386c]/8 transition-all text-sm text-[#191c1e] placeholder:text-[#c2c6d1] outline-none"
                     />
                   </div>
@@ -405,12 +500,17 @@ export default function RegisterPage() {
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-[#424750]">Contraseña</label>
                   <div className="relative group">
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#c2c6d1] group-focus-within:text-[#00386c] transition-colors" />
-                    <input type={showPassword ? "text" : "password"} placeholder="Mínimo 8 caracteres"
-                      value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Mínimo 8 caracteres"
+                      value={form.password}
+                      onChange={e => setForm({ ...form, password: e.target.value })}
                       className="w-full bg-[#f7f9fb] border border-[#e6e8ea] rounded-xl py-3 pl-10 pr-11 focus:border-[#00386c] focus:bg-white focus:ring-3 focus:ring-[#00386c]/8 transition-all text-sm text-[#191c1e] placeholder:text-[#c2c6d1] outline-none"
                     />
-                    <button type="button" onClick={() => setShowPw(!showPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#c2c6d1] hover:text-[#424750] transition-colors">
+                    <button
+                      type="button" onClick={() => setShowPw(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#c2c6d1] hover:text-[#424750] transition-colors"
+                    >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
@@ -418,11 +518,15 @@ export default function RegisterPage() {
                     <div className="pt-0.5">
                       <div className="flex gap-1 mb-1">
                         {[1,2,3,4].map(i => (
-                          <div key={i} className="flex-1 h-1 rounded-full transition-all duration-500"
-                            style={{ background: i <= strength.score ? strength.color : "#e6e8ea" }} />
+                          <div
+                            key={i} className="flex-1 h-1 rounded-full transition-all duration-500"
+                            style={{ background: i <= strength.score ? strength.color : "#e6e8ea" }}
+                          />
                         ))}
                       </div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: strength.color }}>{strength.label}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: strength.color }}>
+                        {strength.label}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -431,13 +535,18 @@ export default function RegisterPage() {
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-[#424750]">Confirmar contraseña</label>
                   <div className="relative group">
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#c2c6d1] group-focus-within:text-[#00386c] transition-colors" />
-                    <input type={showConfirm ? "text" : "password"} placeholder="Repite tu contraseña"
-                      value={form.confirm} onChange={e => setForm({ ...form, confirm: e.target.value })}
+                    <input
+                      type={showConfirm ? "text" : "password"}
+                      placeholder="Repite tu contraseña"
+                      value={form.confirm}
+                      onChange={e => setForm({ ...form, confirm: e.target.value })}
                       onKeyDown={e => e.key === "Enter" && handleRegister()}
                       className="w-full bg-[#f7f9fb] border border-[#e6e8ea] rounded-xl py-3 pl-10 pr-11 focus:border-[#00386c] focus:bg-white focus:ring-3 focus:ring-[#00386c]/8 transition-all text-sm text-[#191c1e] placeholder:text-[#c2c6d1] outline-none"
                     />
-                    <button type="button" onClick={() => setShowConf(!showConfirm)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#c2c6d1] hover:text-[#424750] transition-colors">
+                    <button
+                      type="button" onClick={() => setShowConf(!showConfirm)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#c2c6d1] hover:text-[#424750] transition-colors"
+                    >
                       {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
@@ -449,7 +558,8 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="f6 flex items-start gap-2.5">
-                  <input id="terms" type="checkbox" checked={form.terms}
+                  <input
+                    id="terms" type="checkbox" checked={form.terms}
                     onChange={e => setForm({ ...form, terms: e.target.checked })}
                     className="w-4 h-4 mt-0.5 rounded border-[#c2c6d1] text-[#006d37] focus:ring-[#006d37]/20 flex-shrink-0 cursor-pointer"
                   />
@@ -468,14 +578,25 @@ export default function RegisterPage() {
                   </div>
                 )}
 
-                <button type="button" onClick={handleRegister} disabled={isLoading}
+                <button
+                  type="button" onClick={handleRegister} disabled={isLoading}
                   className="f7 group relative w-full font-bold py-3.5 rounded-xl text-white text-sm uppercase tracking-wider overflow-hidden disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.98]"
-                  style={{ background: `linear-gradient(135deg, ${current.color} 0%, ${current.color}cc 100%)`, boxShadow: `0 8px 30px ${current.color}30` }}>
+                  style={{
+                    background: `linear-gradient(135deg, ${current.color} 0%, ${current.color}cc 100%)`,
+                    boxShadow: `0 8px 30px ${current.color}30`,
+                  }}
+                >
                   <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                   {isLoading ? (
-                    <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /><span className="relative">Creando...</span></>
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span className="relative">Creando...</span>
+                    </>
                   ) : (
-                    <><span className="relative">Crear cuenta gratis</span><ArrowRight className="relative w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
+                    <>
+                      <span className="relative">Crear cuenta gratis</span>
+                      <ArrowRight className="relative w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </>
                   )}
                 </button>
 
