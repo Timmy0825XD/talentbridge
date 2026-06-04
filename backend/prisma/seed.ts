@@ -1,7 +1,31 @@
 import { PrismaClient, KeywordType } from '@prisma/client';
 import { createUniversityWithAccount } from '../src/services/university-create.service';
+import { createCareerRecord } from '../src/services/career.service';
 
 const prisma = new PrismaClient();
+
+const INITIAL_CAREERS = [
+  'Ingeniería de Sistemas',
+  'Ingeniería Industrial',
+  'Ingeniería Civil',
+  'Administración de Empresas',
+  'Contaduría Pública',
+  'Derecho',
+  'Psicología',
+  'Comunicación Social',
+  'Medicina',
+  'Enfermería',
+  'Arquitectura',
+  'Economía',
+  'Mercadeo',
+  'Diseño Gráfico',
+  'Tecnología en Desarrollo de Software',
+  'Ingeniería Mecánica',
+  'Ingeniería Eléctrica',
+  'Trabajo Social',
+  'Educación',
+  'Finanzas',
+];
 
 const INITIAL_UNIVERSITIES = [
   'Universidad Popular del Cesar',
@@ -202,6 +226,25 @@ async function main() {
   console.log('✅ GlobalRankConfig inicializado.');
 
   const credentialsLog: { name: string; email: string; password: string }[] = [];
+
+  for (const name of INITIAL_CAREERS) {
+    const existingCareer = await prisma.career.findFirst({
+      where: { name: { equals: name, mode: 'insensitive' } },
+    });
+    if (existingCareer) {
+      console.log(`⏭️  Carrera ya existe: ${name}`);
+      continue;
+    }
+    await createCareerRecord(name);
+    console.log(`✅ Carrera creada: ${name}`);
+  }
+
+  const unlinked = await prisma.candidateProfile.count({
+    where: { OR: [{ universityId: null }, { careerId: null }] },
+  });
+  if (unlinked > 0) {
+    console.log(`⚠️  Perfiles sin universityId o careerId: ${unlinked} (deben actualizar perfil)`);
+  }
 
   for (const name of INITIAL_UNIVERSITIES) {
     const existing = await prisma.university.findUnique({ where: { name } });

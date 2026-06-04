@@ -91,6 +91,30 @@ export const updateUniversity = asyncHandler(async (req: AuthRequest, res: Respo
   }
 }, adminErrorMap, 'updateUniversity');
 
+export const listCareers = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  res.json(await adminService.listCareers());
+}, adminErrorMap, 'listCareers');
+
+export const createCareer = asyncHandler(async (req: AuthRequest, res: Response) => {
+  try {
+    const career = await adminService.createCareer(req.body);
+    res.status(201).json({ message: 'Carrera creada.', career });
+  } catch (err) {
+    if (handleValidation(err, res)) return;
+    throw err;
+  }
+}, adminErrorMap, 'createCareer');
+
+export const updateCareer = asyncHandler(async (req: AuthRequest, res: Response) => {
+  try {
+    const career = await adminService.updateCareer(req.params['id'] as string, req.body);
+    res.json({ message: 'Carrera actualizada.', career });
+  } catch (err) {
+    if (handleValidation(err, res)) return;
+    throw err;
+  }
+}, adminErrorMap, 'updateCareer');
+
 export const createAdminUser = asyncHandler(async (req: AuthRequest, res: Response) => {
   try {
     const user = await adminService.createAdminUser(req.body);

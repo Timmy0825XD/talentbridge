@@ -16,7 +16,7 @@ const candidateSelect = {
   id: true,
   userId: true,
   fullName: true,
-  career: true,
+  career: { select: { id: true, name: true } },
   skills: true,
   softSkills: true,
   workMode: true,
@@ -50,7 +50,9 @@ export async function searchCandidates(userId: string, query: CandidateSearchQue
   ];
 
   if (query.career) {
-    andConditions.push({ career: { contains: query.career, mode: 'insensitive' } });
+    andConditions.push({
+      career: { name: { contains: query.career, mode: 'insensitive' } },
+    });
   }
   if (query.workMode) {
     andConditions.push({ workMode: query.workMode });
@@ -63,7 +65,7 @@ export async function searchCandidates(userId: string, query: CandidateSearchQue
       OR: [
         { fullName: { contains: query.search, mode: 'insensitive' } },
         { summary: { contains: query.search, mode: 'insensitive' } },
-        { career: { contains: query.search, mode: 'insensitive' } },
+        { career: { name: { contains: query.search, mode: 'insensitive' } } },
       ],
     });
   }
@@ -94,7 +96,8 @@ export async function searchCandidates(userId: string, query: CandidateSearchQue
       id: c.id,
       userId: c.userId,
       fullName: c.fullName,
-      career: c.career,
+      career: c.career?.name ?? null,
+      careerId: c.career?.id ?? null,
       skills: c.skills,
       softSkills: c.softSkills,
       workMode: c.workMode,

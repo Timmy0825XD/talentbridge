@@ -13,6 +13,7 @@ export async function applyToJob(userId: string, jobId: string) {
     }),
     prisma.candidateProfile.findUnique({
       where: { userId },
+      include: { career: { select: { name: true } } },
     }),
   ]);
 
@@ -46,7 +47,7 @@ export async function applyToJob(userId: string, jobId: string) {
     languages:     candidate.languages,
     projects:      candidate.projects,
     certifications: candidate.certifications,
-    career:        candidate.career,
+    career:        candidate.career?.name ?? null,
     universityId:  candidate.universityId,
     semester:      candidate.semester,
     graduationYear: candidate.graduationYear,
@@ -62,7 +63,7 @@ export async function applyToJob(userId: string, jobId: string) {
   // ── CAPA 2: Score de compatibilidad con IA (Gemini) ──────────────────────
   const aiResult = await scoreCompatibility(
     {
-      career:         candidate.career,
+      career:         candidate.career?.name ?? null,
       skills:         candidate.skills,
       softSkills:     candidate.softSkills,
       languages:      candidate.languages,
@@ -134,7 +135,7 @@ export async function getJobApplicants(userId: string, jobId: string) {
         select: {
           id: true,
           fullName: true,
-          career: true,
+          career: { select: { id: true, name: true } },
           university: { select: { id: true, name: true } },
           skills: true,
           softSkills: true,

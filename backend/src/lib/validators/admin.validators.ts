@@ -32,3 +32,12 @@ export const createAdminUserSchema = z.object({
   email: z.string().email('Correo inválido.'),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres.'),
 });
+
+export const createCareerSchema = z.object({
+  name: z.string().min(2, 'Nombre de carrera requerido.'),
+});
+
+export const updateCareerSchema = z.object({
+  name: z.string().min(2).optional(),
+  isActive: z.boolean().optional(),
+});

@@ -8,6 +8,8 @@ import {
   profilePhotoErrorMap,
 } from '../lib/errors/error-maps/profile.errors';
 import * as profileService from '../services/profile.service';
+import { upsertCandidateProfileSchema } from '../lib/validators/profile.validators';
+import { formatFirstZodIssue } from '../lib/validation/zod-utils';
 
 export const getCandidateProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
   const profile = await profileService.getCandidateProfile(req.user!.userId);
@@ -15,7 +17,11 @@ export const getCandidateProfile = asyncHandler(async (req: AuthRequest, res: Re
 }, undefined, 'getCandidateProfile');
 
 export const updateCandidateProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const profile = await profileService.upsertCandidateProfile(req.user!.userId, req.body);
+  const parsed = upsertCandidateProfileSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: formatFirstZodIssue(parsed.error) });
+  }
+  const profile = await profileService.upsertCandidateProfile(req.user!.userId, parsed.data);
   res.json(profile);
 }, profileErrorMap, 'updateCandidateProfile');
 
@@ -34,13 +40,18 @@ export const uploadCv = asyncHandler(async (req: AuthRequest, res: Response) => 
     return res.status(400).json({ error: 'No se recibió ningún archivo.' });
   }
 
-  const cvUrl = await profileService.uploadCvToStorage(
+  const result = await profileService.uploadCvToStorage(
     req.user!.userId,
     req.file.buffer,
     req.file.originalname
   );
 
-  res.json({ message: 'CV cargado exitosamente.', cvUrl });
+  res.json({
+    message: 'CV cargado exitosamente.',
+    cvUrl: result.cvUrl,
+    suggestedUniversityId: result.suggestedUniversityId,
+    suggestedCareerId: result.suggestedCareerId,
+  });
 }, profileCvErrorMap, 'uploadCv');
 
 export const extractCv = asyncHandler(async (req: AuthRequest, res: Response) => {

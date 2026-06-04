@@ -9,13 +9,16 @@ import { prisma } from '../lib/prisma';
 import { validateWeightsSum } from '../lib/global-rank-config';
 import {
   createAdminUserSchema,
+  createCareerSchema,
   createUniversitySchema,
   moderateJobSchema,
+  updateCareerSchema,
   updateRankingWeightsSchema,
   updateUniversitySchema,
   updateUserStatusSchema,
 } from '../lib/validators/admin.validators';
 import { createUniversityWithAccount } from './university-create.service';
+import { createCareerRecord } from './career.service';
 import { formatFirstZodIssue } from '../lib/validation/zod-utils';
 
 function parsePagination(query: Record<string, unknown>) {
@@ -250,6 +253,42 @@ export async function updateUniversity(universityId: string, body: unknown) {
   });
 
   return updated;
+}
+
+export async function listCareers() {
+  return prisma.career.findMany({
+    orderBy: { name: 'asc' },
+  });
+}
+
+export async function createCareer(body: unknown) {
+  const parsed = createCareerSchema.safeParse(body);
+  if (!parsed.success) throw new Error(`VALIDATION:${formatFirstZodIssue(parsed.error)}`);
+
+  return createCareerRecord(parsed.data.name);
+}
+
+export async function updateCareer(careerId: string, body: unknown) {
+  const parsed = updateCareerSchema.safeParse(body);
+  if (!parsed.success) throw new Error(`VALIDATION:${formatFirstZodIssue(parsed.error)}`);
+
+  const career = await prisma.career.findUnique({ where: { id: careerId } });
+  if (!career) throw new Error('CAREER_NOT_FOUND');
+
+  if (parsed.data.name && parsed.data.name !== career.name) {
+    const duplicate = await prisma.career.findFirst({
+      where: { name: parsed.data.name, id: { not: careerId } },
+    });
+    if (duplicate) throw new Error('CAREER_NAME_TAKEN');
+  }
+
+  return prisma.career.update({
+    where: { id: careerId },
+    data: {
+      ...(parsed.data.name ? { name: parsed.data.name } : {}),
+      ...(parsed.data.isActive !== undefined ? { isActive: parsed.data.isActive } : {}),
+    },
+  });
 }
 
 export async function createAdminUser(body: unknown) {

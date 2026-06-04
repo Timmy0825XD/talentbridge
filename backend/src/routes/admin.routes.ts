@@ -17,6 +17,9 @@ router.put('/ranking-weights', adminController.updateRankingWeights);
 router.get('/universities', adminController.listUniversities);
 router.post('/universities', adminController.createUniversity);
 router.patch('/universities/:id', adminController.updateUniversity);
+router.get('/careers', adminController.listCareers);
+router.post('/careers', adminController.createCareer);
+router.patch('/careers/:id', adminController.updateCareer);
 router.post('/admins', adminController.createAdminUser);
 
 export default router;

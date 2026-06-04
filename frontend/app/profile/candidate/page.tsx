@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import api from "@/src/lib/api";
-import { useCandidateProfile, useKeywords, useUniversities } from "@/src/hooks/queries";
+import { useCandidateProfile, useKeywords, useUniversities, useCareers } from "@/src/hooks/queries";
 import InfoCallout from "@/src/components/info/InfoCallout";
 import UniversitySelect from "@/src/components/profile/UniversitySelect";
+import CareerSelect from "@/src/components/profile/CareerSelect";
 import {
   ArrowLeft, Save, Upload, X, FileText, User, GraduationCap,
   Briefcase, Wrench, Plus, Globe, Award, FolderGit2, Camera,
@@ -26,7 +27,7 @@ const EMPTY_FORM = {
   fullName:            "",
   phone:               "",
   summary:             "",
-  career:              "",
+  careerId:            null as string | null,
   universityId:        null as string | null,
   semester:            "",
   graduationYear:      "",
@@ -131,8 +132,10 @@ export default function CandidateProfilePage() {
   const { data: profileData }    = useCandidateProfile(!!user, user?.userId);
   const { data: keywordsData }   = useKeywords(!!user);
   const { data: universitiesData } = useUniversities(!!user);
+  const { data: careersData } = useCareers(!!user);
   const keywords     = (keywordsData as Keyword[] | undefined) ?? EMPTY_KEYWORDS;
   const universities = universitiesData ?? [];
+  const careers = careersData ?? [];
 
   useEffect(() => {
     if (!isLoading && !user) router.replace("/auth/login");
@@ -146,7 +149,7 @@ export default function CandidateProfilePage() {
       fullName:       d.fullName       ?? "",
       phone:          d.phone          ?? "",
       summary:        d.summary        ?? "",
-      career:         d.career         ?? "",
+      careerId:       d.careerId       ?? d.career?.id ?? null,
       universityId:   d.universityId   ?? d.university?.id ?? null,
       semester:       d.semester       != null ? String(d.semester) : "",
       graduationYear: d.graduationYear != null ? String(d.graduationYear) : "",
@@ -195,13 +198,17 @@ export default function CandidateProfilePage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (!form.universityId || !form.careerId) {
+      toast.error('Selecciona universidad y carrera del catálogo antes de guardar.');
+      return;
+    }
     setSaving(true);
     const payload: Record<string, unknown> = {
       fullName:      form.fullName,
       phone:         form.phone         || undefined,
       summary:       form.summary       || undefined,
-      career:        form.career        || undefined,
-      universityId:  form.universityId  || null,
+      universityId:  form.universityId,
+      careerId:      form.careerId,
       workMode:      form.workMode,
       salaryExpected: form.salaryExpected ? Number(form.salaryExpected) : undefined,
       skills:        form.skills,
@@ -232,7 +239,16 @@ export default function CandidateProfilePage() {
     try {
       const res = await api.post("/profile/candidate/cv", fd, { headers: { "Content-Type": "multipart/form-data" } });
       set("cvUrl", res.data.cvUrl ?? "");
-      toast.success('CV subido exitosamente.');
+      if (res.data.suggestedUniversityId && !form.universityId) {
+        set("universityId", res.data.suggestedUniversityId);
+      }
+      if (res.data.suggestedCareerId && !form.careerId) {
+        set("careerId", res.data.suggestedCareerId);
+      }
+      const suggested = res.data.suggestedUniversityId || res.data.suggestedCareerId;
+      toast.success(suggested
+        ? 'CV subido. Se detectaron universidad o carrera del catálogo.'
+        : 'CV subido exitosamente.');
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
@@ -281,9 +297,11 @@ export default function CandidateProfilePage() {
   const techKeywords = keywords.filter(k => k.type === "TECHNICAL");
   const softKeywords = keywords.filter(k => k.type === "SOFT");
   const selectedUniversityName = universities.find(u => u.id === form.universityId)?.name ?? (profileData?.university?.name ?? null);
+  const selectedCareerName = careers.find(c => c.id === form.careerId)?.name ?? (profileData?.career?.name ?? null);
+  const needsCatalogUpdate = profileData && (!profileData.universityId || !profileData.careerId);
 
   const totalFields  = 8;
-  const filledFields = [form.fullName, form.summary, form.career, form.universityId, form.skills.length > 0, form.cvUrl, form.photoUrl, form.certifications.length > 0 || form.projects.length > 0].filter(Boolean).length;
+  const filledFields = [form.fullName, form.summary, form.careerId, form.universityId, form.skills.length > 0, form.cvUrl, form.photoUrl, form.certifications.length > 0 || form.projects.length > 0].filter(Boolean).length;
   const profilePct   = Math.round((filledFields / totalFields) * 100);
 
   const sectionCard = "bg-white rounded-2xl sm:rounded-3xl border border-[#e6e8ea] overflow-hidden shadow-sm";
@@ -333,7 +351,7 @@ export default function CandidateProfilePage() {
                 {form.fullName || "Tu nombre aquí"}
               </h1>
               <p className="text-white/60 text-sm sm:text-lg font-medium truncate max-w-sm sm:max-w-none">
-                {form.career || "Carrera"}{selectedUniversityName ? ` · ${selectedUniversityName}` : ""}
+                {selectedCareerName || "Carrera"}{selectedUniversityName ? ` · ${selectedUniversityName}` : ""}
               </p>
               <div className="flex flex-wrap gap-2 sm:gap-3 mt-4 justify-center sm:justify-start">
                 {form.cvUrl && (
@@ -474,13 +492,18 @@ export default function CandidateProfilePage() {
                 </div>
               </div>
               <div className={`${sectionBody} grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6`}>
+                {needsCatalogUpdate && (
+                  <div className="md:col-span-2 p-4 bg-[#fff3cd] border border-[#ffc107]/30 rounded-xl text-sm text-[#7c5c00]">
+                    Actualiza tu universidad y carrera seleccionándolas del catálogo oficial para vincularte correctamente con tu institución.
+                  </div>
+                )}
                 <div className="md:col-span-2">
                   <label className={lbl}>Universidad</label>
-                  <UniversitySelect value={form.universityId} onChange={id => set("universityId", id)} universities={universities} placeholder="Buscar universidad..." />
+                  <UniversitySelect value={form.universityId} onChange={id => set("universityId", id)} universities={universities} placeholder="Buscar universidad..." required />
                 </div>
                 <div className="md:col-span-2">
                   <label className={lbl}>Carrera</label>
-                  <input type="text" value={form.career} onChange={e => set("career", e.target.value)} placeholder="e.j. Ingeniería de Sistemas" className={inp} />
+                  <CareerSelect value={form.careerId} onChange={id => set("careerId", id)} careers={careers} placeholder="Buscar carrera..." required />
                 </div>
                 {user.role === "STUDENT" && (
                   <div>

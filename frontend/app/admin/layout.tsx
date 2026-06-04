@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import {
   LayoutDashboard, Users, Briefcase, Scale,
-  Building2, UserPlus, LogOut, Shield,
+  Building2, GraduationCap, UserPlus, LogOut, Shield,
 } from "lucide-react";
 
 const navLinks = [
@@ -15,6 +15,7 @@ const navLinks = [
   { label: "Vacantes",      href: "/admin/vacantes",       icon: Briefcase },
   { label: "Pesos ranking", href: "/admin/pesos-ranking",  icon: Scale },
   { label: "Universidades", href: "/admin/universidades",  icon: Building2 },
+  { label: "Carreras",        href: "/admin/carreras",       icon: GraduationCap },
   { label: "Crear admin",   href: "/admin/admins",         icon: UserPlus },
 ];
 

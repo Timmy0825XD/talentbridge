@@ -13,6 +13,8 @@ export interface CvExtractionResult {
   certifications: { name: string; issuer?: string; year?: number }[];
   projects: { title: string; description?: string; url?: string }[];
   summary: string | null;
+  universityName: string | null;
+  careerName: string | null;
 }
 
 // ─── HELPER: llamar a Gemini con retry ───────────────────────────────────────
@@ -186,7 +188,9 @@ Responde ÚNICAMENTE con JSON válido:
   "languages": [{"language": "nombre", "level": "nivel"}],
   "certifications": [{"name": "nombre", "issuer": "entidad o null", "year": número o null}],
   "projects": [{"title": "título", "description": "descripción breve", "url": "url o null"}],
-  "summary": "resumen profesional generado o null"
+  "summary": "resumen profesional generado o null",
+  "universityName": "nombre de la universidad donde estudió o null",
+  "careerName": "nombre de la carrera o programa académico o null"
 }`;
 
     const text = await callGemini(prompt);
@@ -199,6 +203,8 @@ Responde ÚNICAMENTE con JSON válido:
       certifications: parsed.certifications ?? [],
       projects: parsed.projects ?? [],
       summary: parsed.summary ?? null,
+      universityName: parsed.universityName ?? null,
+      careerName: parsed.careerName ?? null,
     };
   } catch (err: any) {
     console.log('Gemini extractCvProfile error:', err.message);
@@ -209,6 +215,8 @@ Responde ÚNICAMENTE con JSON válido:
       certifications: [],
       projects: [],
       summary: null,
+      universityName: null,
+      careerName: null,
     };
   }
 }

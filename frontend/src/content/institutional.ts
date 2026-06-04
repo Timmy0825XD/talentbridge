@@ -84,7 +84,7 @@ export const institutionalContent = {
       {
         title: "Tu Perfil Profesional",
         content:
-          "Crea un perfil completo con tu información académica, habilidades técnicas y blandas, idiomas, proyectos y certificaciones. El sistema evalúa tu perfil automáticamente y te asigna un puntaje de 0 a 100 puntos basado en: habilidades técnicas (30%), experiencia y proyectos (25%), formación académica (15%), certificaciones (10%), reputación (10%), idiomas (5%) y completitud del perfil (5%).",
+          "Crea un perfil completo con tu información académica, habilidades técnicas y blandas, idiomas, proyectos y certificaciones. Debes seleccionar tu universidad y carrera desde el catálogo oficial (no texto libre), para que tu institución y las empresas vean datos consistentes. El sistema evalúa tu perfil automáticamente y te asigna un puntaje de 0 a 100 puntos.",
       },
       {
         title: "Constructor de CV y Score",
@@ -156,7 +156,7 @@ export const institutionalContent = {
       {
         title: "Vinculación de Estudiantes",
         content:
-          "Las métricas se calculan automáticamente comparando el nombre de la institución registrado en el perfil del candidato con el de tu cuenta institucional. Puedes verificar manualmente la condición de egresado cuando el sistema no pueda hacerlo automáticamente por correo institucional.",
+          "Las métricas se calculan cuando el candidato selecciona tu universidad en el catálogo (universityId) al completar su perfil. Solo se incluyen cuentas verificadas y activas. Invita a estudiantes y egresados a registrarse y elegir la institución correcta en el perfil candidato.",
       },
       {
         title: "Mejora Curricular",

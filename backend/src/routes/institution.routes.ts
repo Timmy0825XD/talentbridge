@@ -7,5 +7,7 @@ const router = Router();
 router.use(authenticate, authorize('INSTITUTION'));
 
 router.get('/dashboard', institutionController.getDashboard);
+router.get('/candidates', institutionController.getCandidates);
+router.get('/analytics', institutionController.getAnalytics);
 
 export default router;
