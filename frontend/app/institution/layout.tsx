@@ -1,14 +1,30 @@
 "use client";
 
 import { useAuth } from "@/src/context/auth-context";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import Link from "next/link";
-import { LogOut, GraduationCap } from "lucide-react";
+import {
+  LayoutDashboard, Users, TrendingUp, BookOpen, LogOut, GraduationCap,
+} from "lucide-react";
+import { publicLinks } from "@/src/content/site-links";
+
+const navLinks = [
+  { label: "Dashboard", href: "/institution", icon: LayoutDashboard },
+  { label: "Estudiantes y egresados", href: "/institution/egresados", icon: Users },
+  { label: "Empleabilidad", href: "/institution/empleabilidad", icon: TrendingUp },
+  { label: "Guía", href: publicLinks.universities, icon: BookOpen, external: true },
+];
+
+function isNavActive(pathname: string, href: string): boolean {
+  if (href === "/institution") return pathname === href;
+  return pathname === href || pathname.startsWith(href + "/");
+}
 
 export default function InstitutionLayout({ children }: { children: React.ReactNode }) {
   const { user, logout, isLoading } = useAuth();
-  const router = useRouter();
+  const router   = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== "INSTITUTION")) router.replace("/");
@@ -23,26 +39,51 @@ export default function InstitutionLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f9fb]">
-      <header className="fixed top-0 left-0 w-full z-50 bg-white/80 backdrop-blur-md shadow-sm">
-        <div className="flex justify-between items-center w-full px-8 py-4 max-w-screen-2xl mx-auto">
-          <Link href="/institution"
-            className="flex items-center gap-2 text-2xl font-black text-[#00386c] tracking-tighter font-headline hover:opacity-80 transition-opacity">
-            <GraduationCap className="w-6 h-6" />
-            TalentBridge
+    <div className="min-h-screen bg-[#f7f9fb] flex">
+      <aside className="fixed top-0 left-0 h-full w-60 bg-[#00386c] flex flex-col z-50">
+        <div className="px-6 py-5 border-b border-white/10">
+          <Link href="/institution" className="flex items-center gap-2">
+            <GraduationCap className="w-5 h-5 text-[#6bfe9c]" />
+            <span className="text-white font-headline font-black text-lg tracking-tight">Institución</span>
           </Link>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#00386c] flex items-center justify-center">
-              <GraduationCap className="w-5 h-5 text-white" />
-            </div>
-            <button onClick={logout}
-              className="p-2 rounded-full hover:bg-[#ffdad6] transition-colors group" title="Cerrar sesión">
-              <LogOut className="w-5 h-5 text-[#424750] group-hover:text-[#ba1a1a] transition-colors" />
-            </button>
-          </div>
+          <p className="text-white/40 text-xs mt-0.5">TalentBridge</p>
         </div>
-      </header>
-      <div className="pt-20">{children}</div>
+
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          {navLinks.map(({ label, href, icon: Icon, external }) => {
+            const active = !external && isNavActive(pathname, href);
+            const cls = `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+              active
+                ? "bg-[#6bfe9c]/15 text-[#6bfe9c]"
+                : "text-white/60 hover:text-white hover:bg-white/5"
+            }`;
+            if (external) {
+              return (
+                <a key={href} href={href} target="_blank" rel="noopener noreferrer" className={cls}>
+                  <Icon className="w-4 h-4 flex-shrink-0" />
+                  {label}
+                </a>
+              );
+            }
+            return (
+              <Link key={href} href={href} className={cls}>
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="px-3 py-4 border-t border-white/10">
+          <button onClick={logout}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-white/60 hover:text-white hover:bg-white/5 transition-all w-full">
+            <LogOut className="w-4 h-4" />
+            Cerrar sesión
+          </button>
+        </div>
+      </aside>
+
+      <main className="flex-1 ml-60 min-h-screen">{children}</main>
     </div>
   );
 }

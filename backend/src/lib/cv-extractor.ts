@@ -90,7 +90,7 @@ export async function extractCvIntelligent(cvUrl: string): Promise<CvExtractionR
 
     if (!rawText || rawText.trim().length < 50) {
       console.log('PDF sin texto suficiente para extraer');
-      return { skills: [], softSkills: [], languages: [], certifications: [], projects: [], summary: null };
+      return { skills: [], softSkills: [], languages: [], certifications: [], projects: [], summary: null, universityName: null, careerName: null };
     }
 
     // 3. Cargar keywords existentes para que Gemini normalice contra ellas
@@ -122,10 +122,15 @@ export async function extractCvIntelligent(cvUrl: string): Promise<CvExtractionR
       certifications: extracted.certifications,
       projects: extracted.projects,
       summary: extracted.summary,
+      universityName: extracted.universityName,
+      careerName: extracted.careerName,
     };
   } catch (err: any) {
     console.log('extractCvIntelligent error:', err.message);
-    return { skills: [], softSkills: [], languages: [], certifications: [], projects: [], summary: null };
+    return {
+      skills: [], softSkills: [], languages: [], certifications: [], projects: [],
+      summary: null, universityName: null, careerName: null,
+    };
   }
 }
 

@@ -20,6 +20,17 @@ export async function getCandidateOrThrow(userId: string) {
   return candidate;
 }
 
+export async function getInstitutionProfileByUserId(userId: string) {
+  return prisma.institutionProfile.findUnique({ where: { userId } });
+}
+
+export async function getInstitutionProfileOrThrow(userId: string) {
+  const profile = await getInstitutionProfileByUserId(userId);
+  if (!profile) throw new Error('INSTITUTION_PROFILE_NOT_FOUND');
+  if (!profile.isActive) throw new Error('INSTITUTION_INACTIVE');
+  return profile;
+}
+
 export async function assertContractAccess(
   userId: string,
   contract: { companyId: string; candidateId: string }

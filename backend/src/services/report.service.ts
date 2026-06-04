@@ -43,7 +43,7 @@ export async function generateContractReportPdf(
   const contract = await prisma.contract.findFirst({
     where: { id: contractId, companyId: company.id },
     include: {
-      candidate: { select: { fullName: true, career: true } },
+      candidate: { select: { fullName: true, career: { select: { name: true } } } },
       company: { select: { companyName: true } },
       job: { select: { title: true, area: true, duration: true } },
       payments: true,
@@ -80,7 +80,7 @@ export async function generateContractReportPdf(
     doc.moveDown();
     doc.fontSize(12).text(`Contrato: ${contract.title}`);
     doc.text(`Empresa: ${contract.company.companyName ?? '—'}`);
-    doc.text(`Candidato: ${contract.candidate.fullName ?? '—'} (${contract.candidate.career ?? '—'})`);
+    doc.text(`Candidato: ${contract.candidate.fullName ?? '—'} (${contract.candidate.career?.name ?? '—'})`);
     doc.text(`Vacante: ${contract.job.title}`);
     doc.moveDown();
 

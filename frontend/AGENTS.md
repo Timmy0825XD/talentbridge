@@ -56,7 +56,10 @@ frontend/
 │   │   ├── page.tsx
 │   │   ├── usuarios/, vacantes/, pesos-ranking/, admins/
 │   │   └── instituciones/page.tsx            # CRUD vía /admin/universities (ruta UI histórica)
-│   ├── institution/                          # ← FUERA de dashboard/
+│   ├── institution/                          # ← FUERA de dashboard/ (sidebar + egresados + empleabilidad)
+│   │   ├── layout.tsx, page.tsx
+│   │   ├── egresados/page.tsx
+│   │   └── empleabilidad/page.tsx
 │   ├── dashboard/                            # Solo candidato y empresa
 │   │   ├── candidate/... (+ contratos, explorar, postulaciones)
 │   │   └── company/... (+ vacantes, contratos, talento, beneficios-tributarios)
@@ -71,12 +74,14 @@ frontend/
 │   │   ├── use-applications.ts, use-candidates.ts, use-contracts.ts
 │   │   ├── use-dashboard.tsx, use-jobs.ts, use-keywords.ts
 │   │   ├── use-profile.ts, use-ranking.ts
-│   │   └── use-universities.ts               # GET /universities
+│   │   ├── use-universities.ts               # GET /universities
+│   │   └── use-institution.ts                # GET /institution/*
 │   ├── lib/api.ts, query-client.ts
 │   ├── context/auth-context.tsx
 │   ├── components/
 │   │   ├── contracts/                        # DeliverablesPanel, RatingsPanel, skeletons
-│   │   └── profile/UniversitySelect.tsx      # Autocompletado catálogo universidades
+│   │   ├── profile/UniversitySelect.tsx, CareerSelect.tsx, CatalogSelect.tsx
+│   │   └── institution/LinkStudentsCallout.tsx
 │   └── content/                              # Textos estáticos (faq, legal, etc.)
 ```
 
@@ -87,7 +92,7 @@ frontend/
 | STUDENT / GRADUATE | `/dashboard/candidate` | `dashboard/layout.tsx` |
 | COMPANY | `/dashboard/company` | `dashboard/layout.tsx` |
 | ADMIN | `/admin` | `admin/layout.tsx` — sidebar oscuro independiente |
-| INSTITUTION | `/institution` | `institution/layout.tsx` — header propio independiente |
+| INSTITUTION | `/institution` | `institution/layout.tsx` — sidebar azul independiente |
 
 **NUNCA** poner rutas de ADMIN o INSTITUTION dentro de `dashboard/` — heredarían el header de candidato/empresa.
 
@@ -120,6 +125,10 @@ frontend/
 | `useCompanyDashboard` | GET `/dashboard/company` |
 | `useCandidateDashboard` | GET `/dashboard/candidate` |
 | `useUniversities` | GET `/universities` (staleTime 5 min) |
+| `useCareers` | GET `/careers` (staleTime 5 min) |
+| `useInstitutionDashboard` | GET `/institution/dashboard` |
+| `useInstitutionCandidates` | GET `/institution/candidates` |
+| `useInstitutionAnalytics` | GET `/institution/analytics` |
 
 ---
 
@@ -157,8 +166,9 @@ Autocomplete del catálogo (`GET /universities`). Usar con `useUniversities()` e
 />
 ```
 
-- Enviar `universityId` (UUID o `null`) en `PUT /profile/candidate` — no texto libre
-- Respuesta de perfil puede incluir `universityId` y/o `university: { id, name }`
+- Enviar `universityId` y `careerId` (UUID obligatorios) en `PUT /profile/candidate` — no texto libre ni campos `career`/`institution`
+- Respuesta de perfil: `university: { id, name }`, `career: { id, name }`
+- `UniversitySelect` / `CareerSelect`: solo selección del catálogo (no guardar texto escrito)
 
 ### DeliverablesPanel
 ```tsx
@@ -222,9 +232,17 @@ Ignorar `id` y `updatedAt` al iterar — usar lista fija de claves de peso.
 
 ## Panel Institución — /institution
 
-Layout independiente con header simple. Guard: redirige a `/` si no es INSTITUTION.
+Layout independiente con **sidebar** (`#00386c`). Guard: redirige a `/` si no es INSTITUTION.
 
-- `GET /institution/dashboard` → metrics (estudiantes, egresados, tasa inserción, contratos), topSkills, contractsByArea.
+| Ruta | Hook | Contenido |
+|---|---|---|
+| `/institution` | `useInstitutionDashboard` | Hero, embudo, skills mercado vs vinculados, brechas |
+| `/institution/egresados` | `useInstitutionCandidates` | Tabla paginada, filtros, export CSV |
+| `/institution/empleabilidad` | `useInstitutionAnalytics` | Por carrera, tendencias 12 meses, áreas |
+
+- `GET /institution/dashboard` → `metrics`, `funnel`, `marketDemandSkills`, `graduateSkills`, `skillsGap`
+- `GET /institution/candidates` → query: `role`, `career`, `status`, `search`, `page`, `limit`
+- `GET /institution/analytics` → `byCareer`, `insertionTrend`, `applicationsTrend`, `topHiringAreas`, `avgGraduateScore`
 
 ---
 
@@ -248,6 +266,8 @@ Layout independiente con header simple. Guard: redirige a `/` si no es INSTITUTI
 | POST | `/auth/*` | auth pages | ✅ |
 | GET/PUT | `/profile/candidate` | perfil candidato (`universityId`) | ✅ |
 | GET | `/universities` | perfil candidato, UniversitySelect | ✅ |
+| GET | `/careers` | perfil candidato, CareerSelect | ✅ |
+| GET/POST/PATCH | `/admin/careers` | /admin/carreras | ✅ |
 | POST | `/profile/candidate/cv` | perfil candidato | ✅ |
 | POST | `/profile/candidate/photo` | perfil candidato (2MB) | ✅ |
 | GET/PUT | `/profile/company` | perfil empresa | ✅ |
@@ -289,6 +309,8 @@ Layout independiente con header simple. Guard: redirige a `/` si no es INSTITUTI
 | GET/POST/PATCH | `/admin/universities*` | /admin/instituciones | ✅ |
 | POST | `/admin/admins` | /admin/admins | ✅ |
 | GET | `/institution/dashboard` | /institution | ✅ |
+| GET | `/institution/candidates` | /institution/egresados | ✅ |
+| GET | `/institution/analytics` | /institution/empleabilidad | ✅ |
 
 ---
 
@@ -317,8 +339,11 @@ Layout independiente con header simple. Guard: redirige a `/` si no es INSTITUTI
 | `/admin/vacantes` | ✅ Sprint 4 |
 | `/admin/pesos-ranking` | ✅ Sprint 4 |
 | `/admin/instituciones` | ✅ CRUD universidades (API `/admin/universities`) |
+| `/admin/carreras` | ✅ CRUD carreras (API `/admin/careers`) |
 | `/admin/admins` | ✅ Sprint 4 |
-| `/institution` | ✅ Sprint 4 |
+| `/institution` | ✅ dashboard ampliado |
+| `/institution/egresados` | ✅ listado + CSV |
+| `/institution/empleabilidad` | ✅ analytics |
 
 ---
 

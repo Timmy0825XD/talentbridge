@@ -2,35 +2,35 @@
 
 import CatalogSelect, { type CatalogOption } from "./CatalogSelect";
 
-export type UniversityOption = CatalogOption;
+export type CareerOption = CatalogOption;
 
-interface UniversitySelectProps {
+interface CareerSelectProps {
   value: string | null;
   onChange: (id: string | null) => void;
-  universities: UniversityOption[];
+  careers: CareerOption[];
   placeholder?: string;
   className?: string;
   required?: boolean;
 }
 
-export default function UniversitySelect({
+export default function CareerSelect({
   value,
   onChange,
-  universities,
-  placeholder = "Buscar universidad...",
+  careers,
+  placeholder = "Buscar carrera...",
   className = "",
   required = true,
-}: UniversitySelectProps) {
+}: CareerSelectProps) {
   return (
     <CatalogSelect
       value={value}
       onChange={onChange}
-      options={universities}
+      options={careers}
       placeholder={placeholder}
       className={className}
       required={required}
-      emptyMessage="No se encontraron universidades en el catálogo."
-      hint="Selecciona tu universidad del listado. Si no aparece, contacta al administrador."
+      emptyMessage="No se encontraron carreras en el catálogo."
+      hint="Selecciona tu carrera del listado. Si no aparece, contacta al administrador."
     />
   );
 }

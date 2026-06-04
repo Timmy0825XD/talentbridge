@@ -337,6 +337,7 @@ Ver plantilla completa en `backend/.env.example`.
 | Panel ADMIN | 4 | Métricas, usuarios, moderación, pesos globales, CRUD universidades |
 | Panel INSTITUTION | 4 | `GET /institution/dashboard` (métricas por `universityId`) |
 | Catálogo de universidades | 5 | Modelo `University`, `GET /universities`, `universityId` en perfil candidato |
+| Catálogo de carreras | 6 | Modelo `Career`, `GET /careers`, `careerId` en perfil candidato (sin texto libre) |
 | Admin universidades + cuentas INSTITUTION | 5 | `POST /admin/universities` crea universidad + usuario institución + credenciales |
 
 ### Pendiente
@@ -407,7 +408,7 @@ enum RatingRaterRole { COMPANY CANDIDATE }
 ### Reglas de datos
 
 - Perfiles: siempre **`upsert`**, nunca `create` + `update` separados
-- Candidato: `universityId` opcional — debe existir en catálogo y `isActive: true` (no texto libre)
+- Candidato: `universityId` y `careerId` obligatorios al guardar perfil — deben existir en catálogo y `isActive: true` (Zod strict, sin `career`/`institution` texto)
 - Institución: cada `InstitutionProfile` enlaza **exactamente una** `University` (`universityId` único)
 - Crear universidad (admin/seed): `createUniversityWithAccount()` — slug, email `{slug}@institucion.talentbridge.local`, rol `INSTITUTION`
 - `scoreAtApply` se congela al postular — no se recalcula si el perfil cambia después
@@ -507,6 +508,8 @@ Authorization: Bearer <JWT>
 | Método | Ruta | Roles | Notas |
 |---|---|---|---|
 | GET | `/universities` | Autenticado | Solo activas; respuesta `[{ id, name }]` |
+| GET | `/careers` | Autenticado | Solo activas; respuesta `[{ id, name }]` |
+| GET/POST/PATCH | `/admin/careers` | ADMIN | CRUD catálogo carreras |
 
 ### Notificaciones — `/api/notifications`
 
@@ -559,7 +562,9 @@ Body `POST /telegram/register`: `{ userId, chatId }`
 
 | Método | Ruta | Roles |
 |---|---|---|
-| GET | `/institution/dashboard` | INSTITUTION — métricas filtradas por `universityId` del perfil |
+| GET | `/institution/dashboard` | INSTITUTION — métricas, embudo, skills mercado/vinculados, brechas |
+| GET | `/institution/candidates` | INSTITUTION — listado paginado vinculados (`role`, `career`, `status`, `search`, `page`, `limit`) |
+| GET | `/institution/analytics` | INSTITUTION — por carrera, tendencias 12 meses, áreas contratación, score promedio |
 
 ### Contratos, pagos y entregables — `/api/contracts`
 

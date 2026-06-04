@@ -69,7 +69,7 @@ model CandidateProfile {
   phone          String?
   photoUrl       String?
   summary        String?
-  career         String?
+  careerId       String?
   semester       Int?
   graduationYear Int?
   universityId   String?
@@ -94,8 +94,9 @@ model CandidateProfile {
 
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   university University? @relation(fields: [universityId], references: [id], onDelete: SetNull)
+  career     Career?     @relation(fields: [careerId], references: [id], onDelete: SetNull)
 
-  @@index([career])
+  @@index([careerId])
   @@index([universityId])
   @@index([notificationsEnabled, telegramChatId])
   @@map("candidate_profiles")
@@ -350,6 +351,19 @@ model GlobalRankConfig {
   updatedAt        DateTime @updatedAt
 
   @@map("global_rank_config")
+}
+
+model Career {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  candidates CandidateProfile[]
+
+  @@map("careers")
 }
 
 model University {

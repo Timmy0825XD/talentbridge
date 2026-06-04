@@ -26,4 +26,13 @@ export const queryKeys = {
   universities: {
     all: ['universities', 'all'] as const,
   },
+  careers: {
+    all: ['careers', 'all'] as const,
+  },
+  institution: {
+    dashboard: (userId?: string) => ['institution', 'dashboard', userId] as const,
+    candidates: (userId?: string, params?: object) =>
+      ['institution', 'candidates', userId, params ?? {}] as const,
+    analytics: (userId?: string) => ['institution', 'analytics', userId] as const,
+  },
 } as const;

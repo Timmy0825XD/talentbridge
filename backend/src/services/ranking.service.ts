@@ -5,7 +5,7 @@ import { calculateScore } from '../lib/ranking';
 export async function computeAndSaveScore(userId: string): Promise<void> {
   const profile = await prisma.candidateProfile.findUnique({
     where: { userId },
-    include: { score: true },
+    include: { score: true, career: { select: { name: true } } },
   });
 
   if (!profile) return;
@@ -18,7 +18,7 @@ export async function computeAndSaveScore(userId: string): Promise<void> {
     languages:      profile.languages,
     projects:       profile.projects,
     certifications: profile.certifications,
-    career:         profile.career,
+    career:         profile.career?.name ?? null,
     universityId:   profile.universityId,
     semester:       profile.semester,
     graduationYear: profile.graduationYear,

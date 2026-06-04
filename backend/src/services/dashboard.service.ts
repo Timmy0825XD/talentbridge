@@ -72,7 +72,7 @@ export async function getCompanyDashboard(userId: string) {
           select: {
             id: true,
             fullName: true,
-            career: true,
+            career: { select: { name: true } },
             skills: true,
             reputationAvg: true,
             ratingCount: true,
@@ -95,7 +95,7 @@ export async function getCompanyDashboard(userId: string) {
     .map(a => ({
       id: a.candidate.id,
       fullName: a.candidate.fullName,
-      career: a.candidate.career,
+      career: a.candidate.career?.name ?? null,
       skills: a.candidate.skills,
       scoreAtApply: a.scoreAtApply,
       reputationAvg: a.candidate.ratingCount > 0 ? a.candidate.reputationAvg : null,

@@ -3,6 +3,8 @@ import { uploadToStorage } from '../lib/storage/upload';
 import { extractCvIntelligent, ExtractedKeywords } from '../lib/cv-extractor';
 import { extractCvKeywords } from '../lib/cv-extractor';
 import { computeAndSaveScore } from './ranking.service';
+import { resolveCareerIdByName, resolveUniversityIdByName } from '../lib/catalog-resolve';
+import type { UpsertCandidateProfileInput } from '../lib/validators/profile.validators';
 
 // ─── PERFIL CANDIDATO ─────────────────────────────────────────────────────────
 
@@ -11,33 +13,26 @@ export async function getCandidateProfile(userId: string) {
     where: { userId },
     include: {
       university: { select: { id: true, name: true } },
+      career: { select: { id: true, name: true } },
     },
   });
 }
 
-export async function upsertCandidateProfile(userId: string, data: {
-  fullName?: string;
-  phone?: string;
-  summary?: string;
-  career?: string;
-  semester?: number;
-  graduationYear?: number;
-  universityId?: string | null;
-  skills?: string[];
-  softSkills?: string[];
-  languages?: { language: string; level: string }[];
-  projects?: { title: string; description?: string; url?: string }[];
-  certifications?: { name: string; issuer?: string; year?: number }[];
-  salaryExpected?: number;
-  workMode?: string;
-}) {
-  if (data.universityId) {
-    const university = await prisma.university.findUnique({
-      where: { id: data.universityId },
-    });
-    if (!university) throw new Error('UNIVERSITY_NOT_FOUND');
-    if (!university.isActive) throw new Error('UNIVERSITY_INACTIVE');
-  }
+async function assertUniversityId(universityId: string) {
+  const university = await prisma.university.findUnique({ where: { id: universityId } });
+  if (!university) throw new Error('UNIVERSITY_NOT_FOUND');
+  if (!university.isActive) throw new Error('UNIVERSITY_INACTIVE');
+}
+
+async function assertCareerId(careerId: string) {
+  const career = await prisma.career.findUnique({ where: { id: careerId } });
+  if (!career) throw new Error('CAREER_NOT_FOUND');
+  if (!career.isActive) throw new Error('CAREER_INACTIVE');
+}
+
+export async function upsertCandidateProfile(userId: string, data: UpsertCandidateProfileInput) {
+  await assertUniversityId(data.universityId);
+  await assertCareerId(data.careerId);
 
   const profile = await prisma.candidateProfile.upsert({
     where: { userId },
@@ -45,6 +40,7 @@ export async function upsertCandidateProfile(userId: string, data: {
     create: { userId, ...data },
     include: {
       university: { select: { id: true, name: true } },
+      career: { select: { id: true, name: true } },
     },
   });
 
@@ -135,13 +131,46 @@ export async function uploadLogoToStorage(
   return publicUrl;
 }
 
+async function applyCvExtractionToProfile(userId: string, extracted: Awaited<ReturnType<typeof extractCvIntelligent>>) {
+  const updateData: Record<string, unknown> = {};
+
+  if (extracted.skills.length > 0) updateData.skills = extracted.skills;
+  if (extracted.softSkills.length > 0) updateData.softSkills = extracted.softSkills;
+  if (extracted.languages.length > 0) updateData.languages = extracted.languages;
+  if (extracted.certifications.length > 0) updateData.certifications = extracted.certifications;
+  if (extracted.projects.length > 0) updateData.projects = extracted.projects;
+  if (extracted.summary) updateData.summary = extracted.summary;
+
+  const profile = await prisma.candidateProfile.findUnique({ where: { userId } });
+
+  if (!profile?.universityId && extracted.universityName) {
+    const universityId = await resolveUniversityIdByName(extracted.universityName);
+    if (universityId) updateData.universityId = universityId;
+  }
+  if (!profile?.careerId && extracted.careerName) {
+    const careerId = await resolveCareerIdByName(extracted.careerName);
+    if (careerId) updateData.careerId = careerId;
+  }
+
+  if (Object.keys(updateData).length > 0) {
+    await prisma.candidateProfile.update({ where: { userId }, data: updateData });
+  }
+
+  await computeAndSaveScore(userId);
+
+  return {
+    suggestedUniversityId: (updateData.universityId as string) ?? null,
+    suggestedCareerId: (updateData.careerId as string) ?? null,
+  };
+}
+
 // ─── UPLOAD CV + EXTRACCIÓN INTELIGENTE ──────────────────────────────────────
 
 export async function uploadCvToStorage(
   userId: string,
   fileBuffer: Buffer,
-  originalName: string
-): Promise<string> {
+  _originalName: string
+): Promise<{ cvUrl: string; suggestedUniversityId: string | null; suggestedCareerId: string | null }> {
   const fileName = `${userId}_${Date.now()}.pdf`;
 
   const cvUrl = await uploadToStorage({
@@ -157,47 +186,30 @@ export async function uploadCvToStorage(
     create: { userId, cvUrl },
   });
 
-  // Extracción inteligente con Gemini en background
-  extractCvIntelligent(cvUrl).then(async (extracted) => {
-    const updateData: any = {};
-
-    if (extracted.skills.length > 0)        updateData.skills = extracted.skills;
-    if (extracted.softSkills.length > 0)    updateData.softSkills = extracted.softSkills;
-    if (extracted.languages.length > 0)     updateData.languages = extracted.languages;
-    if (extracted.certifications.length > 0) updateData.certifications = extracted.certifications;
-    if (extracted.projects.length > 0)      updateData.projects = extracted.projects;
-    if (extracted.summary)                  updateData.summary = extracted.summary;
-
-    if (Object.keys(updateData).length > 0) {
-      await prisma.candidateProfile.update({ where: { userId }, data: updateData });
-    }
-
-    await computeAndSaveScore(userId);
+  try {
+    const extracted = await extractCvIntelligent(cvUrl);
+    const suggestions = await applyCvExtractionToProfile(userId, extracted);
     console.log(`CV Intelligence completado para usuario ${userId}`);
-  }).catch(err => console.error('Error en CV Intelligence:', err));
-
-  return cvUrl;
+    return { cvUrl, ...suggestions };
+  } catch (err) {
+    console.error('Error en CV Intelligence:', err);
+    return { cvUrl, suggestedUniversityId: null, suggestedCareerId: null };
+  }
 }
 
-// ─── EXTRACCIÓN MANUAL ────────────────────────────────────────────────────────
-
-export async function extractCvManually(userId: string): Promise<ExtractedKeywords> {
+export async function extractCvManually(userId: string) {
   const profile = await prisma.candidateProfile.findUnique({ where: { userId } });
   if (!profile?.cvUrl) throw new Error('CV_NOT_FOUND');
 
-  const extracted = await extractCvKeywords(profile.cvUrl);
+  const extracted = await extractCvIntelligent(profile.cvUrl);
+  const suggestions = await applyCvExtractionToProfile(userId, extracted);
 
-  const updateData: any = {};
-  if (extracted.technical.length > 0) updateData.skills = extracted.technical;
-  if (extracted.soft.length > 0)      updateData.softSkills = extracted.soft;
-  if (extracted.languages.length > 0)
-    updateData.languages = extracted.languages.map(lang => ({
-      language: lang, level: 'No especificado'
-    }));
-
-  if (Object.keys(updateData).length > 0) {
-    await prisma.candidateProfile.update({ where: { userId }, data: updateData });
-  }
-
-  return extracted;
+  return {
+    technical: extracted.skills,
+    soft: extracted.softSkills,
+    languages: extracted.languages,
+    ...suggestions,
+  };
 }
+
+export { ExtractedKeywords, extractCvKeywords };
