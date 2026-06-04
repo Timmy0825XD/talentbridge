@@ -51,18 +51,16 @@ export default function ContratoDetallePage() {
   const params = useParams();
   const contractId = params.id as string;
 
-  const [contract,    setContract]   = useState<Contract | null>(null);
-  const [loading,     setLoading]    = useState(true);
-  const [error,       setError]      = useState("");
-  const [confirming,  setConfirming] = useState(false);
+  const [contract,   setContract]  = useState<Contract | null>(null);
+  const [loading,    setLoading]   = useState(true);
+  const [error,      setError]     = useState("");
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     if (!isLoading && user?.role === "COMPANY") router.replace("/dashboard/company/contratos");
   }, [user, isLoading, router]);
 
-  useEffect(() => {
-    if (user) loadContract();
-  }, [user, contractId]);
+  useEffect(() => { if (user) loadContract(); }, [user, contractId]);
 
   async function loadContract() {
     setLoading(true); setError("");
@@ -89,10 +87,11 @@ export default function ContratoDetallePage() {
   if (isLoading || !user || loading) return <TalentBridgeLoader />;
 
   if (error || !contract) return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#f7f9fb] text-center px-8">
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#f7f9fb] text-center px-6">
       <AlertCircle className="w-10 h-10 text-[#ba1a1a]" />
       <p className="text-[#93000a] font-semibold">{error || "Contrato no encontrado."}</p>
-      <Link href="/dashboard/candidate/contratos" className="px-6 py-2 bg-[#00386c] text-white rounded-full text-sm font-bold hover:opacity-90 transition">
+      <Link href="/dashboard/candidate/contratos"
+        className="px-6 py-2 bg-[#00386c] text-white rounded-full text-sm font-bold hover:opacity-90 transition">
         Volver a contratos
       </Link>
     </div>
@@ -106,7 +105,7 @@ export default function ContratoDetallePage() {
   return (
     <div className="min-h-screen bg-[#f7f9fb]">
 
-      {/* Hero */}
+      {/* ── Hero ── */}
       <div className="relative bg-gradient-to-r from-[#00386c] via-[#0c4783] to-[#00386c] overflow-hidden">
         <svg className="absolute inset-0 w-full h-full opacity-[0.06]" xmlns="http://www.w3.org/2000/svg">
           <defs><pattern id="cd-grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -114,23 +113,26 @@ export default function ContratoDetallePage() {
           <rect width="100%" height="100%" fill="url(#cd-grid)" />
         </svg>
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-        <div className="relative max-w-screen-md mx-auto px-8 py-8">
-          <Link href="/dashboard/candidate/contratos" className="inline-flex items-center gap-2 text-sm font-semibold text-white/60 hover:text-white transition-colors mb-4">
+        <div className="relative max-w-screen-md mx-auto px-4 sm:px-8 py-6 sm:py-8">
+          <Link href="/dashboard/candidate/contratos"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-white/60 hover:text-white transition-colors mb-4">
             <ArrowLeft className="w-4 h-4" /> Volver a mis contratos
           </Link>
-          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold mb-3 ${meta.bg} ${meta.color}`}>
+          <div className={`inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold mb-3 ${meta.bg} ${meta.color}`}>
             {meta.icon}{meta.label}
           </div>
-          <h1 className="font-headline font-extrabold text-3xl text-white tracking-tight">{contract.title}</h1>
-          <p className="text-[#a6c8ff] text-sm mt-1">Creado el {formatDate(contract.createdAt)}</p>
+          <h1 className="font-headline font-extrabold text-xl sm:text-3xl text-white tracking-tight leading-tight">
+            {contract.title}
+          </h1>
+          <p className="text-[#a6c8ff] text-xs sm:text-sm mt-1">Creado el {formatDate(contract.createdAt)}</p>
         </div>
       </div>
 
-      <div className="max-w-screen-md mx-auto px-8 py-8 space-y-5">
+      <div className="max-w-screen-md mx-auto px-4 sm:px-8 py-5 sm:py-8 space-y-4 sm:space-y-5">
 
         {/* CTA confirmación */}
         {isPending && (
-          <div className="bg-[#fff3cd] border border-[#ffc107]/30 rounded-2xl p-6">
+          <div className="bg-[#fff3cd] border border-[#ffc107]/30 rounded-2xl p-4 sm:p-6">
             <div className="flex items-start gap-3 mb-4">
               <Info className="w-5 h-5 text-[#7c5c00] flex-shrink-0 mt-0.5" />
               <div>
@@ -145,18 +147,19 @@ export default function ContratoDetallePage() {
               </div>
             )}
             <button onClick={handleConfirm} disabled={confirming || !hasPDF}
-              className="flex items-center gap-2 bg-gradient-to-br from-[#006d37] to-[#00743a] text-white px-8 py-3 rounded-full font-bold text-sm uppercase tracking-wider shadow-lg shadow-[#006d37]/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-br from-[#006d37] to-[#00743a] text-white px-6 sm:px-8 py-3 rounded-full font-bold text-sm uppercase tracking-wider shadow-lg shadow-[#006d37]/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
               {confirming ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               {confirming ? "Confirmando..." : "Confirmar y activar contrato"}
             </button>
           </div>
         )}
 
-
         {/* Detalles */}
-        <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">
-          <h2 className="text-sm font-black uppercase tracking-widest text-[#424750] mb-5">Detalles del contrato</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div className="bg-white rounded-2xl border border-[#e6e8ea] p-4 sm:p-6">
+          <h2 className="text-xs sm:text-sm font-black uppercase tracking-widest text-[#424750] mb-4 sm:mb-5">
+            Detalles del contrato
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
             {[
               { icon: <Building2 className="w-4 h-4 text-[#737781]" />, label: "Empresa", value: contract.company?.companyName ?? "—", sub: contract.company?.city },
               ...(contract.job ? [{ icon: <Briefcase className="w-4 h-4 text-[#737781]" />, label: "Vacante relacionada", value: contract.job.title }] : []),
@@ -164,17 +167,19 @@ export default function ContratoDetallePage() {
               { icon: <Calendar className="w-4 h-4 text-[#737781]" />, label: "Vigencia", value: `${formatDate(contract.startDate)}${contract.endDate ? ` — ${formatDate(contract.endDate)}` : ""}` },
             ].map(({ icon, label, value, sub, big }: { icon: React.ReactNode; label: string; value: string; sub?: string | null; big?: boolean }) => (
               <div key={label} className="flex items-start gap-3">
-                {icon}
-                <div>
+                <div className="mt-0.5 flex-shrink-0">{icon}</div>
+                <div className="min-w-0">
                   <p className="text-xs text-[#737781] font-semibold uppercase tracking-wider">{label}</p>
-                  <p className={`font-bold text-[#191c1e] mt-0.5 ${big ? "text-lg font-extrabold font-headline text-[#006d37]" : ""}`}>{value}</p>
+                  <p className={`font-bold text-[#191c1e] mt-0.5 break-words ${big ? "text-base sm:text-lg font-extrabold font-headline text-[#006d37]" : "text-sm"}`}>
+                    {value}
+                  </p>
                   {sub && <p className="text-xs text-[#737781]">{sub}</p>}
                 </div>
               </div>
             ))}
           </div>
           {contract.description && (
-            <div className="mt-5 pt-5 border-t border-[#f2f4f6]">
+            <div className="mt-4 pt-4 border-t border-[#f2f4f6]">
               <p className="text-xs text-[#737781] font-semibold uppercase tracking-wider mb-2">Descripción</p>
               <p className="text-sm text-[#424750] leading-relaxed whitespace-pre-line">{contract.description}</p>
             </div>
@@ -182,39 +187,47 @@ export default function ContratoDetallePage() {
         </div>
 
         {/* PDF */}
-        <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">
-          <h2 className="text-sm font-black uppercase tracking-widest text-[#424750] mb-4">Documento del contrato</h2>
+        <div className="bg-white rounded-2xl border border-[#e6e8ea] p-4 sm:p-6">
+          <h2 className="text-xs sm:text-sm font-black uppercase tracking-widest text-[#424750] mb-4">
+            Documento del contrato
+          </h2>
           {hasPDF ? (
             <a href={contract.contractFileUrl!} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-3 p-4 bg-[#f7f9fb] rounded-xl hover:bg-[#f2f4f6] transition-colors group">
-              <div className="w-10 h-10 bg-[#00386c] rounded-xl flex items-center justify-center flex-shrink-0"><FileText className="w-5 h-5 text-white" /></div>
-              <div className="flex-1">
+              className="flex items-center gap-3 p-3 sm:p-4 bg-[#f7f9fb] rounded-xl hover:bg-[#f2f4f6] transition-colors group">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#00386c] rounded-xl flex items-center justify-center flex-shrink-0">
+                <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
                 <p className="font-bold text-[#191c1e] text-sm group-hover:text-[#00386c] transition-colors">Contrato PDF</p>
                 <p className="text-xs text-[#737781]">Haz clic para ver el documento completo</p>
               </div>
-              <ExternalLink className="w-4 h-4 text-[#737781] group-hover:text-[#00386c] transition-colors" />
+              <ExternalLink className="w-4 h-4 text-[#737781] group-hover:text-[#00386c] transition-colors flex-shrink-0" />
             </a>
           ) : (
-            <div className="flex items-center gap-3 p-4 bg-[#f7f9fb] rounded-xl border-2 border-dashed border-[#e6e8ea]">
-              <div className="w-10 h-10 bg-[#e6e8ea] rounded-xl flex items-center justify-center flex-shrink-0"><FileText className="w-5 h-5 text-[#737781]" /></div>
+            <div className="flex items-center gap-3 p-3 sm:p-4 bg-[#f7f9fb] rounded-xl border-2 border-dashed border-[#e6e8ea]">
+              <div className="w-9 h-9 bg-[#e6e8ea] rounded-xl flex items-center justify-center flex-shrink-0">
+                <FileText className="w-5 h-5 text-[#737781]" />
+              </div>
               <p className="text-sm text-[#737781]">La empresa aún no ha subido el PDF del contrato.</p>
             </div>
           )}
         </div>
 
         {/* Entregables */}
-        <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">
+        <div className="bg-white rounded-2xl border border-[#e6e8ea] p-4 sm:p-6">
           <DeliverablesPanel contractId={contractId} contractStatus={contract.status} role="CANDIDATE" />
         </div>
 
         {/* Pagos */}
-        <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-sm font-black uppercase tracking-widest text-[#424750]">Pagos</h2>
+        <div className="bg-white rounded-2xl border border-[#e6e8ea] p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-4 sm:mb-5">
+            <h2 className="text-xs sm:text-sm font-black uppercase tracking-widest text-[#424750]">Pagos</h2>
             {contract.totalAmount && (
               <div className="text-right">
                 <p className="text-xs text-[#737781]">Recibido</p>
-                <p className="font-extrabold text-[#006d37] font-headline">${totalPaid.toLocaleString("es-CO")} COP</p>
+                <p className="font-extrabold text-sm text-[#006d37] font-headline">
+                  ${totalPaid.toLocaleString("es-CO")} COP
+                </p>
               </div>
             )}
           </div>
@@ -224,25 +237,29 @@ export default function ContratoDetallePage() {
               <p className="text-sm text-[#737781]">Aún no hay pagos registrados.</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2.5 sm:space-y-3">
               {contract.payments.map(payment => {
                 const isPaid = payment.status === "CONFIRMED";
                 return (
-                  <div key={payment.id} className="flex items-center justify-between p-4 bg-[#f7f9fb] rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isPaid ? "bg-[#6bfe9c]/20" : "bg-[#e6e8ea]"}`}>
-                        {isPaid ? <CheckCircle2 className="w-4 h-4 text-[#006d37]" /> : <Clock className="w-4 h-4 text-[#737781]" />}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-sm text-[#191c1e]">{payment.description ?? "Pago"}</p>
-                        <p className="text-xs text-[#737781]">{formatDate(payment.createdAt)} · <span className={isPaid ? "text-[#006d37] font-semibold" : ""}>{isPaid ? "Confirmado" : "Pendiente"}</span></p>
-                      </div>
+                  <div key={payment.id} className="flex items-center gap-3 p-3 sm:p-4 bg-[#f7f9fb] rounded-xl">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isPaid ? "bg-[#6bfe9c]/20" : "bg-[#e6e8ea]"}`}>
+                      {isPaid ? <CheckCircle2 className="w-4 h-4 text-[#006d37]" /> : <Clock className="w-4 h-4 text-[#737781]" />}
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-extrabold text-[#191c1e] font-headline">${payment.amount.toLocaleString("es-CO")}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-[#191c1e] truncate">{payment.description ?? "Pago"}</p>
+                      <p className="text-xs text-[#737781]">
+                        {formatDate(payment.createdAt)} ·{" "}
+                        <span className={isPaid ? "text-[#006d37] font-semibold" : ""}>{isPaid ? "Confirmado" : "Pendiente"}</span>
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <span className="font-extrabold text-sm text-[#191c1e] font-headline">
+                        ${payment.amount.toLocaleString("es-CO")}
+                      </span>
                       {payment.receiptUrl && (
-                        <a href={payment.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-[#006d37] font-bold hover:underline flex items-center gap-1">
-                          <FileText className="w-3.5 h-3.5" /> Comprobante
+                        <a href={payment.receiptUrl} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-[#006d37] font-bold hover:underline flex items-center gap-1">
+                          <FileText className="w-3 h-3" /> Ver
                         </a>
                       )}
                     </div>
@@ -254,7 +271,7 @@ export default function ContratoDetallePage() {
         </div>
 
         {contract.status === "COMPLETED" && (
-          <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6">
+          <div className="bg-white rounded-2xl border border-[#e6e8ea] p-4 sm:p-6">
             <RatingsPanel contractId={contractId} role="CANDIDATE" />
           </div>
         )}

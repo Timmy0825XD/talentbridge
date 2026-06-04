@@ -153,7 +153,7 @@ export default function TalentoPage() {
         {/* Decorative side accent */}
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#006d37] via-[#6bfe9c] to-[#006d37]" />
 
-        <div className="px-8 py-5 flex items-center justify-between">
+        <div className="px-4 sm:px-8 py-4 sm:py-5 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-5">
             <div>
               <div className="flex items-center gap-2 mb-0.5">
@@ -165,7 +165,7 @@ export default function TalentoPage() {
                   Directorio
                 </span>
               </div>
-              <h1 className="text-2xl font-black text-[#191c1e] tracking-tight leading-none"
+              <h1 className="text-xl sm:text-2xl font-black text-[#191c1e] tracking-tight leading-none"
                 style={{ fontFamily: "'Syne', 'Manrope', sans-serif" }}>
                 Buscar Talento
               </h1>
@@ -191,7 +191,7 @@ export default function TalentoPage() {
         </div>
 
         {/* ── Search bar ── */}
-        <div className="px-8 pb-4 flex gap-3">
+        <div className="px-4 sm:px-8 pb-4 flex gap-3">
           <div className="flex-1 flex items-center bg-[#f7f9fb] border border-[#e6e8ea] rounded-2xl overflow-hidden focus-within:border-[#006d37] focus-within:ring-2 focus-within:ring-[#006d37]/10 transition-all">
             <Search className="w-4 h-4 text-[#737781] ml-4 shrink-0" />
             <input
@@ -215,7 +215,7 @@ export default function TalentoPage() {
                 : "bg-white text-[#424750] border-[#e6e8ea] hover:border-[#006d37]/40"
             }`}>
             <Filter className="w-4 h-4" />
-            Filtros
+            <span className="hidden sm:inline">Filtros</span>
             {activeFiltersN > 0 && (
               <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#6bfe9c] text-[#003d1f] text-[9px] font-black rounded-full flex items-center justify-center">
                 {activeFiltersN}
@@ -224,18 +224,18 @@ export default function TalentoPage() {
           </button>
 
           <button onClick={handleSearch}
-            className="bg-[#006d37] text-white px-6 py-3 rounded-2xl font-black text-sm tracking-wider uppercase hover:bg-[#00743a] active:scale-95 transition-all shadow-lg shadow-[#006d37]/25">
+            className="bg-[#006d37] text-white px-4 sm:px-6 py-3 rounded-2xl font-black text-sm tracking-wider uppercase hover:bg-[#00743a] active:scale-95 transition-all shadow-lg shadow-[#006d37]/25">
             Buscar
           </button>
         </div>
 
         {/* ── Filters panel ── */}
         {showFilters && (
-          <div className="mx-8 mb-4 bg-[#f7f9fb] border border-[#e6e8ea] rounded-2xl p-5 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="mx-4 sm:mx-8 mb-4 bg-[#f7f9fb] border border-[#e6e8ea] rounded-2xl p-4 sm:p-5 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
               {/* Skills */}
-              <div className="sm:col-span-2 lg:col-span-4">
+              <div className="sm:col-span-2">
                 <label className="block text-[10px] font-black uppercase tracking-widest text-[#737781] mb-2">
                   Habilidades requeridas
                 </label>
@@ -316,10 +316,12 @@ export default function TalentoPage() {
 
       {/* ── Master / Detail ── */}
       {!isError && (
-        <div className="flex-1 flex overflow-hidden p-4 gap-4 min-h-0">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden p-4 gap-4 min-h-0">
 
-          {/* ── LEFT: Candidate list ── */}
-          <div className="w-[340px] shrink-0 flex flex-col gap-3 min-h-0">
+          {/* ── LEFT: Candidate list — oculto en móvil cuando hay uno seleccionado ── */}
+          <div className={`md:w-[340px] md:shrink-0 flex flex-col gap-3 min-h-0 w-full
+            ${selectedId ? "hidden md:flex" : "flex"}
+            md:max-h-full max-h-full`}>
 
             {/* Count */}
             <div className="flex items-center justify-between shrink-0 px-1">
@@ -427,7 +429,7 @@ export default function TalentoPage() {
                           <span className="text-[8px] font-bold text-[#737781] uppercase tracking-widest mt-0.5">pts</span>
                         </div>
 
-                        {isActive && <ChevronRight className="w-4 h-4 text-[#006d37] shrink-0" />}
+                        <ChevronRight className={`w-4 h-4 shrink-0 ${isActive ? "text-[#006d37]" : "text-[#c2c6d1]"}`} />
                       </div>
                     </article>
                   );
@@ -451,8 +453,9 @@ export default function TalentoPage() {
             )}
           </div>
 
-          {/* ── RIGHT: Candidate detail ── */}
-          <div className="flex-1 bg-white rounded-2xl border border-[#e6e8ea] overflow-hidden flex flex-col min-w-0 shadow-sm">
+          {/* ── RIGHT: Candidate detail — ocupa todo en móvil cuando hay seleccionado ── */}
+          <div className={`flex-1 bg-white rounded-2xl border border-[#e6e8ea] overflow-hidden flex-col min-w-0 shadow-sm
+            ${selectedId ? "flex" : "hidden md:flex"}`}>
             {!selected ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
                 <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[#f2f4f6] to-[#e6e8ea] flex items-center justify-center mb-5">
@@ -480,23 +483,31 @@ export default function TalentoPage() {
                     <rect width="100%" height="100%" fill="url(#hero-dots)" />
                   </svg>
 
-                  {/* Avatar + name row — todo dentro del banner */}
-                  <div className="relative flex items-center justify-between px-8 py-5 gap-4">
-                    <div className="flex items-center gap-4">
+                  {/* Botón volver — solo visible en móvil */}
+                  <button
+                    onClick={() => setSelectedId(null)}
+                    className="md:hidden relative z-10 flex items-center gap-1.5 text-white/80 text-xs font-bold px-4 pt-3 hover:text-white transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" /> Volver a la lista
+                  </button>
+
+                  {/* Avatar + name row */}
+                  <div className="relative flex items-center justify-between px-4 sm:px-8 py-4 sm:py-5 gap-4 flex-wrap">
+                    <div className="flex items-center gap-4 min-w-0">
                       {/* Avatar */}
-                      <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm ring-2 ring-white/30 overflow-hidden flex items-center justify-center shrink-0 shadow-lg">
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/20 backdrop-blur-sm ring-2 ring-white/30 overflow-hidden flex items-center justify-center shrink-0 shadow-lg">
                         {selected.photoUrl
                           ? <img src={selected.photoUrl} alt={selected.fullName ?? ""} className="w-full h-full object-cover" />
-                          : <span className="text-2xl font-black text-white">{(selected.fullName ?? "?")[0].toUpperCase()}</span>
+                          : <span className="text-xl sm:text-2xl font-black text-white">{(selected.fullName ?? "?")[0].toUpperCase()}</span>
                         }
                       </div>
 
-                      <div>
-                        <h2 className="text-xl font-black text-white tracking-tight leading-none"
+                      <div className="min-w-0">
+                        <h2 className="text-lg sm:text-xl font-black text-white tracking-tight leading-none truncate"
                           style={{ fontFamily: "'Syne', 'Manrope', sans-serif" }}>
                           {selected.fullName ?? "Candidato"}
                         </h2>
-                        <div className="flex flex-wrap items-center gap-2.5 mt-1.5">
+                        <div className="flex flex-wrap items-center gap-2 mt-1.5">
                           {selected.career && (
                             <span className="flex items-center gap-1.5 text-xs text-white/80 font-semibold">
                               <GraduationCap className="w-3.5 h-3.5 text-[#6bfe9c]" />
@@ -518,31 +529,31 @@ export default function TalentoPage() {
                       </div>
                     </div>
 
-                      {/* Score + reputation */}
-                      <div className="flex items-center gap-3 shrink-0">
-                        {selected.profileScore && (
-                          <ScoreArc score={selected.profileScore.totalScore} dark />
-                        )}
-                        {selected.reputationAvg !== null && selected.ratingCount > 0 && (
-                          <div className="flex flex-col items-center gap-1">
-                            <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-[#fbbf24]/60 flex flex-col items-center justify-center">
-                              <span className="text-sm font-black text-white leading-none">
-                                {selected.reputationAvg.toFixed(1)}
-                              </span>
-                              <Star className="w-3 h-3 text-[#fbbf24] fill-[#fbbf24]" />
-                            </div>
-                            <span className="text-[9px] font-bold text-white/60 uppercase tracking-widest">
-                              {selected.ratingCount} op.
+                    {/* Score + reputation */}
+                    <div className="flex items-center gap-3 shrink-0">
+                      {selected.profileScore && (
+                        <ScoreArc score={selected.profileScore.totalScore} dark />
+                      )}
+                      {selected.reputationAvg !== null && selected.ratingCount > 0 && (
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-[#fbbf24]/60 flex flex-col items-center justify-center">
+                            <span className="text-sm font-black text-white leading-none">
+                              {selected.reputationAvg.toFixed(1)}
                             </span>
+                            <Star className="w-3 h-3 text-[#fbbf24] fill-[#fbbf24]" />
                           </div>
-                        )}
-                      </div>
+                          <span className="text-[9px] font-bold text-white/60 uppercase tracking-widest">
+                            {selected.ratingCount} op.
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {/* ── Scrollable content ── */}
                 <div className="flex-1 overflow-y-auto">
-                  <div className="px-8 py-5 space-y-5">
+                  <div className="px-4 sm:px-8 py-5 space-y-5">
 
                     {/* Skills técnicas */}
                     {selected.skills.length > 0 && (
@@ -592,7 +603,7 @@ export default function TalentoPage() {
                             Desglose de puntaje
                           </p>
                         </div>
-                        <div className="p-5 bg-white grid grid-cols-2 gap-3">
+                        <div className="p-5 bg-white grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {Object.entries(selected.profileScore.breakdown).map(([key, val]) => {
                             const labels: Record<string, string> = {
                               skills: "Habilidades", experience: "Experiencia",
@@ -625,8 +636,8 @@ export default function TalentoPage() {
                           <path d="M 30 0 L 0 0 0 30" fill="none" stroke="white" strokeWidth="0.5"/></pattern></defs>
                           <rect width="100%" height="100%" fill="url(#cta-grid)" /></svg>
                       </div>
-                      <div className="relative flex items-center justify-between p-5 gap-4">
-                        <div>
+                      <div className="relative flex items-center justify-between p-5 gap-4 flex-wrap">
+                        <div className="min-w-0">
                           <p className="font-black text-white text-sm leading-tight">
                             ¿Te interesa este candidato?
                           </p>

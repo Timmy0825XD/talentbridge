@@ -81,11 +81,13 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       }`}>
         <div className="flex justify-between items-center w-full px-6 lg:px-10 py-4 max-w-screen-2xl mx-auto">
 
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 bg-gradient-to-br from-[#00386c] to-[#1a4f8b] rounded-lg flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-              <span className="text-white font-black text-xs">TB</span>
-            </div>
-            <span className="text-xl font-extrabold font-headline text-[#00386c] tracking-tight">
+          <Link href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+            <img
+              src="/TalentBridge-logo.jpeg"
+              alt="TalentBridge"
+              className="h-8 w-auto object-contain rounded-lg"
+            />
+            <span className="text-xl font-black text-[#00386c] tracking-tighter font-headline">
               TalentBridge
             </span>
           </Link>
