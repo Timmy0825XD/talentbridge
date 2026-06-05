@@ -4,7 +4,9 @@ import { useAuth } from "@/src/context/auth-context";
 import { useInstitutionAnalytics } from "@/src/hooks/queries/use-institution";
 import TalentBridgeLoader from "@/src/components/ui/TalentBridgeLoader";
 import LinkStudentsCallout from "@/src/components/institution/LinkStudentsCallout";
-import { AlertCircle, Star, TrendingUp } from "lucide-react";
+import api from "@/src/lib/api";
+import { AlertCircle, Download, Loader2, Star, TrendingUp } from "lucide-react";
+import { useState } from "react";
 
 function formatMonth(ym: string): string {
   const [y, m] = ym.split("-");
@@ -37,8 +39,26 @@ function TrendBars({ items, accent }: { items: Array<{ month: string; count: num
 
 export default function InstitutionEmpleabilidadPage() {
   const { user, isLoading } = useAuth();
+  const [downloading, setDownloading] = useState(false);
   const enabled = !!user && user.role === "INSTITUTION";
   const { data, isLoading: analyticsLoading, isError } = useInstitutionAnalytics(enabled, user?.userId);
+
+  async function handleDownloadReport() {
+    setDownloading(true);
+    try {
+      const res = await api.get("/institution/analytics/report", { responseType: "blob" });
+      const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "reporte_empleabilidad_talentbridge.pdf";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      window.alert("No se pudo generar el reporte PDF. Intenta de nuevo.");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   if (isLoading || !user) return <TalentBridgeLoader />;
   if (analyticsLoading && !data) return <TalentBridgeLoader />;
@@ -59,16 +79,21 @@ export default function InstitutionEmpleabilidadPage() {
   }
 
   return (
-    <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10 space-y-6 lg:space-y-8">
-
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl lg:text-3xl font-extrabold text-[#00386c] font-headline tracking-tight">
-          Empleabilidad
-        </h1>
-        <p className="text-[#424750] text-sm mt-1">
-          Métricas por carrera, tendencias y áreas de contratación de tus vinculados
-        </p>
+    <div className="max-w-screen-xl mx-auto px-8 py-10 space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold text-[#00386c] font-headline tracking-tight">
+            Empleabilidad
+          </h1>
+          <p className="text-[#424750] text-sm mt-1">
+            Métricas por carrera, tendencias y áreas de contratación de tus vinculados
+          </p>
+        </div>
+        <button type="button" onClick={handleDownloadReport} disabled={downloading}
+          className="flex items-center gap-2 px-4 py-2 bg-[#00386c] text-white rounded-xl text-sm font-bold hover:opacity-90 disabled:opacity-60 shrink-0">
+          {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          {downloading ? "Generando PDF…" : "Descargar reporte PDF"}
+        </button>
       </div>
 
       <LinkStudentsCallout />

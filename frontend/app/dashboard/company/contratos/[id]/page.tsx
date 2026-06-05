@@ -433,7 +433,7 @@ export default function ContratoEmpresaDetallePage() {
           <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6 flex items-center justify-between gap-4">
             <div>
               <h2 className="font-bold text-sm text-[#191c1e] mb-1">Reporte del proyecto</h2>
-              <p className="text-xs text-[#737781]">Descarga el reporte completo con pagos, entregables y calificaciones.</p>
+              <p className="text-xs text-[#737781]">Reporte PDF con resumen ejecutivo, pagos, entregables, calificaciones y recomendaciones.</p>
             </div>
             <button onClick={handleDownloadReport} disabled={downloadingReport}
               className="shrink-0 flex items-center gap-2 bg-gradient-to-br from-[#006d37] to-[#00743a] text-white px-5 py-2.5 rounded-full font-bold text-sm hover:opacity-90 transition-all disabled:opacity-60 shadow-md shadow-[#006d37]/20">

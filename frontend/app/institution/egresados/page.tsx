@@ -31,14 +31,6 @@ const STATUS_COLOR: Record<InstitutionEmploymentStatus, string> = {
   hired:              "bg-[#6bfe9c]/20 text-[#005228]",
 };
 
-function escapeCsv(val: string | number | null | undefined): string {
-  const s = val == null ? "" : String(val);
-  if (s.includes(",") || s.includes('"') || s.includes("\n")) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-  return s;
-}
-
 export default function InstitutionEgresadosPage() {
   const { user, isLoading } = useAuth();
   const [search,       setSearch]       = useState("");
@@ -63,56 +55,41 @@ export default function InstitutionEgresadosPage() {
     params, enabled, user?.userId
   );
 
-  async function handleExportCsv() {
+  async function handleExportPdf() {
     setExporting(true);
     setExportMsg("");
     try {
-      const exportParams: Record<string, string> = { page: "1", limit: "50" };
-      if (search)       exportParams.search = search;
-      if (roleFilter)   exportParams.role   = roleFilter;
+      const exportParams: Record<string, string> = {};
+      if (search) exportParams.search = search;
+      if (roleFilter) exportParams.role = roleFilter;
       if (statusFilter && statusFilter !== "all") exportParams.status = statusFilter;
       if (careerFilter) exportParams.career = careerFilter;
 
-      const res = await api.get<{
-        items: Array<{
-          fullName:         string | null;
-          role:             string;
-          career:           string | null;
-          graduationYear:   number | null;
-          totalScore:       number | null;
-          applicationCount: number;
-          employmentStatus: InstitutionEmploymentStatus;
-        }>;
-        total: number;
-      }>("/institution/candidates", { params: exportParams });
-
-      const { items, total } = res.data;
-      if (total > 50) {
-        setExportMsg(`Hay ${total} registros. Exportando los primeros 50; usa filtros para acotar.`);
-      }
-
-      const header = "Nombre,Rol,Carrera,Año graduación,Score,Postulaciones,Estado";
-      const rows = items.map(r =>
-        [
-          escapeCsv(r.fullName),
-          escapeCsv(ROLE_LABEL[r.role] ?? r.role),
-          escapeCsv(r.career),
-          escapeCsv(r.graduationYear),
-          escapeCsv(r.totalScore),
-          escapeCsv(r.applicationCount),
-          escapeCsv(STATUS_LABEL[r.employmentStatus]),
-        ].join(",")
-      );
-      const csv  = [header, ...rows].join("\n");
-      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href     = url;
-      a.download = "vinculados-talentbridge.csv";
+      const res = await api.get("/institution/candidates/report", {
+        params: exportParams,
+        responseType: "blob",
+      });
+      const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "reporte_vinculados_talentbridge.pdf";
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
-      setExportMsg("No se pudo exportar. Intenta de nuevo.");
+      if (total > 200) {
+        setExportMsg(`Hay ${total} registros. El PDF incluye hasta 200 según los filtros actuales.`);
+      }
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: Blob; status?: number } };
+      if (ax.response?.data instanceof Blob && ax.response.data.type.includes("json")) {
+        try {
+          const body = JSON.parse(await ax.response.data.text()) as { error?: string };
+          setExportMsg(body.error ?? "No se pudo generar el reporte PDF.");
+        } catch {
+          setExportMsg("No se pudo generar el reporte PDF. Intenta de nuevo.");
+        }
+      } else {
+        setExportMsg("No se pudo generar el reporte PDF. Intenta de nuevo.");
+      }
     } finally {
       setExporting(false);
     }
@@ -137,14 +114,10 @@ export default function InstitutionEgresadosPage() {
             Perfiles vinculados a tu universidad en el catálogo ({total} en total)
           </p>
         </div>
-        <button
-          type="button"
-          onClick={handleExportCsv}
-          disabled={exporting}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-[#00386c] text-white rounded-xl text-sm font-bold hover:opacity-90 disabled:opacity-60 transition-opacity"
-        >
+        <button type="button" onClick={handleExportPdf} disabled={exporting}
+          className="flex items-center gap-2 px-4 py-2 bg-[#00386c] text-white rounded-xl text-sm font-bold hover:opacity-90 disabled:opacity-60">
           {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          Exportar CSV
+          {exporting ? "Generando PDF…" : "Descargar reporte PDF"}
         </button>
       </div>
 

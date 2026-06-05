@@ -1,10 +1,10 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { Suspense, useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, RotateCcw, LetterText } from "lucide-react";
 import api from "@/src/lib/api";
 
-export default function VerifyOtpPage() {
+function VerifyOtpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const userId = searchParams.get("userId");
@@ -151,5 +151,19 @@ export default function VerifyOtpPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function VerifyOtpPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#f7f9fb]">
+          <span className="w-8 h-8 border-2 border-[#00386c]/30 border-t-[#00386c] rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <VerifyOtpContent />
+    </Suspense>
   );
 }

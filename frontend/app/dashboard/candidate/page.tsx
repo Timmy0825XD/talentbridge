@@ -136,7 +136,7 @@ export default function CandidateDashboardPage() {
 
   const { data, isLoading: dashLoading }  = useCandidateDashboard(enabled, user?.userId);
   const { data: profileData }             = useCandidateProfile(enabled, user?.userId);
-  const { data: allJobsRaw = [] }         = useJobsList(undefined, enabled);
+  const { data: jobsListData }            = useJobsList(undefined, enabled);
 
   useEffect(() => {
     if (!isLoading && user?.role === "COMPANY") router.replace("/dashboard/company");
@@ -160,7 +160,7 @@ export default function CandidateDashboardPage() {
   const firstName = fullName.trim().split(" ")[0] || (user.role === "GRADUATE" ? "Egresado" : "Estudiante");
   const mySkills: string[] = (profileData as { skills?: string[] } | undefined)?.skills ?? [];
 
-  const allJobs = allJobsRaw as SuggestedJob[];
+  const allJobs = (jobsListData?.jobs ?? []) as SuggestedJob[];
   const suggestedJobs = [...allJobs]
     .map(j => ({
       job: j,
