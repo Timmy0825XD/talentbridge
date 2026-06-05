@@ -2,10 +2,11 @@
 
 import { useAuth } from "@/src/context/auth-context";
 import { useRouter, useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useCandidateProfile, useJobsList, useMyApplications, useMyRanking,
+  JOBS_LIST_PAGE_SIZE,
 } from "@/src/hooks/queries";
 import { ProfileScoreResponse } from "@/src/types/api";
 import TalentBridgeLoader from "@/src/components/ui/TalentBridgeLoader";
@@ -13,7 +14,7 @@ import { publicLinks } from "@/src/content/site-links";
 import Link from "next/link";
 import {
   Search, CheckCircle2, MapPin, Clock, Briefcase, AlertCircle,
-  Loader2, SlidersHorizontal, X, ChevronDown, ChevronUp,
+  Loader2, SlidersHorizontal, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
   Banknote, Building2, Wifi, Star, BookOpen,
 } from "lucide-react";
 
@@ -236,6 +237,7 @@ export default function ExplorarPage() {
   const enabled = !!user && user.role !== "COMPANY";
 
   const [jobParams, setJobParams]             = useState<Record<string,string>|undefined>(undefined);
+  const [listPage, setListPage]               = useState(1);
   const [appliedIds, setAppliedIds]           = useState<Set<string>>(new Set());
   const [search, setSearch]                   = useState("");
   const [quickFilter, setQuickFilter]         = useState("");
@@ -246,12 +248,23 @@ export default function ExplorarPage() {
   const [filterWorkMode, setFilterWorkMode]   = useState("");
   const [drawerOpen, setDrawerOpen]           = useState(false);
 
-  const { data: jobsRaw=[], isLoading: jobsLoading, isFetching: jobsFetching, isError: jobsError } = useJobsList(jobParams, enabled);
+  const listQueryParams = useMemo(() => ({
+    ...(jobParams ?? {}),
+    page: String(listPage),
+    limit: String(JOBS_LIST_PAGE_SIZE),
+  }), [jobParams, listPage]);
+
+  const { data: jobsData, isLoading: jobsLoading, isFetching: jobsFetching, isError: jobsError } = useJobsList(listQueryParams, enabled);
   const { data: profile, isLoading: profileLoading } = useCandidateProfile(enabled, user?.userId);
   const { data: myApps=[], isLoading: appsLoading }  = useMyApplications(enabled, user?.userId);
   const { data: myScore=null }                        = useMyRanking(enabled, user?.userId);
 
-  const jobs = jobsRaw as Job[];
+  const pagination = jobsData?.pagination ?? null;
+  const jobs = (jobsData?.jobs ?? []) as Job[];
+  const totalJobs = pagination?.total ?? jobs.length;
+  const totalPages = pagination?.totalPages ?? 1;
+  const pageStart = totalJobs === 0 ? 0 : (listPage - 1) * JOBS_LIST_PAGE_SIZE + 1;
+  const pageEnd = Math.min(listPage * JOBS_LIST_PAGE_SIZE, totalJobs);
   const mySkills: string[] = (profile?.skills as string[]|undefined) ?? [];
   const initialLoading = jobsLoading && profileLoading && appsLoading;
 
@@ -288,13 +301,21 @@ export default function ExplorarPage() {
 
   function handleSearch(qf?: string) {
     const p = buildParams(qf);
+    setListPage(1);
     setJobParams(Object.keys(p).length > 0 ? p : undefined);
   }
 
   function clearFilters() {
     setQuickFilter(""); setFilterArea(""); setFilterBudgetMin(""); setFilterBudgetMax("");
     setFilterType(""); setFilterWorkMode(""); setSearch("");
+    setListPage(1);
     setJobParams(undefined);
+  }
+
+  function goToPage(next: number) {
+    if (next < 1 || next > totalPages || next === listPage || jobsFetching) return;
+    setListPage(next);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const hasActiveFilters = !!(quickFilter||filterArea||filterBudgetMin||filterBudgetMax||filterType||filterWorkMode||search);
@@ -409,7 +430,11 @@ export default function ExplorarPage() {
         {/* Mobile toolbar */}
         <div className="flex items-center justify-between mb-4 lg:hidden">
           <p className="text-sm text-[#737781] font-medium">
-            <span className="font-bold text-[#191c1e]">{jobs.length}</span> vacante{jobs.length !== 1 ? "s" : ""}
+            {totalJobs > 0 ? (
+              <>Mostrando <span className="font-bold text-[#191c1e]">{pageStart}–{pageEnd}</span> de <span className="font-bold text-[#191c1e]">{totalJobs}</span> vacantes</>
+            ) : (
+              <>0 vacantes</>
+            )}
             {hasActiveFilters && <span className="text-[#00386c] ml-1">· filtros activos</span>}
           </p>
           <div className="flex items-center gap-2">
@@ -455,8 +480,11 @@ export default function ExplorarPage() {
             {/* Desktop count bar */}
             <div className="hidden lg:flex items-center justify-between">
               <p className="text-sm text-[#737781] font-medium">
-                <span className="font-bold text-[#191c1e]">{jobs.length}</span>{" "}
-                vacante{jobs.length !== 1 ? "s" : ""} encontrada{jobs.length !== 1 ? "s" : ""}
+                {totalJobs > 0 ? (
+                  <>Mostrando <span className="font-bold text-[#191c1e]">{pageStart}–{pageEnd}</span> de <span className="font-bold text-[#191c1e]">{totalJobs}</span> vacantes</>
+                ) : (
+                  <>0 vacantes encontradas</>
+                )}
                 {hasActiveFilters && <span className="ml-1 text-[#00386c]">· filtros activos</span>}
               </p>
               {hasActiveFilters && (
@@ -479,12 +507,48 @@ export default function ExplorarPage() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-                {jobs.map(job => (
-                  <JobCard key={job.id} job={job} isApplied={appliedIds.has(job.id)}
-                    matchPct={calcMatch(myScore, job.skills, mySkills)} />
-                ))}
-              </div>
+              <>
+                <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 transition-opacity ${jobsFetching ? "opacity-60" : ""}`}>
+                  {jobs.map(job => (
+                    <JobCard key={job.id} job={job} isApplied={appliedIds.has(job.id)}
+                      matchPct={calcMatch(myScore, job.skills, mySkills)} />
+                  ))}
+                </div>
+                {totalPages > 1 && (
+                  <nav
+                    aria-label="Paginación de vacantes"
+                    className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-[#e6e8ea]"
+                  >
+                    <p className="text-xs text-[#737781] font-medium order-2 sm:order-1">
+                      Página <span className="font-bold text-[#191c1e]">{listPage}</span> de{" "}
+                      <span className="font-bold text-[#191c1e]">{totalPages}</span>
+                      {jobsFetching && (
+                        <span className="inline-flex items-center gap-1 ml-2 text-[#00386c]">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Cargando…
+                        </span>
+                      )}
+                    </p>
+                    <div className="flex items-center gap-2 order-1 sm:order-2">
+                      <button
+                        type="button"
+                        onClick={() => goToPage(listPage - 1)}
+                        disabled={listPage === 1 || jobsFetching}
+                        className="flex items-center gap-1.5 px-4 py-2.5 bg-white border border-[#e6e8ea] rounded-xl text-sm font-bold text-[#424750] hover:border-[#00386c]/30 hover:text-[#00386c] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      >
+                        <ChevronLeft className="w-4 h-4" /> Anterior
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => goToPage(listPage + 1)}
+                        disabled={listPage === totalPages || jobsFetching}
+                        className="flex items-center gap-1.5 px-4 py-2.5 bg-[#00386c] text-white rounded-xl text-sm font-bold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+                      >
+                        Siguiente <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </nav>
+                )}
+              </>
             )}
 
             {/* Info footer */}

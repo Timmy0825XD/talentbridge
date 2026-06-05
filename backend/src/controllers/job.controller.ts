@@ -25,7 +25,7 @@ export const listJobs = asyncHandler(async (req: AuthRequest, res: Response) => 
     skills: skills ? (skills as string).split(',') : undefined,
     search: search as string,
     page: page ? Number(page) : 1,
-    limit: limit ? Number(limit) : 10,
+    limit: limit ? Math.min(Math.max(Number(limit), 1), 100) : 50,
   });
 
   res.json(result);

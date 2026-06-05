@@ -113,7 +113,7 @@ frontend/
 | `useCandidateProfile` | GET `/profile/candidate` |
 | `useCompanyProfile` | GET `/profile/company` |
 | `useCompanyJobs` | GET `/jobs/company/mine` |
-| `useJobsList(params?)` | GET `/jobs` |
+| `useJobsList(params?)` | GET `/jobs` — paginado (`page`, `limit`); ver `JOBS_LIST_PAGE_SIZE` |
 | `useJobDetail(id)` | GET `/jobs/:id` |
 | `useJobApplicants(id)` | GET `/jobs/:id/applicants` |
 | `useJobApplicantsBatch(ids)` | batch applicants |
@@ -134,9 +134,34 @@ frontend/
 
 ## Variables de entorno
 
+Plantilla: `frontend/.env.example` → copiar a `.env.local`
+
 | Variable | Descripción |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | URL base del backend (ej: `http://localhost:3001/api`) |
+| `NEXT_PUBLIC_API_URL` | URL base del backend con `/api` (ej: `http://localhost:3001/api`) |
+
+En producción (Vercel): apuntar a la URL pública de Railway + `/api`.
+
+---
+
+## Despliegue en producción
+
+Target: **Vercel** (frontend). Ver [README.md](../README.md).
+
+1. Root directory: `frontend/`
+2. Variable: `NEXT_PUBLIC_API_URL=https://<api-railway>/api`
+3. Build automático (`next build`)
+4. Tras deploy, actualizar `FRONTEND_URL` en el backend para CORS
+
+---
+
+## Explorar vacantes — paginación
+
+- Constante: `JOBS_LIST_PAGE_SIZE = 12` en `src/hooks/queries/use-jobs.ts`
+- Página: `/dashboard/candidate/explorar`
+- Controles **Anterior / Siguiente** y contador “Mostrando X–Y de Z”
+- `useJobsList` usa `keepPreviousData` al cambiar de página
+- Los filtros resetean a `page=1`
 
 ---
 
@@ -237,12 +262,14 @@ Layout independiente con **sidebar** (`#00386c`). Guard: redirige a `/` si no es
 | Ruta | Hook | Contenido |
 |---|---|---|
 | `/institution` | `useInstitutionDashboard` | Hero, embudo, skills mercado vs vinculados, brechas |
-| `/institution/egresados` | `useInstitutionCandidates` | Tabla paginada, filtros, export CSV |
-| `/institution/empleabilidad` | `useInstitutionAnalytics` | Por carrera, tendencias 12 meses, áreas |
+| `/institution/egresados` | `useInstitutionCandidates` | Tabla paginada, filtros, descarga PDF |
+| `/institution/empleabilidad` | `useInstitutionAnalytics` | Por carrera, tendencias 12 meses, áreas, PDF |
 
 - `GET /institution/dashboard` → `metrics`, `funnel`, `marketDemandSkills`, `graduateSkills`, `skillsGap`
 - `GET /institution/candidates` → query: `role`, `career`, `status`, `search`, `page`, `limit`
+- `GET /institution/candidates/report` → PDF (`responseType: blob`) con filtros activos
 - `GET /institution/analytics` → `byCareer`, `insertionTrend`, `applicationsTrend`, `topHiringAreas`, `avgGraduateScore`
+- `GET /institution/analytics/report` → PDF empleabilidad
 
 ---
 
@@ -272,7 +299,7 @@ Layout independiente con **sidebar** (`#00386c`). Guard: redirige a `/` si no es
 | POST | `/profile/candidate/photo` | perfil candidato (2MB) | ✅ |
 | GET/PUT | `/profile/company` | perfil empresa | ✅ |
 | GET | `/keywords` | perfil, talento | ✅ |
-| GET | `/jobs` | explorar | ✅ |
+| GET | `/jobs` | explorar (paginado, 12/página) | ✅ |
 | GET | `/jobs/company/mine` | dashboard empresa, vacantes | ✅ |
 | POST/PUT/PATCH | `/jobs*` | vacantes | ✅ |
 | POST | `/jobs/:id/apply` | explorar | ✅ |
@@ -310,7 +337,9 @@ Layout independiente con **sidebar** (`#00386c`). Guard: redirige a `/` si no es
 | POST | `/admin/admins` | /admin/admins | ✅ |
 | GET | `/institution/dashboard` | /institution | ✅ |
 | GET | `/institution/candidates` | /institution/egresados | ✅ |
+| GET | `/institution/candidates/report` | /institution/egresados (PDF) | ✅ |
 | GET | `/institution/analytics` | /institution/empleabilidad | ✅ |
+| GET | `/institution/analytics/report` | /institution/empleabilidad (PDF) | ✅ |
 
 ---
 
@@ -321,7 +350,7 @@ Layout independiente con **sidebar** (`#00386c`). Guard: redirige a `/` si no es
 | `/` | ✅ |
 | `/auth/*` | ✅ |
 | `/dashboard/candidate` | ✅ GET /dashboard/candidate |
-| `/dashboard/candidate/explorar` | ✅ |
+| `/dashboard/candidate/explorar` | ✅ paginación 12/página |
 | `/dashboard/candidate/postulaciones` | ✅ |
 | `/dashboard/candidate/contratos` | ✅ |
 | `/dashboard/candidate/contratos/[id]` | ✅ + RatingsPanel |
@@ -342,8 +371,8 @@ Layout independiente con **sidebar** (`#00386c`). Guard: redirige a `/` si no es
 | `/admin/carreras` | ✅ CRUD carreras (API `/admin/careers`) |
 | `/admin/admins` | ✅ Sprint 4 |
 | `/institution` | ✅ dashboard ampliado |
-| `/institution/egresados` | ✅ listado + CSV |
-| `/institution/empleabilidad` | ✅ analytics |
+| `/institution/egresados` | ✅ listado + PDF |
+| `/institution/empleabilidad` | ✅ analytics + PDF |
 
 ---
 

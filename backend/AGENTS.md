@@ -28,9 +28,10 @@ las secciones *Estado del proyecto*, *Endpoints* y *Mapa de archivos*.
 15. [Notificaciones — n8n y Telegram](#notificaciones--n8n-y-telegram)
 16. [Mapa de archivos](#archivos-por-módulo--mapa-completo)
 17. [Seed de datos](#seed-de-datos)
-18. [Patrón para nuevos módulos](#patrón-para-agregar-nuevos-módulos)
-19. [Deuda técnica conocida](#deuda-técnica-conocida)
-20. [Notas para agentes de IA](#notas-para-agentes-de-ia)
+18. [Despliegue en producción](#despliegue-en-producción)
+19. [Patrón para nuevos módulos](#patrón-para-agregar-nuevos-módulos)
+20. [Deuda técnica conocida](#deuda-técnica-conocida)
+21. [Notas para agentes de IA](#notas-para-agentes-de-ia)
 
 ---
 
@@ -298,7 +299,8 @@ Ver plantilla completa en `backend/.env.example`.
 |---|---|
 | `PORT` | Puerto del servidor (default: `3001`) |
 | `NODE_ENV` | `development` \| `production` |
-| `DATABASE_URL` | Connection string PostgreSQL (Supabase) |
+| `DATABASE_URL` | Connection string PostgreSQL (Supabase; puede usar pooler) |
+| `DIRECT_URL` | Conexión directa a PostgreSQL — **obligatoria** para `prisma migrate` |
 | `JWT_SECRET` | Secreto para firmar JWT |
 | `JWT_EXPIRES_IN` | Duración del JWT (ej. `7d`) |
 | `OTP_EXPIRES_MINUTES` | Validez OTP (default: 10) |
@@ -336,10 +338,11 @@ Ver plantilla completa en `backend/.env.example`.
 | Calificaciones mutuas + reputación | 4 | `ContractRating`, recálculo en perfil/empresa y ranking |
 | Búsqueda de candidatos | 4 | `GET /candidates/search` paginado (COMPANY) |
 | Dashboards agregados | 4 | `GET /dashboard/company`, `/dashboard/candidate` |
-| Reporte PDF de contrato | 4 | `GET /contracts/:id/report` (pdfkit) |
+| Reporte PDF de contrato | 4 | `GET /contracts/:id/report` (pdfkit + plantilla unificada) |
+| Reportes PDF institución | 6 | `GET /institution/candidates/report`, `GET /institution/analytics/report` |
 | Simulador tributario | 4 | `GET /tax/benefits`, `POST /tax/simulate` |
 | Panel ADMIN | 4 | Métricas, usuarios, moderación, pesos globales, CRUD universidades |
-| Panel INSTITUTION | 4 | `GET /institution/dashboard` (métricas por `universityId`) |
+| Panel INSTITUTION | 4–6 | Dashboard, candidatos, analytics y descarga PDF |
 | Catálogo de universidades | 5 | Modelo `University`, `GET /universities`, `universityId` en perfil candidato |
 | Catálogo de carreras | 6 | Modelo `Career`, `GET /careers`, `careerId` en perfil candidato (sin texto libre) |
 | Admin universidades + cuentas INSTITUTION | 5 | `POST /admin/universities` crea universidad + usuario institución + credenciales |
@@ -492,6 +495,18 @@ Authorization: Bearer <JWT>
 
 **Query params en `GET /jobs`:** `search`, `area`, `workMode`, `type`, `budgetMin`, `budgetMax`, `skills` (coma), `page`, `limit`
 
+**Respuesta paginada de `GET /jobs`:**
+
+```json
+{
+  "jobs": [ /* ... */ ],
+  "pagination": { "total": 50, "page": 1, "limit": 12, "totalPages": 5 }
+}
+```
+
+- `limit` por defecto **50** si el cliente no envía valor; máximo **100**
+- El frontend de explorar envía `limit=12` y navega por `page`
+
 ### Postulaciones — `/api/applications`
 
 | Método | Ruta | Roles |
@@ -568,7 +583,9 @@ Body `POST /telegram/register`: `{ userId, chatId }`
 |---|---|---|
 | GET | `/institution/dashboard` | INSTITUTION — métricas, embudo, skills mercado/vinculados, brechas |
 | GET | `/institution/candidates` | INSTITUTION — listado paginado vinculados (`role`, `career`, `status`, `search`, `page`, `limit`) |
+| GET | `/institution/candidates/report` | INSTITUTION — PDF vinculados (mismos filtros que listado; hasta 200 filas) |
 | GET | `/institution/analytics` | INSTITUTION — por carrera, tendencias 12 meses, áreas contratación, score promedio |
+| GET | `/institution/analytics/report` | INSTITUTION — PDF reporte de empleabilidad |
 
 ### Contratos, pagos y entregables — `/api/contracts`
 
@@ -709,6 +726,8 @@ src/
 │   ├── gemini.ts          → scoreCompatibility, extractCvIntelligent
 │   ├── cv-extractor.ts    → extractCvKeywords (pdf-parse + keywords BD)
 │   ├── contract-helpers.ts → pickUploadedFile, computePaymentTotals
+│   ├── pdf/
+│   │   └── talentbridge-pdf.ts → cabecera, tipografía y helpers PDF compartidos
 │   ├── access/
 │   │   └── profile-access.ts → getCompanyOrThrow, assertContractAccess, etc.
 │   ├── dates/
@@ -747,7 +766,8 @@ src/
 │   ├── rating.service.ts
 │   ├── candidate.service.ts
 │   ├── dashboard.service.ts
-│   ├── report.service.ts
+│   ├── report.service.ts          → PDF contratos + helpers compartidos
+│   ├── institution-report.service.ts → PDF egresados y empleabilidad
 │   ├── tax.service.ts
 │   ├── admin.service.ts
 │   ├── university.service.ts      → listActiveUniversities
@@ -791,6 +811,37 @@ Tests unitarios de credenciales/slug:
 ```bash
 npm test
 ```
+
+---
+
+## Despliegue en producción
+
+Target: **Railway** (backend). Ver también [README.md](../README.md).
+
+### Variables obligatorias en Railway
+
+`PORT`, `NODE_ENV=production`, `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `FRONTEND_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GEMINI_API_KEY`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+
+Opcionales según producto: `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`, `TELEGRAM_BOT_TOKEN`
+
+### Comandos
+
+```bash
+# Build (Railway build step)
+npm install && npx prisma generate && npm run build
+
+# Release / start — aplicar migraciones antes de levantar el servidor
+npx prisma migrate deploy && npm start
+```
+
+### Post-deploy
+
+1. Ejecutar seed **una vez** si el catálogo está vacío: `npx prisma db seed`
+2. Verificar `GET /api/health`
+3. Confirmar CORS: `FRONTEND_URL` debe coincidir con la URL de Vercel (sin barra final)
+4. Probar registro + OTP (Brevo) y subida a Storage
+
+**Prisma:** permanecer en **6.5.0** — no actualizar a Prisma 7.
 
 ---
 

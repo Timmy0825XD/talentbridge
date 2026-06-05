@@ -1,16 +1,43 @@
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query';
 import api from '@/src/lib/api';
 import { queryKeys } from './query-keys';
+
+export const JOBS_LIST_PAGE_SIZE = 12;
+
+export interface JobsListPagination {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface JobsListResult {
+  jobs: unknown[];
+  pagination: JobsListPagination | null;
+}
 
 export function useJobsList(params?: Record<string, string>, enabled = true) {
   return useQuery({
     queryKey: queryKeys.jobs.list(params),
-    queryFn: async () => {
-      const res = await api.get('/jobs', { params });
+    queryFn: async (): Promise<JobsListResult> => {
+      const res = await api.get('/jobs', {
+        params: {
+          limit: String(JOBS_LIST_PAGE_SIZE),
+          page: '1',
+          ...params,
+        },
+      });
       const data = res.data;
-      return (data.jobs ?? data) as unknown[];
+      if (Array.isArray(data)) {
+        return { jobs: data, pagination: null };
+      }
+      return {
+        jobs: (data.jobs ?? []) as unknown[],
+        pagination: data.pagination ?? null,
+      };
     },
     enabled,
+    placeholderData: keepPreviousData,
   });
 }
 
