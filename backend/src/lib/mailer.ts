@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import axios from 'axios';
 import dotenv from 'dotenv';
 import {
   buildOtpEmailHtml,
@@ -9,55 +9,70 @@ import {
 
 dotenv.config();
 
-const SMTP_ENV_KEYS = [
-  'SMTP_HOST',
-  'SMTP_PORT',
-  'SMTP_USER',
-  'SMTP_PASS',
-  'SMTP_FROM',
-] as const;
+const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
 
-function assertSmtpEnv(): void {
-  const missing = SMTP_ENV_KEYS.filter((key) => !process.env[key]?.trim());
+function resolveSender(): { name: string; email: string } | null {
+  const raw =
+    process.env.BREVO_SENDER_EMAIL?.trim() ||
+    process.env.SMTP_FROM?.trim() ||
+    '';
+
+  if (!raw) return null;
+
+  const withName = raw.match(/^(.+?)\s*<([^>]+)>$/);
+  if (withName) {
+    return { name: withName[1].trim(), email: withName[2].trim() };
+  }
+
+  return {
+    name: process.env.BREVO_SENDER_NAME?.trim() || 'TalentBridge',
+    email: raw,
+  };
+}
+
+function assertBrevoEnv(): void {
+  const missing: string[] = [];
+  if (!process.env.BREVO_API_KEY?.trim()) missing.push('BREVO_API_KEY');
+  if (!resolveSender()) missing.push('BREVO_SENDER_EMAIL (o SMTP_FROM)');
   if (missing.length > 0) {
     throw new Error(
-      `Configuración SMTP incompleta. Faltan: ${missing.join(', ')}`
+      `Configuración Brevo incompleta. Faltan: ${missing.join(', ')}`
     );
   }
 }
 
-assertSmtpEnv();
+assertBrevoEnv();
 
-/** Host con certificado TLS válido (el relay SA aún expone sendinblue.com, no brevo.com). */
-function resolveSmtpHost(): { connectHost: string; tlsServername: string } {
-  const raw = process.env.SMTP_HOST!.trim().replace(/\.$/, '');
-  if (raw === 'smtp-relay.brevo.com') {
-    return {
-      connectHost: 'smtp-relay.sendinblue.com',
-      tlsServername: 'smtp-relay.sendinblue.com',
-    };
-  }
-  return { connectHost: raw, tlsServername: raw };
+async function sendBrevoEmail(params: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}): Promise<void> {
+  const sender = resolveSender()!;
+
+  await axios.post(
+    BREVO_API_URL,
+    {
+      sender: { name: sender.name, email: sender.email },
+      to: [{ email: params.to }],
+      subject: params.subject,
+      htmlContent: params.html,
+      textContent: params.text,
+    },
+    {
+      headers: {
+        'api-key': process.env.BREVO_API_KEY!,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      timeout: 30_000,
+    }
+  );
 }
 
-const { connectHost, tlsServername } = resolveSmtpHost();
-
-const transporter = nodemailer.createTransport({
-  host: connectHost,
-  port: Number(process.env.SMTP_PORT),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  tls: {
-    servername: tlsServername,
-  },
-});
-
 export async function sendOtpEmail(to: string, code: string): Promise<void> {
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM,
+  await sendBrevoEmail({
     to,
     subject: 'TalentBridge — Verifica tu cuenta',
     html: buildOtpEmailHtml(code),
@@ -68,8 +83,7 @@ export async function sendOtpEmail(to: string, code: string): Promise<void> {
 export async function sendResetEmail(to: string, token: string): Promise<void> {
   const url = `${process.env.FRONTEND_URL}/auth/reset-password?token=${token}`;
 
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM,
+  await sendBrevoEmail({
     to,
     subject: 'TalentBridge — Restablece tu contraseña',
     html: buildResetEmailHtml(url),

@@ -18,7 +18,7 @@ Plataforma web de gestión de talento universitario que conecta estudiantes y eg
 | **Backend** | Node.js 24 · Express 5 · TypeScript · Prisma 6.5 · bcrypt · JWT |
 | **Base de datos** | PostgreSQL (Supabase) |
 | **Archivos** | Supabase Storage (CVs, avatares, logos, contratos) |
-| **Correo** | Brevo SMTP (OTP y recuperación de contraseña) |
+| **Correo** | Brevo API HTTPS (OTP y recuperación de contraseña) |
 | **IA** | Google Gemini (ranking al postular, extracción de CV) |
 | **Automatización** | n8n + Telegram (notificaciones de vacantes) |
 | **Despliegue** | Vercel (frontend) · Railway (backend) |
@@ -54,7 +54,7 @@ talentbridge/
 - Node.js **24+** y npm **11+**
 - Proyecto en Supabase (PostgreSQL + Storage) con buckets `cvs`, `avatars`, `logos`, `contracts`
 - API key de Google Gemini
-- Cuenta Brevo con remitente verificado (SMTP)
+- Cuenta Brevo con remitente verificado (API key v3)
 
 ### 1. Variables de entorno
 
@@ -110,14 +110,14 @@ El frontend consume la API vía `NEXT_PUBLIC_API_URL` (por defecto `http://local
 - [ ] `FRONTEND_URL` en backend = URL pública del frontend (CORS)
 - [ ] `NEXT_PUBLIC_API_URL` en frontend = URL pública del backend + `/api`
 - [ ] Buckets y políticas de Supabase Storage activos
-- [ ] Remitente Brevo verificado y SMTP operativo
+- [ ] Remitente Brevo verificado y `BREVO_API_KEY` operativa
 - [ ] `GEMINI_API_KEY` con cuota suficiente
 - [ ] `N8N_WEBHOOK_URL` y `N8N_WEBHOOK_SECRET` si se usan notificaciones
 
 ### Backend (Railway)
 
 1. Conectar repositorio y seleccionar directorio `backend/`
-2. Variables obligatorias: `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `FRONTEND_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GEMINI_API_KEY`, `SMTP_*`
+2. Variables obligatorias: `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `FRONTEND_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GEMINI_API_KEY`, `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`
 3. Comandos recomendados:
    - **Build:** `npm install && npx prisma generate && npm run build`
    - **Release / start:** `npx prisma migrate deploy && npm start`
