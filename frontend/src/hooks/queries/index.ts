@@ -7,7 +7,9 @@ export {
   useJobDetail,
   useJobApplicants,
   useJobApplicantsBatch,
+  JOBS_LIST_PAGE_SIZE,
 } from './use-jobs';
+export type { JobsListResult, JobsListPagination } from './use-jobs';
 export { useContracts, useContractDetail } from './use-contracts';
 export { useMyRanking } from './use-ranking';
 export { useKeywords } from './use-keywords';

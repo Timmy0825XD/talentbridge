@@ -97,7 +97,7 @@ export async function listJobs(filters: {
   limit?: number;
 }) {
   const page = filters.page ?? 1;
-  const limit = filters.limit ?? 10;
+  const limit = Math.min(Math.max(filters.limit ?? 50, 1), 100);
   const skip = (page - 1) * limit;
 
   const where: any = {

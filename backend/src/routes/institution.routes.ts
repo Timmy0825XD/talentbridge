@@ -8,6 +8,8 @@ router.use(authenticate, authorize('INSTITUTION'));
 
 router.get('/dashboard', institutionController.getDashboard);
 router.get('/candidates', institutionController.getCandidates);
+router.get('/candidates/report', institutionController.downloadCandidatesReport);
 router.get('/analytics', institutionController.getAnalytics);
+router.get('/analytics/report', institutionController.downloadAnalyticsReport);
 
 export default router;
