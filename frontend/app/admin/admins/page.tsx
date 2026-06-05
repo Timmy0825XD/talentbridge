@@ -8,12 +8,12 @@ import { UserPlus, Loader2, CheckCircle2, AlertCircle, Eye, EyeOff } from "lucid
 
 export default function AdminCrearAdminPage() {
   const { user } = useAuth();
-  const [email, setEmail]       = useState("");
+  const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
-  const [showPwd, setShowPwd]   = useState(false);
-  const [saving, setSaving]     = useState(false);
-  const [msg, setMsg]           = useState("");
-  const [isError, setIsError]   = useState(false);
+  const [showPwd,  setShowPwd]  = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [msg,      setMsg]      = useState("");
+  const [isError,  setIsError]  = useState(false);
 
   async function handleCreate() {
     if (!email || !password) { setMsg("Completa todos los campos."); setIsError(true); return; }
@@ -25,9 +25,7 @@ export default function AdminCrearAdminPage() {
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
       setMsg(e.response?.data?.error ?? "Error al crear la cuenta."); setIsError(true);
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   }
 
   if (!user) return null;
@@ -36,10 +34,10 @@ export default function AdminCrearAdminPage() {
   const lbl = "block text-xs font-bold uppercase tracking-wider text-[#424750] mb-2";
 
   return (
-    <div className="px-8 py-10 max-w-screen-sm">
+    <div className="px-4 sm:px-8 py-8 lg:py-10 max-w-screen-sm">
       <div className="mb-8">
-        <h1 className="text-3xl font-extrabold text-[#191c1e] font-headline">Crear administrador</h1>
-        <p className="text-[#424750] mt-1">Las cuentas ADMIN e INSTITUTION solo se crean desde aquí</p>
+        <h1 className="text-2xl lg:text-3xl font-extrabold text-[#191c1e] font-headline">Crear administrador</h1>
+        <p className="text-[#424750] mt-1 text-sm">Las cuentas ADMIN e INSTITUTION solo se crean desde aquí</p>
       </div>
 
       <InfoCallout
@@ -47,7 +45,7 @@ export default function AdminCrearAdminPage() {
         description="Genera cuentas de administrador y de institución. Estas cuentas tienen acceso privilegiado a la plataforma."
       />
 
-      <div className="bg-white rounded-2xl border border-[#e6e8ea] p-6 space-y-5">
+      <div className="bg-white rounded-2xl border border-[#e6e8ea] p-5 sm:p-6 space-y-5">
         <div>
           <label className={lbl}>Correo electrónico *</label>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)}
@@ -70,7 +68,7 @@ export default function AdminCrearAdminPage() {
           <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold ${
             isError ? "bg-[#ffdad6] text-[#93000a]" : "bg-[#6bfe9c]/20 text-[#005228]"
           }`}>
-            {isError ? <AlertCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+            {isError ? <AlertCircle className="w-4 h-4 flex-shrink-0" /> : <CheckCircle2 className="w-4 h-4 flex-shrink-0" />}
             {msg}
           </div>
         )}
@@ -83,7 +81,7 @@ export default function AdminCrearAdminPage() {
       </div>
 
       <div className="mt-4 bg-[#fff3cd] rounded-xl px-4 py-3 text-xs text-[#7c5c00] leading-relaxed">
-        ⚠️ Las cuentas admin tienen acceso completo a la plataforma. Crea solo cuentas para personal autorizado. Las cuentas INSTITUTION se crean igual pero registrando el rol correspondiente.
+        ⚠️ Las cuentas admin tienen acceso completo a la plataforma. Crea solo cuentas para personal autorizado.
       </div>
     </div>
   );

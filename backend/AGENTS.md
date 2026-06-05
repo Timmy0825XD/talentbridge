@@ -61,15 +61,13 @@ flujos de automatización de **n8n** (webhooks, Telegram, WhatsApp planificado).
 | @supabase/supabase-js | 2.x | Storage de archivos |
 | bcryptjs | 3.x | Hashing de contraseñas (factor 10) |
 | jsonwebtoken | 9.x | JWT stateless |
-| nodemailer | 8.x | SMTP (Brevo) |
+| axios | 1.x | Brevo API (correos) + webhook n8n |
 | multer | 2.x | Uploads en memoria |
 | zod | 4.x | Instalado — **validación en controllers pendiente de adopción sistemática** |
 | uuid | 13.x | Tokens de reset |
 | pdf-parse | 1.1.x | Usar `require('pdf-parse/lib/pdf-parse.js')` — NO import default |
 | pdfkit | 0.x | Generación de reportes PDF (Sprint 4) |
 | @google/generative-ai | 0.24.x | Gemini — modelo `gemini-2.5-flash` |
-| axios | 1.x | Webhook hacia n8n |
-
 ### Advertencia crítica sobre Prisma
 
 Prisma 7 introdujo cambios incompatibles con este proyecto:
@@ -123,13 +121,14 @@ Path de archivos:
 
 En todos los casos `upsert: true` — el archivo nuevo reemplaza el anterior.
 
-### Brevo (SMTP)
+### Brevo (API HTTPS)
 
-- Relay: `smtp-relay.sendinblue.com` (puerto `587`, STARTTLS). El panel puede mostrar `smtp-relay.brevo.com`, pero el certificado TLS del relay suele ser `*.sendinblue.com` — `mailer.ts` normaliza el host brevo.com automáticamente.
-- Credenciales en panel **SMTP & API** (login SMTP + SMTP key, distinta de la API v3 si aplica)
-- Remitente (`SMTP_FROM`) debe estar verificado en Brevo
+- API REST: `POST https://api.brevo.com/v3/smtp/email` con header `api-key` (`BREVO_API_KEY`, prefijo `xkeysib-`)
+- Remitente (`BREVO_SENDER_EMAIL`) debe estar verificado en Brevo
 - Configurado en `src/lib/mailer.ts` — `sendOtpEmail`, `sendResetEmail`
+- **Railway Hobby/Free bloquea SMTP (587)** — usar API HTTPS, no Nodemailer
 - Plan free: 300 correos/día (transaccional + campañas comparten cupo)
+- Compatibilidad: `SMTP_FROM` sigue aceptándose como alias de remitente (`Nombre <email>`)
 
 ---
 
@@ -312,11 +311,10 @@ Ver plantilla completa en `backend/.env.example`.
 | `N8N_WEBHOOK_URL` | Webhook que n8n expone al publicar vacante |
 | `N8N_WEBHOOK_SECRET` | Header `x-webhook-secret` para `/notifications/*` |
 | `TELEGRAM_BOT_TOKEN` | Bot de Telegram (flujo n8n) |
-| `SMTP_HOST` | `smtp-relay.sendinblue.com` (alias brevo.com normalizado en código) |
-| `SMTP_PORT` | `587` (STARTTLS) |
-| `SMTP_USER` | Login SMTP del panel Brevo |
-| `SMTP_PASS` | SMTP key del panel Brevo |
-| `SMTP_FROM` | Remitente verificado (ej. `TalentBridge <email@...>`) |
+| `BREVO_API_KEY` | API key v3 del panel Brevo (`xkeysib-...`) |
+| `BREVO_SENDER_EMAIL` | Remitente verificado en Brevo |
+| `BREVO_SENDER_NAME` | Nombre del remitente (default: `TalentBridge`) |
+| `SMTP_FROM` | *(opcional, legacy)* alias `Nombre <email>` si no usas `BREVO_SENDER_*` |
 
 ---
 
@@ -326,7 +324,7 @@ Ver plantilla completa en `backend/.env.example`.
 
 | Área | Sprint | Detalle |
 |---|---|---|
-| Auth (registro, OTP, login, reset) | 1 | JWT, bcrypt, Brevo SMTP |
+| Auth (registro, OTP, login, reset) | 1 | JWT, bcrypt, Brevo API |
 | Perfiles candidato y empresa | 1–2 | upsert, foto, logo, CV |
 | CV Intelligence | 2 | Gemini + pdf-parse + keywords dinámicas |
 | Ranking de perfil | 2 | `ProfileScore`, `GET/POST /ranking` |
@@ -820,7 +818,7 @@ Target: **Railway** (backend). Ver también [README.md](../README.md).
 
 ### Variables obligatorias en Railway
 
-`PORT`, `NODE_ENV=production`, `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `FRONTEND_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GEMINI_API_KEY`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+`PORT`, `NODE_ENV=production`, `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `FRONTEND_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GEMINI_API_KEY`, `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`
 
 Opcionales según producto: `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`, `TELEGRAM_BOT_TOKEN`
 

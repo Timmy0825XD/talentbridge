@@ -30,11 +30,11 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 const ROLE_COLOR: Record<string, string> = {
-  STUDENT: "bg-[#a6c8ff]/20 text-[#00386c]",
-  GRADUATE: "bg-[#a6c8ff]/10 text-[#1a4f8b]",
-  COMPANY: "bg-[#6bfe9c]/20 text-[#005228]",
+  STUDENT:     "bg-[#a6c8ff]/20 text-[#00386c]",
+  GRADUATE:    "bg-[#a6c8ff]/10 text-[#1a4f8b]",
+  COMPANY:     "bg-[#6bfe9c]/20 text-[#005228]",
   INSTITUTION: "bg-[#fff3cd] text-[#7c5c00]",
-  ADMIN: "bg-[#ffdad6] text-[#93000a]",
+  ADMIN:       "bg-[#ffdad6] text-[#93000a]",
 };
 
 function formatDate(iso: string) {
@@ -43,14 +43,14 @@ function formatDate(iso: string) {
 
 export default function AdminUsuariosPage() {
   const { user } = useAuth();
-  const [users, setUsers]         = useState<AdminUser[]>([]);
+  const [users, setUsers]           = useState<AdminUser[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState("");
-  const [search, setSearch]       = useState("");
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState("");
+  const [search, setSearch]         = useState("");
   const [roleFilter, setRoleFilter] = useState("");
-  const [page, setPage]           = useState(1);
-  const [actionMsg, setActionMsg] = useState("");
+  const [page, setPage]             = useState(1);
+  const [actionMsg, setActionMsg]   = useState("");
 
   useEffect(() => {
     if (user) loadUsers();
@@ -103,10 +103,10 @@ export default function AdminUsuariosPage() {
   const inp = "bg-[#f2f4f6] border-0 border-b-2 border-transparent focus:border-[#191c1e] focus:ring-0 rounded-lg px-4 py-2.5 text-sm text-[#191c1e] placeholder:text-[#737781] outline-none transition-all";
 
   return (
-    <div className="px-8 py-10">
+    <div className="px-4 sm:px-8 py-8 lg:py-10">
       <div className="mb-6">
-        <h1 className="text-3xl font-extrabold text-[#191c1e] font-headline">Usuarios</h1>
-        <p className="text-[#424750] mt-1">Gestiona cuentas, roles y estados</p>
+        <h1 className="text-2xl lg:text-3xl font-extrabold text-[#191c1e] font-headline">Usuarios</h1>
+        <p className="text-[#424750] mt-1 text-sm">Gestiona cuentas, roles y estados</p>
       </div>
 
       <InfoCallout
@@ -115,36 +115,36 @@ export default function AdminUsuariosPage() {
       />
 
       {/* Filtros */}
-      <div className="flex gap-3 mb-6 flex-wrap">
-        <div className="flex-1 min-w-[200px] flex items-center bg-[#f2f4f6] rounded-lg px-4 gap-2">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="flex-1 flex items-center bg-[#f2f4f6] rounded-lg px-4 gap-2">
           <Search className="w-4 h-4 text-[#737781] flex-shrink-0" />
           <input type="text" value={search}
             onChange={e => setSearch(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") { setPage(1); loadUsers(search); } }}
             placeholder="Buscar por email o nombre..."
-            className="flex-1 bg-transparent border-none focus:ring-0 py-2.5 text-sm text-[#191c1e] placeholder:text-[#737781] outline-none" />
+            className="flex-1 bg-transparent border-none focus:ring-0 py-2.5 text-sm outline-none placeholder:text-[#737781]" />
         </div>
-        <select value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setPage(1); }}
-          className={`${inp} cursor-pointer`}>
-          <option value="">Todos los roles</option>
-          {["STUDENT","GRADUATE","COMPANY","INSTITUTION","ADMIN"].map(r => (
-            <option key={r} value={r}>{ROLE_LABEL[r]}</option>
-          ))}
-        </select>
-        <button onClick={() => { setPage(1); loadUsers(search); }}
-          className="px-5 py-2.5 bg-[#191c1e] text-white rounded-lg text-sm font-bold hover:opacity-80 transition">
-          Buscar
-        </button>
+        <div className="flex gap-3">
+          <select value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setPage(1); }}
+            className={`${inp} flex-1 sm:flex-none cursor-pointer`}>
+            <option value="">Todos los roles</option>
+            {["STUDENT","GRADUATE","COMPANY","INSTITUTION","ADMIN"].map(r => (
+              <option key={r} value={r}>{ROLE_LABEL[r]}</option>
+            ))}
+          </select>
+          <button onClick={() => { setPage(1); loadUsers(search); }}
+            className="px-5 py-2.5 bg-[#191c1e] text-white rounded-lg text-sm font-bold hover:opacity-80 transition flex-shrink-0">
+            Buscar
+          </button>
+        </div>
       </div>
 
-      {/* Mensaje acción */}
       {actionMsg && (
         <div className="mb-4 px-4 py-3 rounded-xl text-sm font-semibold bg-[#6bfe9c]/20 text-[#005228]">
           {actionMsg}
         </div>
       )}
 
-      {/* Tabla */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <span className="w-6 h-6 border-2 border-[#424750]/20 border-t-[#424750] rounded-full animate-spin" />
@@ -158,13 +158,60 @@ export default function AdminUsuariosPage() {
       ) : (
         <>
           <div className="bg-white rounded-2xl border border-[#e6e8ea] overflow-hidden">
-            <table className="w-full text-sm">
+
+            {/* Mobile: cards */}
+            <div className="sm:hidden divide-y divide-[#f2f4f6]">
+              {users.length === 0 ? (
+                <p className="text-center text-[#737781] text-sm py-10">No se encontraron usuarios.</p>
+              ) : users.map(u => {
+                const name = u.candidateProfile?.fullName ?? u.companyProfile?.companyName ?? u.email;
+                return (
+                  <div key={u.id} className="px-4 py-4 flex flex-col gap-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-[#191c1e] text-sm truncate">{name}</p>
+                        <p className="text-xs text-[#737781] truncate">{u.email}</p>
+                      </div>
+                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${ROLE_COLOR[u.role] ?? "bg-[#f2f4f6] text-[#424750]"}`}>
+                        {ROLE_LABEL[u.role] ?? u.role}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className={`flex items-center gap-1 text-xs font-bold ${u.isActive ? "text-[#005228]" : "text-[#93000a]"}`}>
+                          {u.isActive ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                          {u.isActive ? "Activo" : "Suspendido"}
+                        </span>
+                        <span className="text-xs text-[#737781]">{formatDate(u.createdAt)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => handleToggleStatus(u.id, u.isActive)}
+                          className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${
+                            u.isActive
+                              ? "bg-[#fff3cd] text-[#7c5c00] hover:bg-[#ffc107]/30"
+                              : "bg-[#6bfe9c]/20 text-[#005228] hover:bg-[#6bfe9c]/40"
+                          }`}>
+                          {u.isActive ? "Suspender" : "Activar"}
+                        </button>
+                        {u.role !== "ADMIN" && (
+                          <button onClick={() => handleDelete(u.id)}
+                            className="p-1.5 text-[#737781] hover:text-[#ba1a1a] rounded-lg hover:bg-[#ffdad6]">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop: tabla */}
+            <table className="hidden sm:table w-full text-sm">
               <thead>
                 <tr className="border-b border-[#f2f4f6]">
                   {["Usuario", "Rol", "Estado", "Registro", "Acciones"].map(h => (
-                    <th key={h} className="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-[#737781]">
-                      {h}
-                    </th>
+                    <th key={h} className="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-[#737781]">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -185,18 +232,12 @@ export default function AdminUsuariosPage() {
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        <span className={`flex items-center gap-1.5 text-xs font-bold w-fit ${
-                          u.isActive ? "text-[#005228]" : "text-[#93000a]"
-                        }`}>
-                          {u.isActive
-                            ? <CheckCircle2 className="w-3.5 h-3.5" />
-                            : <XCircle className="w-3.5 h-3.5" />}
+                        <span className={`flex items-center gap-1.5 text-xs font-bold w-fit ${u.isActive ? "text-[#005228]" : "text-[#93000a]"}`}>
+                          {u.isActive ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
                           {u.isActive ? "Activo" : "Suspendido"}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-xs text-[#737781]">
-                        {formatDate(u.createdAt)}
-                      </td>
+                      <td className="px-5 py-4 text-xs text-[#737781]">{formatDate(u.createdAt)}</td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
                           <button onClick={() => handleToggleStatus(u.id, u.isActive)}
@@ -222,7 +263,6 @@ export default function AdminUsuariosPage() {
             </table>
           </div>
 
-          {/* Paginación */}
           {pagination && pagination.totalPages > 1 && (
             <div className="flex items-center justify-between mt-4">
               <p className="text-xs text-[#737781]">

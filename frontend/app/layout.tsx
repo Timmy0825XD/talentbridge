@@ -22,7 +22,7 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   title: "TalentBridge — Conecta el talento universitario del Cesar",
-  description: "Plataforma que conecta estudiantes y egresados del departamento del Cesar con empresas que buscan perfiles calificados para proyectos, microtrabajos y contrataciones formales.",
+  description: "Plataforma que conecta estudiantes y egresados...",
 };
 
 export default function RootLayout({ children }: Readonly<{children: React.ReactNode }>) {
