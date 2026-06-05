@@ -21,10 +21,10 @@ const STATUS_LABEL: Record<string, string> = {
   CLOSED: "Cerrada", CANCELLED: "Cancelada",
 };
 const STATUS_COLOR: Record<string, string> = {
-  ACTIVE: "bg-[#6bfe9c]/20 text-[#005228]",
-  SELECTING: "bg-[#a6c8ff]/20 text-[#00386c]",
-  CLOSED: "bg-[#f2f4f6] text-[#424750]",
-  CANCELLED: "bg-[#ffdad6] text-[#93000a]",
+  ACTIVE:     "bg-[#6bfe9c]/20 text-[#005228]",
+  SELECTING:  "bg-[#a6c8ff]/20 text-[#00386c]",
+  CLOSED:     "bg-[#f2f4f6] text-[#424750]",
+  CANCELLED:  "bg-[#ffdad6] text-[#93000a]",
 };
 
 function formatDate(iso: string) {
@@ -58,10 +58,10 @@ export default function AdminVacantesPage() {
   }
 
   return (
-    <div className="px-8 py-10">
+    <div className="px-4 sm:px-8 py-8 lg:py-10">
       <div className="mb-6">
-        <h1 className="text-3xl font-extrabold text-[#191c1e] font-headline">Vacantes</h1>
-        <p className="text-[#424750] mt-1">Modera las vacantes publicadas en la plataforma</p>
+        <h1 className="text-2xl lg:text-3xl font-extrabold text-[#191c1e] font-headline">Vacantes</h1>
+        <p className="text-[#424750] mt-1 text-sm">Modera las vacantes publicadas en la plataforma</p>
       </div>
 
       <InfoCallout
@@ -82,7 +82,41 @@ export default function AdminVacantesPage() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-[#e6e8ea] overflow-hidden">
-          <table className="w-full text-sm">
+
+          {/* Mobile: cards */}
+          <div className="sm:hidden divide-y divide-[#f2f4f6]">
+            {jobs.length === 0 ? (
+              <p className="text-center text-[#737781] text-sm py-10">No hay vacantes.</p>
+            ) : jobs.map(job => (
+              <div key={job.id} className="px-4 py-4 flex flex-col gap-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-[#191c1e] text-sm">{job.title}</p>
+                    <p className="text-xs text-[#737781]">
+                      {job.company?.companyName ?? "—"} · {job.type === "FORMAL" ? "Formal" : "Freelance"}
+                    </p>
+                  </div>
+                  <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${STATUS_COLOR[job.status] ?? "bg-[#f2f4f6] text-[#424750]"}`}>
+                    {STATUS_LABEL[job.status] ?? job.status}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-[#737781]">
+                    {job._count.applications} postulante{job._count.applications !== 1 ? "s" : ""} · {formatDate(job.createdAt)}
+                  </span>
+                  {job.status !== "CANCELLED" && job.status !== "CLOSED" && (
+                    <button onClick={() => handleCancel(job.id)}
+                      className="flex items-center gap-1.5 text-xs font-bold text-[#93000a] bg-[#ffdad6] px-3 py-1.5 rounded-full hover:bg-[#ba1a1a] hover:text-white transition-colors">
+                      <XCircle className="w-3.5 h-3.5" /> Cancelar
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: tabla */}
+          <table className="hidden sm:table w-full text-sm">
             <thead>
               <tr className="border-b border-[#f2f4f6]">
                 {["Vacante", "Empresa", "Estado", "Postulantes", "Fecha", "Acción"].map(h => (
@@ -107,9 +141,7 @@ export default function AdminVacantesPage() {
                       {STATUS_LABEL[job.status] ?? job.status}
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-sm font-bold text-[#191c1e]">
-                    {job._count.applications}
-                  </td>
+                  <td className="px-5 py-4 text-sm font-bold text-[#191c1e]">{job._count.applications}</td>
                   <td className="px-5 py-4 text-xs text-[#737781]">{formatDate(job.createdAt)}</td>
                   <td className="px-5 py-4">
                     {job.status !== "CANCELLED" && job.status !== "CLOSED" && (

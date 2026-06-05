@@ -8,7 +8,7 @@ export default function CandidatesPage() {
   return (
     <InfoPageLayout title={title} description={description} breadcrumb={[{ label: "Información", href: publicLinks.resources }, { label: title }]}>
       {sections.map((section) => (
-        <section key={section.title} id={section.title.includes("CV") ? "cv-y-score" : undefined} className="space-y-3">
+        <section key={section.title} id={section.title.includes("CV") ? "cv-y-score" : undefined} className="space-y-3 scroll-mt-24">
           <h2 className="text-xl font-bold text-on-surface font-headline">{section.title}</h2>
           <p className="text-on-surface-variant leading-relaxed">{section.content}</p>
         </section>
