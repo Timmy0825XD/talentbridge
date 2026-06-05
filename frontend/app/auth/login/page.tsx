@@ -71,8 +71,6 @@ export default function LoginPage() {
           0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
           50%      { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
         }
-
-        /* ── Fondo animado (nuevo) ── */
         @keyframes bg-orb-1 {
           0%, 100% { transform: translate(0px, 0px) scale(1); }
           33%      { transform: translate(40px, -30px) scale(1.08); }
@@ -91,7 +89,6 @@ export default function LoginPage() {
           0%   { background-position: 0px 0px; }
           100% { background-position: 40px 40px; }
         }
-
         .card-in  { animation: slide-card-in 0.8s cubic-bezier(0.16,1,0.3,1) both; }
         .form-in  { animation: form-in 0.7s 0.1s cubic-bezier(0.16,1,0.3,1) both; }
         .f1 { animation: field-in 0.5s 0.10s cubic-bezier(0.16,1,0.3,1) both; }
@@ -114,13 +111,9 @@ export default function LoginPage() {
           background-size: 40px 40px;
         }
         .blob { animation: blob 14s ease-in-out infinite; }
-
-        /* Orbes del fondo exterior */
         .bg-orb-1 { animation: bg-orb-1 18s ease-in-out infinite; }
         .bg-orb-2 { animation: bg-orb-2 24s ease-in-out infinite; }
         .bg-orb-3 { animation: bg-orb-3 14s ease-in-out infinite; }
-
-        /* Patrón de puntos que se mueve lentamente */
         .bg-dots {
           background-image: radial-gradient(circle, rgba(0,56,108,0.13) 1px, transparent 1px);
           background-size: 28px 28px;
@@ -128,101 +121,89 @@ export default function LoginPage() {
         }
       `}</style>
 
-      {/* ── Wrapper con fondo animado ── */}
-      <div className="min-h-screen flex items-center justify-center p-4 md:p-6 lg:p-10 relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, #e8edf3 0%, #dde4ed 40%, #e4eae8 100%)" }}>
-
-        {/* Capa de puntos con drift */}
+      <div
+        className="min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-10 relative overflow-hidden"
+        style={{ background: "linear-gradient(135deg, #e8edf3 0%, #dde4ed 40%, #e4eae8 100%)" }}
+      >
         <div className="bg-dots absolute inset-0 pointer-events-none" />
 
-        {/* Orbe 1 — azul marino grande, esquina superior izquierda */}
-        <div
-          className="bg-orb-1 absolute pointer-events-none"
-          style={{
-            top: "-10%", left: "-8%",
-            width: "520px", height: "520px",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(0,56,108,0.14) 0%, transparent 70%)",
-            filter: "blur(40px)",
-          }}
-        />
-
-        {/* Orbe 2 — verde TalentBridge, esquina inferior derecha */}
-        <div
-          className="bg-orb-2 absolute pointer-events-none"
-          style={{
-            bottom: "-12%", right: "-6%",
-            width: "480px", height: "480px",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(74,225,131,0.13) 0%, transparent 70%)",
-            filter: "blur(48px)",
-          }}
-        />
-
-        {/* Orbe 3 — azul claro, centro-derecha */}
-        <div
-          className="bg-orb-3 absolute pointer-events-none"
-          style={{
-            top: "30%", right: "12%",
-            width: "280px", height: "280px",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(0,56,108,0.08) 0%, transparent 70%)",
-            filter: "blur(32px)",
-          }}
-        />
-
-        {/* Orbe 4 — verde suave, centro-izquierda */}
-        <div
-          className="absolute pointer-events-none"
-          style={{
-            top: "55%", left: "8%",
-            width: "200px", height: "200px",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(107,254,156,0.09) 0%, transparent 70%)",
-            filter: "blur(28px)",
-            animation: "bg-orb-1 20s 3s ease-in-out infinite",
-          }}
-        />
+        <div className="bg-orb-1 absolute pointer-events-none"
+          style={{ top: "-10%", left: "-8%", width: "520px", height: "520px", borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(0,56,108,0.14) 0%, transparent 70%)", filter: "blur(40px)" }} />
+        <div className="bg-orb-2 absolute pointer-events-none"
+          style={{ bottom: "-12%", right: "-6%", width: "480px", height: "480px", borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(74,225,131,0.13) 0%, transparent 70%)", filter: "blur(48px)" }} />
+        <div className="bg-orb-3 absolute pointer-events-none"
+          style={{ top: "30%", right: "12%", width: "280px", height: "280px", borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(0,56,108,0.08) 0%, transparent 70%)", filter: "blur(32px)" }} />
+        <div className="absolute pointer-events-none"
+          style={{ top: "55%", left: "8%", width: "200px", height: "200px", borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(107,254,156,0.09) 0%, transparent 70%)", filter: "blur(28px)",
+            animation: "bg-orb-1 20s 3s ease-in-out infinite" }} />
 
         {/* ── Main card ── */}
         <div className="card-in w-full max-w-5xl bg-white rounded-3xl shadow-2xl shadow-black/10 overflow-hidden flex flex-col lg:flex-row relative z-10">
 
-          {/* ════ LEFT: Image panel with 3D parallax ════ */}
-          <div className="relative lg:w-[44%] flex-shrink-0 overflow-hidden" style={{ minHeight: 500 }}>
+          {/* ════ TOP (mobile) / LEFT (desktop): Image panel ════ */}
+          <div
+            className="relative lg:w-[44%] flex-shrink-0 overflow-hidden"
+            style={{ minHeight: 220 }}
+          >
+            {/* En mobile solo minHeight 220, en lg crece al 100% del card */}
+            <div className="absolute inset-0 lg:hidden" style={{ minHeight: 220 }}>
+              {/* Versión simplificada para mobile: sin parallax 3D */}
+              <Image
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCm0KssseYAu7hq7n7XjhoLVJ7aqTxO87CKz3M7NwcawdXxR9Jsbpwx1IQWFocD6yXz8dHDFMWWzozefSOivq0Om8pO602d0M7Jl1ad2SApfZzrCBDqsCFQdskgftczLdAkAdWUZBjc2n0_F68oUBjioRlGhJPUeONqAnwgxHiVApPavLnU28cZV_izYIngHUDTzOKgF_1S-7XKZhQzCh4J4IfjprfGc5ufejvOgYBxIkmGZPfnHhs-gGZY0Hf3GgaRVvbkdVJIVRg"
+                alt="Talento universitario" fill className="object-cover object-top" unoptimized
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-br from-[#00386c]/75 via-[#00386c]/40 to-transparent" />
+              <div className="absolute inset-0 grid-pattern" />
 
-            {/* 3D panel wrapper */}
+              {/* Mobile: brand + tagline centrados en la imagen */}
+              <div className="absolute inset-0 flex flex-col justify-between p-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-white/15 backdrop-blur-md border border-white/25 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-black text-[10px]">TB</span>
+                  </div>
+                  <span className="text-white font-extrabold text-base font-headline tracking-tight">TalentBridge</span>
+                </div>
+                <div>
+                  <h1 className="font-headline text-2xl font-extrabold text-white leading-tight tracking-tight">
+                    Tu carrera, tu momento,{" "}
+                    <span className="shimmer-green">tu futuro.</span>
+                  </h1>
+                  <p className="text-white/65 text-xs mt-1.5 leading-relaxed">
+                    Accede a tus postulaciones, contratos y oportunidades.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop: parallax 3D completo */}
             <div
-              className="absolute inset-0"
+              className="hidden lg:block absolute inset-0"
               style={{
                 transformStyle: "preserve-3d",
                 transform: `perspective(1200px) rotateY(${mouse.x * 0.04}deg) rotateX(${-mouse.y * 0.03}deg)`,
                 transition: "transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
               }}
             >
-              {/* Background image */}
               <div className="absolute inset-0">
                 <Image
                   src="https://lh3.googleusercontent.com/aida-public/AB6AXuCm0KssseYAu7hq7n7XjhoLVJ7aqTxO87CKz3M7NwcawdXxR9Jsbpwx1IQWFocD6yXz8dHDFMWWzozefSOivq0Om8pO602d0M7Jl1ad2SApfZzrCBDqsCFQdskgftczLdAkAdWUZBjc2n0_F68oUBjioRlGhJPUeONqAnwgxHiVApPavLnU28cZV_izYIngHUDTzOKgF_1S-7XKZhQzCh4J4IfjprfGc5ufejvOgYBxIkmGZPfnHhs-gGZY0Hf3GgaRVvbkdVJIVRg"
-                  alt="Talento universitario" fill
-                  className="object-cover" unoptimized
+                  alt="Talento universitario" fill className="object-cover" unoptimized
                 />
               </div>
-
-              {/* Overlays */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
               <div className="absolute inset-0 bg-gradient-to-br from-[#00386c]/80 via-[#00386c]/50 to-transparent" />
               <div className="absolute inset-0 grid-pattern" />
-
-              {/* Animated blob accent */}
               <div
                 className="absolute top-[15%] right-[5%] w-64 h-64 bg-[#6bfe9c]/15 blob blur-3xl pointer-events-none"
                 style={{ transform: `translate(${mouse.x * 0.6}px, ${mouse.y * 0.6}px)`, transition: "transform 0.8s ease" }}
               />
 
-              {/* Content */}
               <div className="absolute inset-0 flex flex-col justify-between p-10">
-
-                {/* Brand */}
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-white/15 backdrop-blur-md border border-white/25 rounded-xl flex items-center justify-center">
                     <span className="text-white font-black text-xs">TB</span>
@@ -230,30 +211,21 @@ export default function LoginPage() {
                   <span className="text-white font-extrabold text-lg font-headline tracking-tight">TalentBridge</span>
                 </div>
 
-                {/* Copy */}
                 <div className="space-y-5">
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#6bfe9c]/20 border border-[#6bfe9c]/30 text-[10px] font-bold text-[#6bfe9c] uppercase tracking-widest">
                     <Sparkles className="w-3 h-3" /> Bienvenido de nuevo
                   </div>
-
                   <h1 className="font-headline text-4xl xl:text-5xl font-extrabold text-white leading-[1.05] tracking-tight">
-                    Tu carrera,
-                    <br />
-                    tu momento,
-                    <br />
-                    <span className="shimmer-green">tu futuro.</span>
+                    Tu carrera,<br />tu momento,<br /><span className="shimmer-green">tu futuro.</span>
                   </h1>
-
                   <p className="text-white/70 text-sm leading-relaxed max-w-xs">
                     Accede a tus postulaciones, contratos y oportunidades que están esperándote.
                   </p>
-
-                  {/* Feature pills */}
                   <div className="grid grid-cols-3 gap-2 pt-1">
                     {[
-                      { icon: <Zap className="w-3.5 h-3.5" />,       label: "IA Match"  },
-                      { icon: <Star className="w-3.5 h-3.5" />,      label: "Verificado"},
-                      { icon: <Building2 className="w-3.5 h-3.5" />, label: "Empresas"  },
+                      { icon: <Zap className="w-3.5 h-3.5" />,       label: "IA Match"   },
+                      { icon: <Star className="w-3.5 h-3.5" />,      label: "Verificado" },
+                      { icon: <Building2 className="w-3.5 h-3.5" />, label: "Empresas"   },
                     ].map(({ icon, label }) => (
                       <div key={label} className="bg-white/8 backdrop-blur-md border border-white/12 rounded-xl px-2 py-2.5 text-center">
                         <div className="text-[#6bfe9c] flex justify-center mb-1">{icon}</div>
@@ -263,7 +235,6 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                {/* Testimonial glass card */}
                 <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-4 shadow-xl">
                   <div className="flex items-center gap-3 mb-2.5">
                     <div className="flex -space-x-2">
@@ -290,17 +261,17 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Book spine shadow */}
-            <div className="absolute right-0 top-0 bottom-0 w-5 pointer-events-none"
+            {/* Book spine shadow (desktop only) */}
+            <div className="hidden lg:block absolute right-0 top-0 bottom-0 w-5 pointer-events-none"
               style={{ background: "linear-gradient(to left, rgba(0,0,0,0.18) 0%, transparent 100%)" }} />
           </div>
 
-          {/* ════ RIGHT: Form ════ */}
-          <div className="form-in flex-1 flex items-center justify-center px-8 py-10 lg:px-12 lg:py-12 bg-white">
+          {/* ════ BOTTOM (mobile) / RIGHT (desktop): Form ════ */}
+          <div className="form-in flex-1 flex items-center justify-center px-6 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-12 bg-white">
             <div className="w-full max-w-sm">
 
               {/* Heading row */}
-              <div className="f1 flex items-start justify-between mb-7">
+              <div className="f1 flex items-start justify-between mb-6">
                 <div>
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#6bfe9c]/15 border border-[#6bfe9c]/25 text-[#006d37] text-[10px] font-bold uppercase tracking-widest mb-3">
                     <span className="relative flex h-1.5 w-1.5">
@@ -310,23 +281,15 @@ export default function LoginPage() {
                     Iniciar sesión
                   </div>
                   <h2 className="font-headline text-2xl font-extrabold text-[#191c1e] tracking-tight leading-tight">
-                    Bienvenido de
-                    <br />
+                    Bienvenido de<br />
                     <span className="bg-gradient-to-r from-[#00386c] to-[#1a4f8b] bg-clip-text text-transparent">vuelta.</span>
                   </h2>
                   <p className="text-[#737781] text-xs mt-1">Ingresa tus credenciales para continuar.</p>
                 </div>
-                <Link href="/" className="flex items-center gap-1 text-[#737781] hover:text-[#00386c] text-xs font-semibold transition-colors group ml-4 flex-shrink-0 mt-1">
+                <Link href="/"
+                  className="flex items-center gap-1 text-[#737781] hover:text-[#00386c] text-xs font-semibold transition-colors group ml-4 flex-shrink-0 mt-1">
                   <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" /> Inicio
                 </Link>
-              </div>
-
-              {/* Mobile brand */}
-              <div className="lg:hidden f1 flex items-center gap-2 mb-6">
-                <div className="w-8 h-8 bg-gradient-to-br from-[#00386c] to-[#1a4f8b] rounded-lg flex items-center justify-center shadow-md">
-                  <span className="text-white font-black text-[10px]">TB</span>
-                </div>
-                <span className="text-base font-extrabold font-headline text-[#00386c] tracking-tight">TalentBridge</span>
               </div>
 
               <div className="space-y-4">
@@ -341,7 +304,7 @@ export default function LoginPage() {
                     <input id="email" type="email"
                       value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
                       placeholder="nombre@universidad.edu"
-                      className="w-full bg-[#f7f9fb] border border-[#e6e8ea] rounded-xl py-3 pl-10 pr-4 focus:border-[#00386c] focus:bg-white focus:ring-3 focus:ring-[#00386c]/8 transition-all text-sm text-[#191c1e] placeholder:text-[#c2c6d1] outline-none"
+                      className="w-full bg-[#f7f9fb] border border-[#e6e8ea] rounded-xl py-3 pl-10 pr-4 focus:border-[#00386c] focus:bg-white focus:ring-2 focus:ring-[#00386c]/10 transition-all text-sm text-[#191c1e] placeholder:text-[#c2c6d1] outline-none"
                     />
                   </div>
                 </div>
@@ -363,24 +326,13 @@ export default function LoginPage() {
                       value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}
                       onKeyDown={e => e.key === "Enter" && handleLogin()}
                       type={showPassword ? "text" : "password"} placeholder="••••••••••••"
-                      className="w-full bg-[#f7f9fb] border border-[#e6e8ea] rounded-xl py-3 pl-10 pr-11 focus:border-[#00386c] focus:bg-white focus:ring-3 focus:ring-[#00386c]/8 transition-all text-sm text-[#191c1e] placeholder:text-[#c2c6d1] outline-none"
+                      className="w-full bg-[#f7f9fb] border border-[#e6e8ea] rounded-xl py-3 pl-10 pr-11 focus:border-[#00386c] focus:bg-white focus:ring-2 focus:ring-[#00386c]/10 transition-all text-sm text-[#191c1e] placeholder:text-[#c2c6d1] outline-none"
                     />
                     <button type="button" onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#c2c6d1] hover:text-[#424750] transition-colors">
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                </div>
-
-                {/* Remember */}
-                <div className="f4 flex items-center">
-                  <label className="flex items-center gap-2 cursor-pointer group select-none">
-                    <input type="checkbox"
-                      className="w-4 h-4 rounded border-[#c2c6d1] text-[#006d37] focus:ring-[#006d37]/20 cursor-pointer" />
-                    <span className="text-xs font-semibold text-[#424750] group-hover:text-[#191c1e] transition-colors">
-                      Mantener sesión iniciada
-                    </span>
-                  </label>
                 </div>
 
                 {/* Error */}
@@ -417,7 +369,7 @@ export default function LoginPage() {
                 </Link>
 
                 {/* Trust badges */}
-                <div className="f6 flex items-center justify-center gap-4 text-[10px] text-[#c2c6d1] font-semibold pt-1">
+                <div className="f6 flex items-center justify-center gap-3 sm:gap-4 text-[10px] text-[#c2c6d1] font-semibold pt-1 flex-wrap">
                   <span className="flex items-center gap-1.5">
                     <CheckCircle2 className="w-3 h-3 text-[#006d37]" /> Seguro
                   </span>
